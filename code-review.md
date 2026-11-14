@@ -109,3 +109,14 @@
 ### 結論
 
 需修正。未關閉缺陷 1 則（CR-01）。另有建議 3 則（CR-02、CR-03、CR-04）與備註 2 則（CR-05、CR-06）。套件閘門預設拒絕、`SAFE_BUILTINS` 未收錄 `eval`／`exec`、沒有 `shell=True`、日誌路徑與 §6 一致，這些不列缺陷。
+
+## 覆核（2026-10-28）
+
+審核者：工作區程式審核。熱點抽樣。讀了 2026-10-22 之後新增的 local agent 與 issue worker，並對過 CR-01 至 CR-04。未執行測試，未啟動瀏覽器、Podman 或網路。
+
+- CR-01 仍開放。`utils/lighthouse/lighthouse_runner.py:42-53` 仍把 `lighthouse_path` 放在 argv 開頭，`extra_args` 原樣接上；`:108` 以 `shell=False` 執行。`WR_assert_web_vitals` 也把 `lighthouse_path` 傳進去。
+- CR-02、CR-03、CR-04 仍開放，維持建議。
+- 新發現 CR-07，缺陷。`utils/issue_worker/types.py:18-19` 的 unit 檢查是 `python -m pytest test/unit_test -q -p no:cacheprovider`，沒有 `--noconftest`。`policy.py:54-66` 的 `preserve_tests` 只擋既有 assert 被改掉、既有 `test_` 被刪掉，以及新增 skip／xfail。`workspace.py:150-154` 對新檔用空字串當基準，所以新增 `test/conftest.py` 或 `test/unit_test/conftest.py` 過得了這道檢查。pytest 會載入該 conftest，hook 可以把結果改成通過，結束碼仍是 0。`processor.py:202-209` 把結束碼 0 當成驗證通過。寫入範圍允許 `test/`（`policy.py:37`）。
+- 新發現 CR-08，建議。`sandbox.py:71-77` 在沒有仍存在的 `.py` 變更時，lint、security、types 直接記成通過。通過的檢查輸出會進 PR 本文，遮罩只覆蓋已知 token 與少數參數名。
+- 沒有新的 `shell=True`、`eval`、`exec`、`pickle` 或字面 `verify=False`。git 與 Podman 的 argv 由宿主組成。
+- 結論：需修正。未關閉缺陷 2 則（CR-01、CR-07），建議 4 則（CR-02、CR-03、CR-04、CR-08）。
