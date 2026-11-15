@@ -14,6 +14,7 @@ from typing import Any, Sequence
 from je_web_runner.utils.env_config.env_loader import load_env
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor.action_executor import executor
+from je_web_runner.utils.flow.dataset import read_rows_file
 from je_web_runner.utils.project_config.config import ProjectConfig
 from je_web_runner.utils.test_record.test_record_class import test_record_instance
 
@@ -29,6 +30,7 @@ class RunSettings:
     retries: int | None = None
     retry_backoff: float = 0.0
     failure_screenshot_dir: str | None = None
+    dataset: str | None = None
     variables: dict[str, Any] = field(default_factory=dict)
 
 
@@ -81,5 +83,8 @@ def apply_run_settings(settings: RunSettings) -> None:
         executor.set_retry_policy(settings.retries, settings.retry_backoff)
     if settings.failure_screenshot_dir is not None:
         executor.set_failure_screenshot_dir(settings.failure_screenshot_dir)
+    if settings.dataset is not None:
+        # Read here, once: the operator named this file, so the fence on action files does not apply.
+        executor.default_dataset = read_rows_file(settings.dataset)
     for name, value in settings.variables.items():
         executor.variables.set(name, executor.variables.expand(value))

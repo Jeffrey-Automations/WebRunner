@@ -38,11 +38,14 @@ from je_web_runner.utils.exception.exceptions import (
 )
 from je_web_runner.utils.executor._event_table import build_event_dict
 from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
+from je_web_runner.utils.flow.dataset import load_rows, per_row_actions
 from je_web_runner.utils.flow.document import (
+    dataset_source,
     fail_fast_setting,
     planned_actions,
     read_meta,
     retry_settings,
+    skip_reason,
     teardown_count,
 )
 from je_web_runner.utils.flow.failfast import FailFast
@@ -190,6 +193,9 @@ class Executor(ActionExecutor):
         # 第一個失敗後是否跳過清單其餘動作（預設否）
         # Whether the actions after a failed one are skipped (off by default); see set_fail_fast.
         self.fail_fast = FailFast()
+        # 沒有 meta.dataset 的檔案所用的資料集（CLI 的 --dataset）；None 代表沒有
+        # The dataset of files without a meta.dataset of their own (the CLI's --dataset); None for none.
+        self.default_dataset: Any = None
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
@@ -488,13 +494,20 @@ class Executor(ActionExecutor):
         文件實際要執行的動作
         The actions to run for ``action_list``. A plain list, and an object without the keys below, is
         its own action list (:meth:`action_list_of`). An object's ``meta`` can add ``setup`` actions
-        before and ``teardown`` actions after, set default variables (``vars``), or name a reason to
-        ``skip`` the file, which runs one note carrying that reason instead. ``scoped`` keeps the
-        default variables in the innermost frame (a called file).
+        before and ``teardown`` actions after, set default variables (``vars``), bind a ``dataset`` (the
+        file's own actions then run once per row, each row announced by a ``WR_use_row`` action), or
+        name a reason to ``skip`` the file, which runs one note carrying that reason instead.
+        ``scoped`` keeps the default variables and the row in the innermost frame (a called file).
 
         :raises FlowError: when one of those ``meta`` keys has the wrong shape.
         """
-        actions = planned_actions(action_list, self.action_list_of(action_list), self.variables, scoped)
+        actions = self.action_list_of(action_list)
+        meta = read_meta(action_list)
+        # A called file (scoped) takes a dataset only from its own meta, not from the run's --dataset.
+        source = dataset_source(meta, None if scoped else self.default_dataset)
+        if source is not None and skip_reason(meta) is None:
+            actions = per_row_actions(actions, load_rows(source, self.files), scoped)
+        actions = planned_actions(action_list, actions, self.variables, scoped)
         self.fail_fast.set_teardown_count(len(actions), teardown_count(action_list))
         return actions
 

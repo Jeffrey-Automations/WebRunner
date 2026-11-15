@@ -8,6 +8,7 @@ What the ``meta`` of an object document (``{"meta": {...}, "webdriver_wrapper": 
 ``teardown``       actions run after them, also when an earlier action failed
 ``retries``        extra attempts for each action of this file (``retry_backoff``: seconds between them)
 ``fail_fast``      ``true``: after the first failed action, skip the rest (``teardown`` still runs)
+``dataset``        a ``.csv`` / ``.json`` file or a list of rows: the file's actions run once per row
 
 ``tags`` and ``depends_on`` are read by the CLI's file selection, not here.
 """
@@ -96,6 +97,12 @@ def teardown_count(document: Any) -> int:
     if not meta or skip_reason(meta) is not None:
         return 0
     return len(hook_actions(meta, "teardown"))
+
+
+def dataset_source(meta: dict[str, Any], default: Any = None) -> Any:
+    """``meta.dataset`` when the file sets it, else ``default`` (the run's ``--dataset``); None for neither."""
+    source = meta.get("dataset")
+    return default if source is None else source
 
 
 def planned_actions(document: Any, actions: list, variables: VariableStore, scoped: bool = False) -> list:

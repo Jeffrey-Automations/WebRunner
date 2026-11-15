@@ -73,6 +73,9 @@ WebRunner 可以直接從命令列使用 ``je_web_runner`` 模組執行。安裝
 JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字本身。``--env NAME`` 會在
 執行前載入 ``.env.NAME``\ （位於 ``--env-dir``，預設為工作目錄），供 ``${ENV.KEY}`` 使用。
 
+``--dataset FILE``\ （任意位置的 ``.csv`` 或 ``.json`` 檔）會讓每個沒有自己 ``meta.dataset``
+的檔案對每一列執行一次，以 ``${ROW.column}`` 讀取該列。
+
 ``--fail-fast`` 會在檔案中第一個動作失敗後跳過其餘動作（``meta.teardown`` 照樣執行），
 並且在循序的 ``-d`` 執行中不再啟動第一個失敗檔案之後的檔案；沒執行的檔案數會印到 stderr。
 thread、process 與 async 的平行模式則會執行每一個檔案。

@@ -89,6 +89,10 @@ repeatable, and ``VALUE`` is read as JSON when it parses as JSON (``3``, ``true`
 ``[1, 2]``), else it is the text. ``--env NAME`` loads ``.env.NAME`` (from
 ``--env-dir``, default the working directory) before the run, for ``${ENV.KEY}``.
 
+``--dataset FILE`` (a ``.csv`` or ``.json`` file, anywhere) makes every file that
+has no ``meta.dataset`` of its own run once per row, reading the row as
+``${ROW.column}``.
+
 ``--fail-fast`` skips the actions of a file after its first failed one
 (``meta.teardown`` still runs), and in a sequential ``-d`` run does not start the
 files after the first failed one; the number of files left out goes to stderr.

@@ -53,6 +53,23 @@ class FileStack:
             roots.append(self._stack[0].parent)
         return roots
 
+    def resolve_data(self, path: str, what: str) -> Path:
+        """
+        The file ``path`` names for the running file to read (``what`` words the error): relative to
+        the running file, inside the allowed directories, and existing.
+        """
+        if not isinstance(path, str) or not path.strip():
+            raise FlowError(f"{what} path must be a file path, got {path!r}")
+        base = self.current.parent if self.current is not None else Path.cwd()
+        target = (base / path).resolve()
+        if not any(target.is_relative_to(root) for root in self._roots()):
+            raise FlowError(
+                f"{what}: {path!r} is outside the working directory and the directory of the file "
+                "the run started from")
+        if not target.is_file():
+            raise FlowError(f"{what}: no such file: {target}")
+        return target
+
     def resolve_call(self, path: str) -> Path:
         """
         The file ``path`` names for a call made now.
@@ -60,16 +77,7 @@ class FileStack:
         :raises FlowError: when the path is empty, leaves the allowed directories, is not a file, is
                  already running, or the calls are nested too deep.
         """
-        if not isinstance(path, str) or not path.strip():
-            raise FlowError(f"WR_call_file path must be a file path, got {path!r}")
-        base = self.current.parent if self.current is not None else Path.cwd()
-        target = (base / path).resolve()
-        if not any(target.is_relative_to(root) for root in self._roots()):
-            raise FlowError(
-                f"WR_call_file: {path!r} is outside the working directory and the directory of the file "
-                "the run started from")
-        if not target.is_file():
-            raise FlowError(f"WR_call_file: no such action file: {target}")
+        target = self.resolve_data(path, "WR_call_file")
         if target in self._stack:
             raise FlowError(f"WR_call_file: {target} is already running; a file cannot call itself")
         if len(self._stack) >= MAX_CALL_DEPTH:

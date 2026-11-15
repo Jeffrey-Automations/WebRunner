@@ -6,7 +6,8 @@ A placeholder is ``${name}``, ``${name.key.0}`` (a key of a dict, an index of a 
 environment variable). The executor expands them in the arguments of an action just before the command is
 called, so a value stored by one action can be used by a later one.
 
-A placeholder that names nothing known is left as it is: ``${ROW.col}`` belongs to the dataset runner, and a
+A placeholder that names nothing known is left as it is: ``${ROW.col}`` outside a dataset run belongs to
+``WR_run_with_dataset``, and a
 JavaScript template literal in a script argument must reach the browser unchanged. A known variable whose path
 does not exist is an error, because that is a mistake in the action file.
 """
@@ -74,6 +75,13 @@ class VariableStore:
             frame = self._frames[-1] if local else self._frames[0]
         frame[name] = value
         return value
+
+    def bind(self, name: str, value: Any, local: bool = False) -> None:
+        """
+        Set ``name`` without the checks of :meth:`set`: how the runner itself provides the reserved
+        ``ROW``. ``local`` writes to the innermost frame, else to the outermost.
+        """
+        (self._frames[-1] if local else self._frames[0])[name] = value
 
     def get(self, name: str, default: Any = None) -> Any:
         """

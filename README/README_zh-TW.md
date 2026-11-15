@@ -677,6 +677,7 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 | `skip` | 文字形式的原因。檔案的動作、`setup` 與 `teardown` 都不執行，原因會被記錄。 |
 | `retries`、`retry_backoff` | 這個檔案每個動作的額外嘗試次數，以及兩次之間的秒數；結束後恢復原本的重試策略。 |
 | `fail_fast` | 這個檔案用 `true` 或 `false`，不論執行器的設定為何。 |
+| `dataset` | 動作檔旁邊的 `.csv` 或 `.json` 檔，或直接寫出資料列（物件的清單）。檔案的動作會對每一列執行一次，以 `${ROW.column}` 讀取該列、以 `${ROW_INDEX}` 讀取其位置；`setup` 與 `teardown` 只在所有列的前後各執行一次。 |
 
 **Fail-fast。** 預設情況下，失敗的動作會被記錄，然後繼續執行下一個。`executor.set_fail_fast(True)`、`["WR_set_fail_fast"]`（從下一份清單起生效）或 `meta.fail_fast` 可以改變這點：第一個動作失敗之後，其餘動作會被記錄為已跳過而不執行，`teardown` 除外。它作用於一份清單或一個檔案的動作，不作用於單次的 `execute_one` 呼叫，在 `--parallel-mode async` 之下也不生效。
 
@@ -980,7 +981,7 @@ python -m je_web_runner.mcp_server
 預設工具清單（28 個工具）公開：
 
 即時瀏覽器執行：
-- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 569 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 570 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批次執行磁碟上的 JSON 檔案
 - `webrunner_list_commands` —— 探索完整的 `WR_*` 介面面
 
@@ -1944,6 +1945,7 @@ python -m je_web_runner -d ./actions --affected-by locator:login_button --affect
 python -m je_web_runner -d ./actions --changed-since origin/main --impact-cache .webrunner_impact_cache.json
 python -m je_web_runner -d ./actions --var base=https://staging.example --var retries=3   # ${base}, ${retries}
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # 供 ${ENV.KEY} 使用的 .env.staging
+python -m je_web_runner -d ./actions --dataset users.csv     # 每個檔案對每一列執行一次，以 ${ROW.column} 讀取
 python -m je_web_runner -d ./actions --fail-fast             # 檔案與目錄都在第一個失敗處停止
 python -m je_web_runner --lint ./actions                     # 有 warning 時以 1 結束
 python -m je_web_runner --list-commands

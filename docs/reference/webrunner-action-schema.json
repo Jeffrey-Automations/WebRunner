@@ -568,6 +568,7 @@
             "WR_unset_var",
             "WR_update_snapshot",
             "WR_upload_file",
+            "WR_use_row",
             "WR_user_factory",
             "WR_validate_action_file",
             "WR_validate_action_json",
@@ -663,6 +664,21 @@
             },
             "fail_fast": {
               "type": "boolean"
+            },
+            "dataset": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              ],
+              "description": "A .csv / .json file, or the rows; the actions run once per row."
             }
           },
           "additionalProperties": true

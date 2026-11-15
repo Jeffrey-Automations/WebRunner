@@ -11,7 +11,7 @@ import inspect
 from typing import Any, Callable
 
 from je_web_runner.utils.executor._bound import Bound
-from je_web_runner.utils.flow import blocks, subflow
+from je_web_runner.utils.flow import blocks, dataset, subflow
 
 # Commands whose arguments hold actions to run later. The executor leaves their placeholders alone: each
 # nested action is expanded when it runs, with the values of that moment, not of the moment its block started.
@@ -42,6 +42,17 @@ def _capture(executor: Any) -> Callable[..., Any]:
     return capture
 
 
+def _use_row(executor: Any) -> Callable[..., Any]:
+    @functools.wraps(dataset.use_row)
+    def command(*args: Any, **kwargs: Any) -> Any:
+        return dataset.use_row(executor.variables, *args, **kwargs)
+
+    signature = inspect.signature(dataset.use_row)
+    command.__signature__ = signature.replace(  # type: ignore[attr-defined]
+        parameters=list(signature.parameters.values())[1:])
+    return command
+
+
 def _block(function: Callable[..., Any]) -> Bound:
     """A table entry for a block function whose first parameter is the executor."""
     signature = inspect.signature(function)
@@ -65,6 +76,7 @@ FLOW_COMMANDS: dict[str, Any] = {
     "WR_clear_vars": Bound(lambda executor: executor.variables.clear),
     "WR_list_vars": Bound(lambda executor: executor.variables.names),
     "WR_capture": Bound(_capture),
+    "WR_use_row": Bound(_use_row),
     "WR_if": _block(blocks.run_if),
     "WR_for_each": _block(blocks.for_each),
     "WR_repeat": _block(blocks.repeat),

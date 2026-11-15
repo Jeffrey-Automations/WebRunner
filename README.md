@@ -693,6 +693,7 @@ The first action that fails stops its block and fails the action that holds the 
 | `skip` | A reason, as text. The file's actions, `setup` and `teardown` do not run; the reason is recorded. |
 | `retries`, `retry_backoff` | Extra attempts for each action of this file, and the seconds between them; the previous retry policy is restored afterwards. |
 | `fail_fast` | `true` or `false` for this file, whatever the executor's setting. |
+| `dataset` | A `.csv` or `.json` file next to the action file, or the rows themselves (a list of objects). The file's actions run once per row and read the row as `${ROW.column}` and its position as `${ROW_INDEX}`; `setup` and `teardown` run once, around all rows. |
 
 **Fail-fast.** By default a failed action is recorded and the next one runs. `executor.set_fail_fast(True)`, `["WR_set_fail_fast"]` (from the next list on) or `meta.fail_fast` changes that: after the first failed action the remaining ones are recorded as skipped and not run, except `teardown`. It applies to the actions of a list or file, not to a single `execute_one` call, and not under `--parallel-mode async`.
 
@@ -996,7 +997,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 569 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 570 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 
@@ -1967,6 +1968,7 @@ python -m je_web_runner -d ./actions --affected-by locator:login_button --affect
 python -m je_web_runner -d ./actions --changed-since origin/main --impact-cache .webrunner_impact_cache.json
 python -m je_web_runner -d ./actions --var base=https://staging.example --var retries=3   # ${base}, ${retries}
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # .env.staging for ${ENV.KEY}
+python -m je_web_runner -d ./actions --dataset users.csv     # every file runs once per row, reading ${ROW.column}
 python -m je_web_runner -d ./actions --fail-fast             # stop a file, and the directory, at the first failure
 python -m je_web_runner --lint ./actions                     # a warning exits 1
 python -m je_web_runner --list-commands

@@ -70,6 +70,11 @@ def _add_project_args(parser: argparse.ArgumentParser) -> None:
         help="after the first failed action skip the rest of its file (teardown still runs), and with "
              "--execute_dir do not start the files after the first failed one (sequential runs)",
     )
+    parser.add_argument(
+        "--dataset", type=str, default=None, metavar="FILE",
+        help="a .csv or .json dataset: every file without a meta.dataset of its own runs once per row, "
+             "reading the row as ${ROW.column}",
+    )
     parser.add_argument("--lint", type=str, default=None, metavar="PATH",
                         help="lint an action JSON file or directory; a warning exits 1")
     parser.add_argument("--list-commands", action="store_true", dest="list_commands",
@@ -506,7 +511,9 @@ def _dispatch(args: argparse.Namespace) -> None:
 def _run_settings(args: argparse.Namespace) -> RunSettings:
     """The run settings of the parsed arguments and the project configuration ``main`` attached."""
     config = getattr(args, "project_config", None) or ProjectConfig()
-    return build_run_settings(config, args.report, args.fail_fast, args.env, args.env_dir, args.variables)
+    settings = build_run_settings(config, args.report, args.fail_fast, args.env, args.env_dir, args.variables)
+    # An absolute path, so a worker process reads the same file whatever its working directory.
+    return replace(settings, dataset=str(Path(args.dataset).resolve())) if args.dataset else settings
 
 
 def _run_tools(args: argparse.Namespace) -> None:

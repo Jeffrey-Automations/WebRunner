@@ -602,6 +602,16 @@ file selection; the executor reads the rest.
   the actions of this file. The previous policy is restored afterwards.
 * ``fail_fast``: ``true`` or ``false`` for this file, whatever the executor's
   setting.
+* ``dataset``: a ``.csv`` or ``.json`` file (a relative path starts at the
+  action file, and must stay below the working directory or the directory of
+  the file the run started from), or the rows themselves as a list of objects.
+  The file's own actions run once per row. Before each row the run inserts one
+  ``WR_use_row`` action, which makes the row readable as ``${ROW.column}`` and
+  its position from 0 as ``${ROW_INDEX}``; ``setup`` and ``teardown`` run once,
+  around all rows. A column the row does not have is an error. CSV values are
+  text; JSON values keep their type. The CLI's ``--dataset FILE`` gives the
+  same to every file that has no ``meta.dataset`` of its own; a file run by
+  ``WR_call_file`` uses only its own.
 
 A ``meta`` key of the wrong shape raises ``FlowError`` before any action runs.
 

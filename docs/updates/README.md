@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-18 | 2026-11-16 | meta.dataset and --dataset: run an action file once per row | #feature #cli #flow #data | [2026-11](2026-11.md) |
 | U-20261116-17 | 2026-11-16 | Directory runs had no defined file order outside Windows | #incident #ci #cli | [2026-11](2026-11.md) |
 | U-20261116-16 | 2026-11-16 | Example files under parts/ were ignored by git and never committed | #incident #ci #examples | [2026-11](2026-11.md) |
 | U-20261116-15 | 2026-11-16 | Project configuration file and CLI flags --var, --env, --fail-fast, --lint, --init | #feature #cli #config | [2026-11](2026-11.md) |
@@ -196,7 +197,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 21 |
+| [2026-11.md](2026-11.md) | 2026-11 | 22 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

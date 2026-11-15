@@ -69,6 +69,11 @@ def build_action_schema() -> dict[str, Any]:
                     "retries": {"type": "integer", "minimum": 0, "maximum": 100},
                     "retry_backoff": {"type": "number", "minimum": 0},
                     "fail_fast": {"type": "boolean"},
+                    "dataset": {
+                        "oneOf": [{"type": "string", "minLength": 1},
+                                  {"type": "array", "items": {"type": "object"}}],
+                        "description": "A .csv / .json file, or the rows; the actions run once per row.",
+                    },
                 },
                 "additionalProperties": True,
             },

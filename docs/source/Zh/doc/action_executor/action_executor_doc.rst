@@ -270,6 +270,13 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 * ``retries``\ （0 到 100）與 ``retry_backoff``\ （秒）：這個檔案的動作所用的重試策略。
   結束後恢復原本的策略。
 * ``fail_fast``：這個檔案用 ``true`` 或 ``false``，不論執行器的設定為何。
+* ``dataset``：``.csv`` 或 ``.json`` 檔（相對路徑從動作檔算起，且必須在工作目錄或這次執行
+  起始檔案的目錄之下），或直接以物件清單寫出資料列。檔案本身的動作會對每一列執行一次。
+  每一列之前會插入一個 ``WR_use_row`` 動作，讓該列能以 ``${ROW.column}`` 讀取、從 0 起算的
+  位置能以 ``${ROW_INDEX}`` 讀取；``setup`` 與 ``teardown`` 只在所有列的前後各執行一次。
+  讀取該列沒有的欄位是錯誤。CSV 的值是文字；JSON 的值保留型別。CLI 的 ``--dataset FILE``
+  會把同一份資料集給每個沒有自己 ``meta.dataset`` 的檔案；由 ``WR_call_file`` 執行的檔案
+  只使用它自己的。
 
 ``meta`` 的鍵形狀不對時，會在任何動作執行之前拋出 ``FlowError``。
 
