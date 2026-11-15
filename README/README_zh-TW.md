@@ -926,7 +926,7 @@ serve_stdio(server=server)
 python -m je_web_runner.action_lsp
 ```
 
-`textDocument/completion` 回傳每個已註冊的 `WR_*` 命令；`textDocument/publishDiagnostics` 在 `didOpen` / `didChange` 時執行動作 linter。可與 VS Code 的 *Configure JSON Language Servers* 或 JetBrains LSP 外掛搭配使用。
+`textDocument/completion` 回傳每個已註冊的 `WR_*` 命令；`textDocument/publishDiagnostics` 在 `didOpen` / `didChange` 時執行動作 linter，把每個發現標在該動作所在的行，並在 `didClose` 時清除。文件可以是動作清單，也可以是 `webdriver_wrapper` 存放動作清單的物件。可與 VS Code 的 *Configure JSON Language Servers* 或 JetBrains LSP 外掛搭配使用。
 
 ## 更多能力
 

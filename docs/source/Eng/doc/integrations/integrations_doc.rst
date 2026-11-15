@@ -138,7 +138,10 @@ Action JSON LSP
 Standard LSP 3.17-shaped server over stdio. ``textDocument/completion``
 suggests every registered ``WR_*`` command; ``textDocument/didOpen`` /
 ``didChange`` push ``publishDiagnostics`` based on
-:func:`linter.action_linter.lint_action`.
+:func:`linter.action_linter.lint_action`, each finding on the line of its
+action; ``didClose`` clears them. A document is a list of actions or an
+object whose ``webdriver_wrapper`` holds one. Notifications the server does
+not know are ignored.
 
 
 Native basic-auth navigation requires HTTPS. Plain HTTP is allowed only for localhost or a literal loopback address used by local test servers. URLs with embedded credentials are refused before navigation or typing.

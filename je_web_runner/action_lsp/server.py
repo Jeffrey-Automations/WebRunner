@@ -7,7 +7,10 @@ Minimal LSP server speaking JSON-RPC 2.0 over stdio with the standard
 - ``textDocument/didOpen`` / ``didChange`` / ``didClose``
 - ``textDocument/completion`` — suggests every registered ``WR_*`` command
 - ``textDocument/publishDiagnostics`` — pushes lint findings on document
-  open / change
+  open / change, each on the line of its action, and clears them on close
+
+A document is a list of actions or an object whose ``webdriver_wrapper`` holds one, as the executor accepts.
+Notifications the server does not know are ignored; unknown requests get ``-32601``.
 
 The action linter and command list are pulled from existing modules so
 the LSP stays a thin presentation layer.
@@ -15,12 +18,21 @@ the LSP stays a thin presentation layer.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from typing import Any, TextIO
 
+from je_web_runner.action_lsp._positions import action_lines
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
+
+
+_COMMAND_PREFIX = "WR_"
+_ACTION_LOCATION = re.compile(r"action\[(\d+)]")
+_ROOT_MESSAGE = 'Action document must be a JSON array, or an object with a "webdriver_wrapper" array.'
+# LSP DiagnosticSeverity: 1 error, 2 warning, 3 information.
+_SEVERITIES = {"error": 1, "warning": 2, "info": 3}
 
 
 class ActionLspError(WebRunnerException):
@@ -48,7 +60,8 @@ class ActionLspServer:
             except Exception as error:  # pylint: disable=broad-except
                 web_runner_logger.warning(f"action_lsp executor unavailable: {error!r}")
                 names = []
-            self._command_names = [n for n in names if isinstance(n, str)]
+            # The executor also holds the allowlisted builtins (``print`` …); an action file is about WR_*.
+            self._command_names = [n for n in names if isinstance(n, str) and n.startswith(_COMMAND_PREFIX)]
         return self._command_names
 
     # --- Top-level dispatch ----------------------------------------------
@@ -74,6 +87,9 @@ class ActionLspServer:
             return self._on_did_close(params)
         if method == "textDocument/completion":
             return self._respond(request_id, self._completion(params))
+        if request_id is None:
+            # A notification (``didSave``, ``$/cancelRequest`` …) must not be answered.
+            return None
         return self._error(request_id, -32601, f"unknown method {method!r}")
 
     # --- Handlers --------------------------------------------------------
@@ -108,9 +124,10 @@ class ActionLspServer:
         self.documents[uri].version = int(document.get("version", 0))
         return self._diagnostics_notification(uri, full_text)
 
-    def _on_did_close(self, params: dict[str, Any]) -> None:
+    def _on_did_close(self, params: dict[str, Any]) -> dict[str, Any]:
         uri = str((params.get("textDocument") or {}).get("uri", ""))
         self.documents.pop(uri, None)
+        return self._diagnostics_notification(uri, "")
 
     def _completion(self, _params: dict[str, Any]) -> dict[str, Any]:
         # ``_params`` is part of the LSP request shape but the suggestion
@@ -147,22 +164,16 @@ class ActionLspServer:
         except ValueError as error:
             return [_diagnostic(error_message=f"JSON parse error: {error}",
                                 line=0, severity=1)]
-        if not isinstance(actions, list):
-            return [_diagnostic("Action document root must be a JSON array.",
-                                line=0, severity=1)]
-        diagnostics: list[dict[str, Any]] = []
+        dict_root = isinstance(actions, dict)
+        action_list = actions.get("webdriver_wrapper") if dict_root else actions
+        if not isinstance(action_list, list):
+            return [_diagnostic(_ROOT_MESSAGE, line=0, severity=1)]
         try:
             from je_web_runner.utils.linter.action_linter import lint_action
         except Exception:  # pylint: disable=broad-except
-            return diagnostics
-        for finding in lint_action(actions):
-            severity = 1 if finding.level == "error" else 2
-            diagnostics.append(_diagnostic(
-                error_message=f"[{finding.rule}] {finding.message}",
-                line=finding.index,
-                severity=severity,
-            ))
-        return diagnostics
+            return []
+        lines = action_lines(text, dict_root)
+        return [_finding_diagnostic(finding, lines) for finding in lint_action(actions)]
 
     # --- Helpers ---------------------------------------------------------
 
@@ -176,6 +187,18 @@ class ActionLspServer:
             "jsonrpc": "2.0", "id": request_id,
             "error": {"code": code, "message": message},
         }
+
+
+def _finding_diagnostic(finding: dict[str, Any], lines: list[int]) -> dict[str, Any]:
+    """One linter finding as a diagnostic on the line of its action (line 0 for a document-level one)."""
+    match = _ACTION_LOCATION.match(str(finding.get("location", "")))
+    index = int(match.group(1)) if match else -1
+    line = lines[index] if 0 <= index < len(lines) else 0
+    return _diagnostic(
+        error_message=f"[{finding.get('rule', 'lint')}] {finding.get('message', '')}",
+        line=line,
+        severity=_SEVERITIES.get(str(finding.get("severity")), 3),
+    )
 
 
 def _diagnostic(error_message: str, line: int, severity: int) -> dict[str, Any]:

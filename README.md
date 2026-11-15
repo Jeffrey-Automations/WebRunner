@@ -942,7 +942,7 @@ A standard Language Server Protocol implementation for action JSON files:
 python -m je_web_runner.action_lsp
 ```
 
-`textDocument/completion` returns every registered `WR_*` command; `textDocument/publishDiagnostics` runs the action linter on `didOpen` / `didChange`. Pair with VS Code's *Configure JSON Language Servers* or the JetBrains LSP plugin.
+`textDocument/completion` returns every registered `WR_*` command; `textDocument/publishDiagnostics` runs the action linter on `didOpen` / `didChange`, puts each finding on the line of its action and clears them on `didClose`. A document is a list of actions or an object whose `webdriver_wrapper` holds one. Pair with VS Code's *Configure JSON Language Servers* or the JetBrains LSP plugin.
 
 ## More Capabilities
 
