@@ -78,7 +78,7 @@ def test_main_counts_every_file_of_a_directory(tmp_path, capsys):
 def test_a_file_that_failed_in_another_process_fails_the_run(tmp_path, monkeypatch):
     # The process pool is replaced: what matters is that a file reported as not passed is counted.
     class _Pool:
-        def __init__(self, max_workers):
+        def __init__(self, max_workers, **_worker_setup):
             self.max_workers = max_workers
 
         def __enter__(self):

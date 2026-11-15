@@ -28,6 +28,10 @@ _EVERY_BULLET = "\n".join([
 ])
 
 
+# The templates WebRunner ships, read before any test registers one of its own.
+_SHIPPED_TEMPLATES = tuple(available_templates())
+
+
 def _command_names(actions):
     return {action[0] for action in actions if isinstance(action, list) and action}
 
@@ -40,7 +44,8 @@ class TestEmittedCommandsAreRegistered(unittest.TestCase):
 
     def test_builtin_templates(self):
         emitted = set()
-        for name in available_templates():
+        self.assertIn("close_modal", _SHIPPED_TEMPLATES)
+        for name in _SHIPPED_TEMPLATES:
             emitted |= _command_names(get_template(name).actions)
         self.assertEqual(sorted(emitted - set(executor.event_dict)), [])
 
