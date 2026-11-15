@@ -521,3 +521,40 @@ block, which is recorded once. Every nested action passes the same gates as a
 top-level one (refused commands, the arbitrary-script gate, the MCP policy) and
 the retry policy, and its placeholders are expanded when it runs, so a loop sees
 the values of each round.
+
+Calling Another Action File
+---------------------------
+
+``WR_call_file`` (``path``, ``params``) runs the actions of another action file
+in place, so a shared flow is written once.
+
+.. code-block:: python
+
+    # flows/login.json
+    [
+        ["WR_to_url", {"url": "${base}/login"}],
+        ["WR_find_element_by", {"selector": "#user"}],
+        ["WR_element_input", {"input_value": "${user}"}],
+    ]
+    
+    # flows/checkout.json
+    [
+        ["WR_call_file", {"path": "login.json", "params": {"base": "${ENV.BASE_URL}", "user": "alice"}}],
+        ["WR_to_url", {"url": "${ENV.BASE_URL}/cart"}],
+    ]
+
+* ``params`` become variables of the called file and end with the call. The
+  caller's other variables are visible too.
+* A relative ``path`` starts at the directory of the file making the call.
+  ``execute_files``, ``Executor.execute_file`` and the CLI (``-e``, ``-d``) set
+  that file; for ``--execute_str``, ``execute_action``, the socket server, the
+  MCP tools and ``--parallel-mode async`` there is none and the working
+  directory is used.
+* The called file must be below the working directory or below the directory
+  of the file the run started from; ``..`` cannot reach anything else. A file
+  that is already running cannot be called again, and calls nest at most 20
+  deep.
+* The first action that fails stops the called file and fails the
+  ``WR_call_file`` action. ``WR_execute_files`` is the older command: it takes
+  no parameters, resolves paths from the working directory, and records a
+  failure without failing its own action.

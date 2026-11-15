@@ -605,6 +605,30 @@ WebRunner 桥接取用 `executor` 与 `execute_one`，Jeffrey_RPA 以那个确�
 
 第一个失败的动作会中止所在的区块，并让持有该区块的动作失败，只记录一次。每个嵌套动作都要通过与顶层动作相同的闸门（被拒绝的命令、任意脚本闸门、MCP 策略），占位符在动作执行时才展开，所以循环每一轮看到的都是当轮的值。
 
+### 调用另一个动作文件
+
+`WR_call_file`（`path`、`params`）在原处执行另一个动作文件的动作，共用的流程只要写一次：
+
+```python
+# flows/login.json
+[
+    ["WR_to_url", {"url": "${base}/login"}],
+    ["WR_find_element_by", {"selector": "#user"}],
+    ["WR_element_input", {"input_value": "${user}"}],
+]
+
+# flows/checkout.json
+[
+    ["WR_call_file", {"path": "login.json", "params": {"base": "${ENV.BASE_URL}", "user": "alice"}}],
+    ["WR_to_url", {"url": "${ENV.BASE_URL}/cart"}],
+]
+```
+
+- `params` 会成为被调用文件的变量，调用结束即消失。调用方的其他变量也看得到。
+- 相对的 `path` 从发出调用的文件所在目录算起（`--execute_str`、socket server 与 MCP 工具则从工作目录算起）。
+- 被调用的文件必须在工作目录之下，或在这次执行起始文件的目录之下；`..` 到不了其他地方。正在执行的文件不能再被调用，调用最多嵌套 20 层。
+- 第一个失败的动作会中止被调用的文件，并让 `WR_call_file` 这个动作失败。`WR_execute_files` 是较旧的命令：不接受参数、路径从工作目录算起，而且只记录失败、自己不会失败。
+
 ### 顶层形态
 
 ```python
@@ -918,7 +942,7 @@ python -m je_web_runner.mcp_server
 默认工具列表（28 个工具）暴露：
 
 实时浏览器执行：
-- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 567 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 568 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批量运行磁盘上的 JSON 文件
 - `webrunner_list_commands` —— 发现完整的 `WR_*` 接口面
 

@@ -201,3 +201,35 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 第一個失敗的動作會中止所在的區塊，並讓持有該區塊的動作失敗，只記錄一次。每個巢狀動作
 都要通過與頂層動作相同的閘門（被拒絕的指令、任意腳本閘門、MCP 政策）與重試策略，
 佔位符在動作執行時才展開，所以迴圈每一輪看到的都是當輪的值。
+
+呼叫另一個動作檔
+----------------
+
+``WR_call_file``\ （``path``、``params``）在原處執行另一個動作檔的動作，共用的流程
+只要寫一次。
+
+.. code-block:: python
+
+    # flows/login.json
+    [
+        ["WR_to_url", {"url": "${base}/login"}],
+        ["WR_find_element_by", {"selector": "#user"}],
+        ["WR_element_input", {"input_value": "${user}"}],
+    ]
+    
+    # flows/checkout.json
+    [
+        ["WR_call_file", {"path": "login.json", "params": {"base": "${ENV.BASE_URL}", "user": "alice"}}],
+        ["WR_to_url", {"url": "${ENV.BASE_URL}/cart"}],
+    ]
+
+* ``params`` 會成為被呼叫檔案的變數，呼叫結束即消失。呼叫端的其他變數也看得到。
+* 相對的 ``path`` 從發出呼叫的檔案所在目錄算起。``execute_files``、
+  ``Executor.execute_file`` 與 CLI（``-e``、``-d``）會設定這個檔案；
+  ``--execute_str``、``execute_action``、socket server、MCP 工具與
+  ``--parallel-mode async`` 沒有檔案可依據，改用工作目錄。
+* 被呼叫的檔案必須在工作目錄之下，或在這次執行起始檔案的目錄之下；``..`` 到不了
+  其他地方。正在執行的檔案不能再被呼叫，呼叫最多巢狀 20 層。
+* 第一個失敗的動作會中止被呼叫的檔案，並讓 ``WR_call_file`` 這個動作失敗。
+  ``WR_execute_files`` 是較舊的指令：不接受參數、路徑從工作目錄算起，而且只記錄
+  失敗、自己不會失敗。

@@ -71,6 +71,7 @@
             "WR_build_command_reference",
             "WR_build_dependency_graph",
             "WR_build_replay_html",
+            "WR_call_file",
             "WR_capture",
             "WR_cdp",
             "WR_change_index_of_webdriver",

@@ -621,6 +621,30 @@ A condition is a JSON object, never code: `{"var": "name.path", "op": "eq", "val
 
 The first action that fails stops its block and fails the action that holds the block, which is recorded once. Every nested action passes the same gates as a top-level one (refused commands, the arbitrary-script gate, the MCP policy), and its placeholders are expanded when it runs, so a loop sees the values of each round.
 
+### Calling another action file
+
+`WR_call_file` (`path`, `params`) runs the actions of another action file in place, so a shared flow is written once:
+
+```python
+# flows/login.json
+[
+    ["WR_to_url", {"url": "${base}/login"}],
+    ["WR_find_element_by", {"selector": "#user"}],
+    ["WR_element_input", {"input_value": "${user}"}],
+]
+
+# flows/checkout.json
+[
+    ["WR_call_file", {"path": "login.json", "params": {"base": "${ENV.BASE_URL}", "user": "alice"}}],
+    ["WR_to_url", {"url": "${ENV.BASE_URL}/cart"}],
+]
+```
+
+- `params` become variables of the called file and end with the call. The caller's other variables are visible too.
+- A relative `path` starts at the directory of the file making the call (the working directory for `--execute_str`, the socket server and the MCP tools).
+- The called file must be below the working directory or below the directory of the file the run started from; `..` cannot reach anything else. A file that is already running cannot be called again, and calls nest at most 20 deep.
+- The first action that fails stops the called file and fails the `WR_call_file` action. `WR_execute_files` is the older command: it takes no parameters, resolves paths from the working directory, and records a failure without failing its own action.
+
 ### Top-level shapes
 
 ```python
@@ -934,7 +958,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 567 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 568 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 

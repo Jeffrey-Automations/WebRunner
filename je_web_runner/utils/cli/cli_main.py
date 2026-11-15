@@ -15,7 +15,7 @@ from typing import Sequence
 from je_web_runner.utils.cli.failure_count import FailureCount, note_failed_file, thread_failure_count
 from je_web_runner.utils.exception.exception_tags import argparse_get_wrong_data
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
-from je_web_runner.utils.executor.action_executor import execute_action, execute_files
+from je_web_runner.utils.executor.action_executor import execute_action, execute_files, executor
 from je_web_runner.utils.file_process.get_dir_file_list import get_dir_files_as_list
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.json.json_validator import validate_action_file
@@ -184,7 +184,8 @@ def _run_one_file(path: str) -> bool:
     failure_baseline = thread_failure_count()
     failed = False
     try:
-        execute_action(read_action_json(path))
+        with executor.files.scope(path):
+            execute_action(read_action_json(path))
     except Exception:
         failed = True
         note_failed_file()
@@ -206,6 +207,7 @@ def _run_one_file_isolated(path: str) -> tuple[str, bool, list]:
     # Re-import inside the worker so the child process initialises its own
     # singletons; this is the whole point of parallel-mode=process.
     from je_web_runner.utils.executor.action_executor import execute_action as _execute
+    from je_web_runner.utils.executor.action_executor import executor as _executor
     from je_web_runner.utils.json.json_file.json_file import read_action_json as _read_json
     from je_web_runner.utils.test_record.test_record_class import (
         test_record_instance as _records,
@@ -215,7 +217,7 @@ def _run_one_file_isolated(path: str) -> tuple[str, bool, list]:
     baseline = len(_records.test_record_list)
     failed = False
     try:
-        with FailureCount() as failures:
+        with FailureCount() as failures, _executor.files.scope(path):
             _execute(_read_json(path))
         failed = bool(failures.failed)
     except Exception:  # pylint: disable=broad-except
@@ -423,7 +425,8 @@ def _dispatch(args: argparse.Namespace) -> None:
     if args.validate_dir:
         _validate_dir(args.validate_dir, include_tags=include_tags, exclude_tags=exclude_tags)
     if args.execute_file:
-        execute_action(read_action_json(args.execute_file))
+        with executor.files.scope(args.execute_file):
+            execute_action(read_action_json(args.execute_file))
     if args.execute_dir:
         _dispatch_directory(args, include_tags, exclude_tags)
     if args.execute_str:

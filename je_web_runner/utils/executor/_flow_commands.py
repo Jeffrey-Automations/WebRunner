@@ -11,7 +11,7 @@ import inspect
 from typing import Any, Callable
 
 from je_web_runner.utils.executor._bound import Bound
-from je_web_runner.utils.flow import blocks
+from je_web_runner.utils.flow import blocks, subflow
 
 # Commands whose arguments hold actions to run later. The executor leaves their placeholders alone: each
 # nested action is expanded when it runs, with the values of that moment, not of the moment its block started.
@@ -71,6 +71,7 @@ FLOW_COMMANDS: dict[str, Any] = {
     "WR_while": _block(blocks.run_while),
     "WR_try": _block(blocks.run_try),
     "WR_retry_block": _block(blocks.retry_block),
+    "WR_call_file": _block(subflow.call_file),
     "WR_fail": _block(blocks.fail),
     "WR_assert_var": _block(blocks.assert_var),
 }

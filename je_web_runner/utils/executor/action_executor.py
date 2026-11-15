@@ -38,6 +38,7 @@ from je_web_runner.utils.exception.exceptions import (
 )
 from je_web_runner.utils.executor._event_table import build_event_dict
 from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
+from je_web_runner.utils.flow.subflow import FileStack
 from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -172,6 +173,9 @@ class Executor(ActionExecutor):
         )
         # 動作清單的變數；${name} 由此展開 / The variables of the action lists; ${name} reads them.
         self.variables = VariableStore()
+        # 正在執行的動作檔；WR_call_file 的相對路徑由此而來
+        # The action files that are running; a relative WR_call_file path starts from the current one.
+        self.files = FileStack()
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
@@ -468,7 +472,16 @@ class Executor(ActionExecutor):
         Run the action file at every path, in order, and return their records.
         """
         web_runner_logger.info(f"execute_files, execute_files_list: {execute_files_list}")
-        return super().execute_files(execute_files_list)
+        return [self.execute_file(path) for path in execute_files_list]
+
+    def execute_file(self, path: str) -> dict:
+        """
+        載入並執行一個動作檔
+        Run the action file at ``path`` and return its records. While it runs it is the current file,
+        so a ``WR_call_file`` inside it takes a relative path from its directory.
+        """
+        with self.files.scope(path):
+            return self.execute_action(self.settings.read_json(path))
 
 
 # 建立全域 Executor 實例

@@ -1,0 +1,93 @@
+"""
+呼叫另一個動作檔
+Sub-flows: one action file calling another with parameters.
+
+A relative path is taken from the directory of the file that makes the call (the working directory when no
+file is running). The called file must be below the working directory or below the directory of the file the
+run started from, so an action file cannot reach arbitrary paths with ``..``; a file that is already running
+cannot be called again, which would never end.
+"""
+from __future__ import annotations
+
+import contextlib
+import threading
+from pathlib import Path
+from typing import Any, Iterator
+
+from je_web_runner.utils.flow.variables import FlowError
+
+MAX_CALL_DEPTH = 20
+
+
+class FileStack:
+    """The action files that are running in this thread, outermost first."""
+
+    def __init__(self) -> None:
+        # Per thread: ``--parallel`` runs files in a thread pool, and each has its own chain of calls.
+        self._local = threading.local()
+
+    @property
+    def _stack(self) -> list[Path]:
+        if not hasattr(self._local, "stack"):
+            self._local.stack = []
+        return self._local.stack
+
+    @property
+    def current(self) -> Path | None:
+        """The file whose actions are running now, or None outside any file."""
+        return self._stack[-1] if self._stack else None
+
+    @contextlib.contextmanager
+    def scope(self, path: str | Path) -> Iterator[Path]:
+        """Mark ``path`` as the running file for the ``with`` block."""
+        resolved = Path(path).resolve()
+        self._stack.append(resolved)
+        try:
+            yield resolved
+        finally:
+            self._stack.pop()
+
+    def _roots(self) -> list[Path]:
+        roots = [Path.cwd().resolve()]
+        if self._stack:
+            roots.append(self._stack[0].parent)
+        return roots
+
+    def resolve_call(self, path: str) -> Path:
+        """
+        The file ``path`` names for a call made now.
+
+        :raises FlowError: when the path is empty, leaves the allowed directories, is not a file, is
+                 already running, or the calls are nested too deep.
+        """
+        if not isinstance(path, str) or not path.strip():
+            raise FlowError(f"WR_call_file path must be a file path, got {path!r}")
+        base = self.current.parent if self.current is not None else Path.cwd()
+        target = (base / path).resolve()
+        if not any(target.is_relative_to(root) for root in self._roots()):
+            raise FlowError(
+                f"WR_call_file: {path!r} is outside the working directory and the directory of the file "
+                "the run started from")
+        if not target.is_file():
+            raise FlowError(f"WR_call_file: no such action file: {target}")
+        if target in self._stack:
+            raise FlowError(f"WR_call_file: {target} is already running; a file cannot call itself")
+        if len(self._stack) >= MAX_CALL_DEPTH:
+            raise FlowError(f"WR_call_file: more than {MAX_CALL_DEPTH} files deep")
+        return target
+
+
+def call_file(executor: Any, path: str, params: dict[str, Any] | None = None) -> list:
+    """
+    執行另一個動作檔的動作
+    Run the actions of another action file here and return what each returned. ``params`` become
+    variables the called file reads as ``${name}``; they end with the call. A relative ``path`` is taken
+    from the directory of the file making the call. The first action that fails stops the called file and
+    fails this action.
+    """
+    if params is not None and not isinstance(params, dict):
+        raise FlowError(f"WR_call_file params must be an object of name: value, got {params!r}")
+    target = executor.files.resolve_call(path)
+    actions = executor.action_list_of(executor.settings.read_json(str(target)))
+    with executor.files.scope(target), executor.variables.scope(params):
+        return executor.run_nested(actions)
