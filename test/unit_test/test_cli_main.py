@@ -96,6 +96,54 @@ class TestCliDispatch(unittest.TestCase):
             junit_mock.assert_called_once_with("demo")
 
 
+class TestReportEnablesRecording(unittest.TestCase):
+
+    def setUp(self):
+        from je_web_runner.utils.test_record.test_record_class import test_record_instance
+        self.records = test_record_instance
+        self.addCleanup(self.records.set_record_enable, self.records.init_record)
+        self.records.set_record_enable(False)
+
+    def _generators(self):
+        base = "je_web_runner.utils.generate_report."
+        return (
+            patch(base + "generate_html_report.generate_html_report"),
+            patch(base + "generate_json_report.generate_json_report"),
+            patch(base + "generate_xml_report.generate_xml_report"),
+            patch(base + "generate_junit_xml_report.generate_junit_xml_report"),
+        )
+
+    def test_report_turns_recording_on_before_the_run(self):
+        seen = []
+        html, json_report, xml, junit = self._generators()
+        with html, json_report, xml, junit, patch(
+            "je_web_runner.utils.cli.cli_main.execute_action",
+            side_effect=lambda _actions: seen.append(self.records.init_record),
+        ):
+            main(["--execute_str", '[["WR_sleep", [0]]]', "--report", "demo"])
+        self.assertEqual(seen, [True])
+
+    def test_no_report_leaves_recording_off(self):
+        with patch("je_web_runner.utils.cli.cli_main.execute_action"):
+            main(["--execute_str", '[["WR_sleep", [0]]]'])
+        self.assertFalse(self.records.init_record)
+
+    def test_process_workers_record_when_the_parent_does(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_action_json(tmpdir, "a.json", [["WR_quit"]])
+            fake_pool_cls = MagicMock()
+            fake_pool_cls.return_value.__enter__.return_value.map.return_value = [("a.json", True, [])]
+            html, json_report, xml, junit = self._generators()
+            with html, json_report, xml, junit, patch(
+                "je_web_runner.utils.cli.cli_main.ProcessPoolExecutor", fake_pool_cls,
+            ):
+                main(["-d", tmpdir, "--parallel", "2", "--parallel-mode", "process", "--report", "demo"])
+        initializer = fake_pool_cls.call_args.kwargs["initializer"]
+        self.records.set_record_enable(False)
+        initializer(*fake_pool_cls.call_args.kwargs["initargs"])
+        self.assertTrue(self.records.init_record)
+
+
 class TestParseExecuteStr(unittest.TestCase):
 
     def test_parses_plain_json(self):

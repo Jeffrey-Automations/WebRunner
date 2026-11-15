@@ -66,6 +66,13 @@ WebRunner 可以直接從命令列使用 ``je_web_runner`` 模組執行。安裝
 失敗的動作不會中止所在的清單：其餘動作會繼續執行，``-d`` 的其餘檔案也是。全部執行完之後，
 只要有任何失敗，程序就以代碼 1 退出並印出 ``error: N action(s) or file(s) failed``，否則以 0 退出。
 
+報告
+----
+
+``--report BASE`` 在執行結束後寫出 JSON、HTML、XML 與 JUnit 報告。報告由測試紀錄產生，
+所以這個旗標會在執行前開啟紀錄，``--parallel-mode process`` 的工作行程也一樣；
+動作檔不需要自己呼叫 ``WR_set_record_enable``。
+
 在 TestPioneer 之下執行
 -----------------------
 

@@ -298,9 +298,18 @@ def _run_sequential(files, ledger_path: str | None) -> None:
         record_run(ledger_path, path, passed=passed)
 
 
+def _set_worker_recording(enabled: bool) -> None:
+    """Process-pool initializer: a worker starts with fresh singletons, so it is told whether to record."""
+    test_record_instance.set_record_enable(enabled)
+
+
 def _run_with_process_pool(files, parallel: int, ledger_path: str | None) -> None:
     """ProcessPool branch — true singleton isolation, records merged back."""
-    with ProcessPoolExecutor(max_workers=parallel) as pool:
+    with ProcessPoolExecutor(
+        max_workers=parallel,
+        initializer=_set_worker_recording,
+        initargs=(test_record_instance.init_record,),
+    ) as pool:
         for path, passed, records in pool.map(_run_one_file_isolated, files):
             test_record_instance.test_record_list.extend(records)
             if not passed:
@@ -404,6 +413,9 @@ def _dispatch(args: argparse.Namespace) -> None:
     if args.agent_task:
         _run_agent_task(args.agent_task, args.report)
         return
+    if args.report:
+        # The report is built from the records, and recording is off until something turns it on.
+        test_record_instance.set_record_enable(True)
     include_tags = _split_csv(args.tag)
     exclude_tags = _split_csv(args.exclude_tag)
     if args.validate:

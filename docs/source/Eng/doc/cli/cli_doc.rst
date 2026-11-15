@@ -81,6 +81,13 @@ A failed action does not stop its list: the remaining actions run, and so do the
 ``-d``. Once everything has run, the process exits with code 1 and prints
 ``error: N action(s) or file(s) failed`` when anything failed, and with code 0 otherwise.
 
+Reports
+-------
+
+``--report BASE`` writes the JSON, HTML, XML and JUnit reports after the run. They are built from the
+test records, so the flag turns recording on before anything runs, in the workers of
+``--parallel-mode process`` too; an action file does not need ``WR_set_record_enable``.
+
 Running Under TestPioneer
 -------------------------
 

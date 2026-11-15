@@ -1838,7 +1838,7 @@ python -m je_web_runner -d ./actions --ledger ledger.json
 python -m je_web_runner -d ./actions --rerun-failed ledger.json
 python -m je_web_runner -d ./actions --shard 1/4
 python -m je_web_runner -d ./actions --watch ./actions
-python -m je_web_runner --report run                          # JSON + HTML + XML + JUnit
+python -m je_web_runner -d ./actions --report run             # JSON + HTML + XML + JUnit; recording is turned on for the run
 python -m je_web_runner --validate ./action_smoke.json
 python -m je_web_runner --migrate ./actions --migrate-dry-run
 python -m je_web_runner -d ./actions --affected-by locator:login_button --affected-by url:/checkout
