@@ -364,6 +364,7 @@ helpers against real Chrome / network. Each is invoked from the repo root:
 | `fanout_demo.py` | `fanout.run_fan_out` parallel HTTP preflights. |
 | `pii_redact_demo.py` | `pii_scanner.scan_text` + `redact_text` + `assert_no_pii` (pure logic). |
 | `quick_smoke.json` | Minimal `WR_set_driver` → `WR_sleep` → `WR_execute_script` → `WR_quit_all` smoke via the executor CLI. |
+| `flow/suite.json` + `flow/parts/` | The action-file language against the local pages of `examples/agent_demo`: `meta` (`vars`, `setup`, `teardown`, `fail_fast`), `${name}` placeholders, `WR_for_each`, `WR_call_file` with `params`, `WR_capture`, `WR_if` on a `succeeds` condition, `WR_try`, `WR_assert_var`. Headless Chrome, no network. |
 
 Run a Python example directly:
 
@@ -375,6 +376,14 @@ Run an action JSON example through the executor:
 
 ```bash
 python -m je_web_runner -e examples/quick_smoke.json
+```
+
+Run the action-file language example (it reads the pages from the directory `WR_DEMO_BASE` names):
+
+```bash
+export WR_DEMO_BASE="file://$(pwd)/examples/agent_demo"         # PowerShell: $env:WR_DEMO_BASE = "file:///$((Get-Location).Path -replace '\\','/')/examples/agent_demo"
+python -m je_web_runner -e examples/flow/suite.json --report flow_report
+python -m je_web_runner -d examples/flow --exclude-tag sub-flow  # the same, as a directory run
 ```
 
 ## Test Tiers
@@ -619,7 +628,7 @@ Blocks decide which actions run. Their actions are ordinary actions, so blocks n
 
 A condition is a JSON object, never code: `{"var": "name.path", "op": "eq", "value": 1}`, `{"succeeds": [action]}` (true when the action does not fail), `{"all": [...]}`, `{"any": [...]}`, `{"not": ...}`, or a plain value such as `"${flag}"`. Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `in`, `startswith`, `endswith`, `exists`, `truthy` (the default), `falsy`.
 
-The first action that fails stops its block and fails the action that holds the block, which is recorded once. Every nested action passes the same gates as a top-level one (refused commands, the arbitrary-script gate, the MCP policy), and its placeholders are expanded when it runs, so a loop sees the values of each round.
+The first action that fails stops its block and fails the action that holds the block, which is recorded once. A failure the list handles on purpose (the action of a `succeeds` condition, a `WR_try` with `on_error`, an attempt that `WR_retry_block` or the retry policy repeats) is not a failure of the run: in the test record its error text moves to `handled_exception`, so reports and `--rerun-failed` do not count it. Every nested action passes the same gates as a top-level one (refused commands, the arbitrary-script gate, the MCP policy), and its placeholders are expanded when it runs, so a loop sees the values of each round.
 
 ### Calling another action file
 

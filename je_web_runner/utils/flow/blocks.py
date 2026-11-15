@@ -11,11 +11,13 @@ from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerAssertException, describe_error
 from je_web_runner.utils.flow.conditions import compare, evaluate
-from je_web_runner.utils.flow.variables import FlowError
+from je_web_runner.utils.flow.variables import FlowError, is_missing
+from je_web_runner.utils.test_record.test_record_class import mark_handled, track_records
 
 MAX_ITERATIONS = 100_000
 MAX_BLOCK_RETRIES = 100
 ERROR_VARIABLE = "error"
+_SHOWN_LENGTH = 200
 
 
 def _count(value: Any, what: str, executor: Any, minimum: int = 0, maximum: int = MAX_ITERATIONS) -> int:
@@ -97,15 +99,18 @@ def run_try(executor: Any, do: list, on_error: list | None = None, always: list 
     """
     outcome: dict[str, Any] = {"failed": False, "error": None}
     try:
-        try:
-            executor.run_nested(do)
-        # The block decides what a failure of its actions means, whatever raised it.
-        except Exception as error:  # pylint: disable=broad-exception-caught
-            if on_error is None:
-                raise
-            outcome = {"failed": True, "error": describe_error(error)}
+        with track_records() as records:
+            try:
+                executor.run_nested(do)
+            # The block decides what a failure of its actions means, whatever raised it.
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                if on_error is None:
+                    raise
+                mark_handled(records)  # handled here, so not a failure in the reports
+                outcome = {"failed": True, "error": describe_error(error)}
+        if outcome["failed"]:
             with executor.variables.scope({ERROR_VARIABLE: outcome["error"]}):
-                executor.run_nested(on_error)
+                executor.run_nested(on_error or [])
     finally:
         executor.run_nested(always or [])
     return outcome
@@ -122,14 +127,16 @@ def retry_block(executor: Any, do: list, retries: Any = 1, backoff: float = 0.0)
     if isinstance(backoff, bool) or not isinstance(backoff, (int, float)) or backoff < 0:
         raise FlowError(f"WR_retry_block backoff must be a number of seconds, got {backoff!r}")
     for attempt in range(1, extra + 2):
-        try:
-            executor.run_nested(do)
-            return attempt
-        # Any failure starts the block again; the last attempt's failure is the block's failure.
-        except Exception:  # pylint: disable=broad-exception-caught
-            if attempt > extra:
-                raise
-            time.sleep(backoff * attempt)
+        with track_records() as records:
+            try:
+                executor.run_nested(do)
+                return attempt
+            # Any failure starts the block again; the last attempt's failure is the block's failure.
+            except Exception:  # pylint: disable=broad-exception-caught
+                if attempt > extra:
+                    raise
+                mark_handled(records)  # retried, so not a failure in the reports
+        time.sleep(backoff * attempt)
     raise FlowError("WR_retry_block ended without an attempt")  # unreachable: the range is never empty
 
 
@@ -149,5 +156,8 @@ def assert_var(executor: Any, var: str, op: str = "truthy", value: Any = None) -
     ``endswith``, ``exists``, ``truthy`` (the default), ``falsy``.
     """
     if not compare(executor.variables, var, op, value):
-        raise WebRunnerAssertException(f"variable {var} does not satisfy {op} {value!r}")
+        actual = executor.variables.resolve(var)
+        shown = "not set" if is_missing(actual) else repr(actual)[:_SHOWN_LENGTH]
+        expected = "" if value is None else f" {executor.variables.expand(value)!r}"[:_SHOWN_LENGTH]
+        raise WebRunnerAssertException(f"variable {var} is {shown}; expected {op}{expected}")
     return True

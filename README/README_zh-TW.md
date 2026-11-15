@@ -350,6 +350,7 @@ je_web_runner/
 | `fanout_demo.py` | `fanout.run_fan_out` 平行 HTTP 預檢。 |
 | `pii_redact_demo.py` | `pii_scanner.scan_text` + `redact_text` + `assert_no_pii`（純邏輯）。 |
 | `quick_smoke.json` | 透過執行器 CLI 執行的最小 `WR_set_driver` → `WR_sleep` → `WR_execute_script` → `WR_quit_all` 冒煙測試。 |
+| `flow/suite.json` + `flow/parts/` | 針對 `examples/agent_demo` 本機頁面的動作檔語言示範：`meta`（`vars`、`setup`、`teardown`、`fail_fast`）、`${name}` 佔位符、`WR_for_each`、帶 `params` 的 `WR_call_file`、`WR_capture`、以 `succeeds` 為條件的 `WR_if`、`WR_try`、`WR_assert_var`。無頭 Chrome，不需網路。 |
 
 直接執行一個 Python 範例：
 
@@ -361,6 +362,14 @@ python examples/google_search.py
 
 ```bash
 python -m je_web_runner -e examples/quick_smoke.json
+```
+
+執行動作檔語言的範例（它從 `WR_DEMO_BASE` 指定的目錄讀取頁面）：
+
+```bash
+export WR_DEMO_BASE="file://$(pwd)/examples/agent_demo"         # PowerShell: $env:WR_DEMO_BASE = "file:///$((Get-Location).Path -replace '\\','/')/examples/agent_demo"
+python -m je_web_runner -e examples/flow/suite.json --report flow_report
+python -m je_web_runner -d examples/flow --exclude-tag sub-flow  # 同一件事，改以目錄執行
 ```
 
 ## 測試分層
@@ -603,7 +612,7 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 
 條件是 JSON 物件，絕不是程式碼：`{"var": "name.path", "op": "eq", "value": 1}`、`{"succeeds": [action]}`（該動作沒有失敗時為真）、`{"all": [...]}`、`{"any": [...]}`、`{"not": ...}`，或 `"${flag}"` 這樣的單純值。運算子：`eq`、`ne`、`gt`、`ge`、`lt`、`le`、`contains`、`in`、`startswith`、`endswith`、`exists`、`truthy`（預設）、`falsy`。
 
-第一個失敗的動作會中止所在的區塊，並讓持有該區塊的動作失敗，只記錄一次。每個巢狀動作都要通過與頂層動作相同的閘門（被拒絕的命令、任意腳本閘門、MCP 政策），佔位符在動作執行時才展開，所以迴圈每一輪看到的都是當輪的值。
+第一個失敗的動作會中止所在的區塊，並讓持有該區塊的動作失敗，只記錄一次。清單刻意處理掉的失敗（`succeeds` 條件的動作、有 `on_error` 的 `WR_try`、被 `WR_retry_block` 或重試策略重跑的那一次嘗試）不算這次執行的失敗：在測試紀錄中，它的錯誤文字會移到 `handled_exception`，報告與 `--rerun-failed` 都不會計入。每個巢狀動作都要通過與頂層動作相同的閘門（被拒絕的命令、任意腳本閘門、MCP 政策），佔位符在動作執行時才展開，所以迴圈每一輪看到的都是當輪的值。
 
 ### 呼叫另一個動作檔
 

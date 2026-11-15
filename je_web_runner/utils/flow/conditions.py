@@ -21,6 +21,7 @@ import operator
 from typing import Any, Callable
 
 from je_web_runner.utils.flow.variables import FlowError, VariableStore, is_missing
+from je_web_runner.utils.test_record.test_record_class import mark_handled, track_records
 
 RunAction = Callable[[Any], Any]
 
@@ -69,10 +70,12 @@ def compare(store: VariableStore, var: str, op: str = "truthy", value: Any = Non
 
 
 def _succeeds(action: Any, run_action: RunAction) -> bool:
-    try:
-        run_action(action)
-    except Exception:  # pylint: disable=broad-exception-caught  # whether it fails is the question asked
-        return False
+    with track_records() as records:
+        try:
+            run_action(action)
+        except Exception:  # pylint: disable=broad-exception-caught  # whether it fails is the question
+            mark_handled(records)  # a failure here is an answer, not a failure of the run
+            return False
     return True
 
 

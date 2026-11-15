@@ -517,7 +517,12 @@ A condition is a JSON object, never code:
 * A plain value (``true``, ``"${flag}"``) is itself, after expansion.
 
 The first action that fails stops its block and fails the action that holds the
-block, which is recorded once. Every nested action passes the same gates as a
+block, which is recorded once. A failure the list handles on purpose (the action
+of a ``succeeds`` condition, a ``WR_try`` with ``on_error``, an attempt that
+``WR_retry_block`` or the retry policy repeats) is not a failure of the run: in
+the test record its error text moves to ``handled_exception`` and
+``program_exception`` is ``"None"``, so reports and ``--rerun-failed`` do not
+count it. Every nested action passes the same gates as a
 top-level one (refused commands, the arbitrary-script gate, the MCP policy) and
 the retry policy, and its placeholders are expanded when it runs, so a loop sees
 the values of each round.

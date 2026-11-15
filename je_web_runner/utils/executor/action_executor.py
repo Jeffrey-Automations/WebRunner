@@ -51,6 +51,7 @@ from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.package_manager.package_manager_class import package_manager
+from je_web_runner.utils.test_record.test_record_class import mark_handled, track_records
 from je_web_runner.utils.test_record.wrapper_failures import set_raise_wrapper_errors
 from je_web_runner.webdriver import playwright_wrapper as _pw
 from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
@@ -272,16 +273,19 @@ class Executor(ActionExecutor):
         retries = int(self.retry_policy.get("retries", 0))
         backoff = float(self.retry_policy.get("backoff", 0.0))
         for attempt in range(retries + 1):
-            try:
-                return self._execute_event(action)
-            except Exception as error:
-                if attempt >= retries:
-                    raise
-                if backoff > 0:
-                    time.sleep(backoff * (attempt + 1))
-                web_runner_logger.warning(
-                    f"action {action!r} failed on attempt {attempt + 1}, retrying: {error!r}"
-                )
+            with track_records() as records:
+                try:
+                    return self._execute_event(action)
+                except Exception as error:
+                    if attempt >= retries:
+                        raise
+                    # The attempt is retried, so what it recorded is not a failure of the run.
+                    mark_handled(records)
+                    web_runner_logger.warning(
+                        f"action {action!r} failed on attempt {attempt + 1}, retrying: {error!r}"
+                    )
+            if backoff > 0:
+                time.sleep(backoff * (attempt + 1))
         # Unreachable: ``range(retries + 1)`` always has at least one iteration.
         raise WebRunnerExecuteException("retry loop exited without resolution")
 

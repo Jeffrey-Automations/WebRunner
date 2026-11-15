@@ -272,6 +272,17 @@ class TestBlocks(unittest.TestCase):
         with self.assertRaises(WebRunnerExecuteException) as raised:
             self._run(["WR_assert_var", {"var": "status", "op": "eq", "value": 404}])
         self.assertIsInstance(raised.exception.__cause__, WebRunnerAssertException)
+        self.assertIn("variable status is 200; expected eq 404", str(raised.exception))
+
+    def test_assert_var_message_shows_the_expanded_value_and_unset_variables(self):
+        self.executor.variables.set("name", "Grace")
+        self.executor.variables.set("greeting", "Hello Ada")
+        with self.assertRaises(WebRunnerExecuteException) as raised:
+            self._run(["WR_assert_var", {"var": "greeting", "op": "eq", "value": "Hello ${name}"}])
+        self.assertIn("variable greeting is 'Hello Ada'; expected eq 'Hello Grace'", str(raised.exception))
+        with self.assertRaises(WebRunnerExecuteException) as raised:
+            self._run(["WR_assert_var", {"var": "missing"}])
+        self.assertIn("variable missing is not set; expected truthy", str(raised.exception))
 
     def test_gates_apply_inside_blocks(self):
         with self.executor.restricted({"WR_probe"}):
