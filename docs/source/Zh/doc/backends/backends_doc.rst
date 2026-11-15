@@ -162,8 +162,9 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
        ``viewport_size``、``page_count``）、``WR_pw_element_assert``\ （``tag_name``、
        ``text``、``value``、``visible``、``enabled``、``checked``、``size``、
        ``location``）
-     - Playwright 的斷言會拋出例外，不符時該動作就失敗。Selenium 的斷言只把
-       不符記進測試紀錄，動作仍算成功。
+     - 兩邊的斷言都會拋出例外，不符時該動作就失敗。Selenium 的斷言另外把
+       不符記進測試紀錄；``WR_set_raise_wrapper_errors`` 設為 ``false``
+       可回到舊行為，讓動作仍算成功。
    * - 分頁
      - ``WR_new_window``、``WR_switch``、``WR_switch_to_window_by_url``、
        ``WR_switch_to_window_by_title``、``WR_close_window``
@@ -273,9 +274,8 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
 Playwright 做不到：
 
 * Internet Explorer 與真正的 Safari；Playwright 的 WebKit 不是 Safari。
-* Selenium Grid 與雲端 grid（``WR_start_remote_driver``、
-  ``WR_start_remote_driver``）：它們使用 WebDriver 協定，Playwright
-  不支援。
+* Selenium Grid（``WR_start_remote_driver``）：它使用 WebDriver 協定，
+  Playwright 不支援。
 * Appium 行動 session（``WR_appium_*``）。
 * 視窗位置與大小（``WR_maximize_window``、``WR_minimize_window``、
   ``WR_fullscreen_window``、``WR_set_window_position``、

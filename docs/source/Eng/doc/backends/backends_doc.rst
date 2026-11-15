@@ -172,8 +172,9 @@ Equivalent commands
        ``viewport_size``, ``page_count``), ``WR_pw_element_assert``
        (``tag_name``, ``text``, ``value``, ``visible``, ``enabled``,
        ``checked``, ``size``, ``location``)
-     - The Playwright checks raise, so a mismatch fails its action. The
-       Selenium ones record the mismatch in the test record but let the
+     - Both raise, so a mismatch fails its action. The Selenium ones also
+       record it in the test record; ``WR_set_raise_wrapper_errors``
+       with ``false`` brings back the old behaviour of letting the
        action pass.
    * - Tabs
      - ``WR_new_window``, ``WR_switch``, ``WR_switch_to_window_by_url``,
@@ -290,9 +291,8 @@ Not possible on Playwright:
 
 * Internet Explorer and the real Safari browser; Playwright's WebKit is not
   Safari.
-* Selenium Grid and the cloud grids (``WR_start_remote_driver``,
-  ``WR_start_remote_driver``): they speak the WebDriver protocol, which
-  Playwright does not.
+* Selenium Grid (``WR_start_remote_driver``): it speaks the WebDriver
+  protocol, which Playwright does not.
 * Appium mobile sessions (``WR_appium_*``).
 * Window geometry (``WR_maximize_window``, ``WR_minimize_window``,
   ``WR_fullscreen_window``, ``WR_set_window_position``,

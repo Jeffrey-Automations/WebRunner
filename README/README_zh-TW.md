@@ -595,7 +595,7 @@ Selenium 後端也有對應 Playwright 元素與頁面輔助命令的版本：�
 
 ### Playwright
 
-Playwright 後端在 `WR_pw_*` 下涵蓋 Selenium 封裝的大部分日常操作，但不是一對一的複本。`docs/source/Zh/doc/backends/backends_doc.rst` 裡的對照表列出對應的命令與差異（例如逾時用毫秒而不是秒、分頁只能依索引切換）、另一個後端做不到的功能（只有 Selenium：Internet Explorer、Selenium Grid、Appium、作業系統視窗的位置與大小；只有 Playwright：WebKit、trace viewer、每個動作前自動等元素可操作），以及另一個後端還沒有的功能。
+Playwright 後端在 `WR_pw_*` 下涵蓋 Selenium 封裝的大部分日常操作，但不是一對一的複本。`docs/source/Zh/doc/backends/backends_doc.rst` 裡的對照表列出對應的命令與差異（例如逾時用毫秒而不是秒、分頁只能依索引切換）、另一個後端做不到的功能（只有 Selenium：Internet Explorer、Selenium Grid、Appium、作業系統視窗的位置與大小；只有 Playwright：WebKit、trace viewer、每個動作前自動等元素可操作）。
 
 頁面級快捷方法會把額外的 Playwright 選項原樣傳下去（`button`、`modifiers`、`timeout`、`force`、`wait_until` …），頁面級動作會像 Selenium 的步驟一樣寫進測試紀錄，網站自己開的分頁（popup、`window.open`）也會被追蹤，`WR_pw_switch_to_page` 可以切過去。命令如下：
 

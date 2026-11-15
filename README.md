@@ -611,7 +611,7 @@ With a driver started with `enable_bidi=True` (Chrome or Firefox) the Selenium b
 
 ### Playwright
 
-The Playwright backend covers most everyday operations of the Selenium wrapper under `WR_pw_*`, but it is not a one-to-one copy. The comparison table in `docs/source/Eng/doc/backends/backends_doc.rst` lists the equivalent commands and how they differ (for example, timeouts in milliseconds instead of seconds, tabs switched by index only), what cannot exist on the other backend (Internet Explorer, Selenium Grid, Appium and OS window geometry on Selenium only; WebKit, the trace viewer and automatic actionability waits on Playwright only), and what is not on the other backend yet.
+The Playwright backend covers most everyday operations of the Selenium wrapper under `WR_pw_*`, but it is not a one-to-one copy. The comparison table in `docs/source/Eng/doc/backends/backends_doc.rst` lists the equivalent commands and how they differ (for example, timeouts in milliseconds instead of seconds, tabs switched by index only), what cannot exist on the other backend (Internet Explorer, Selenium Grid, Appium and OS window geometry on Selenium only; WebKit, the trace viewer and automatic actionability waits on Playwright only).
 
 The page-level shortcuts pass extra Playwright options through (`button`, `modifiers`, `timeout`, `force`, `wait_until` …), page-level actions are added to the test record like Selenium steps, and pages the site opens itself (popups, `window.open`) are tracked so `WR_pw_switch_to_page` can reach them. The commands:
 
