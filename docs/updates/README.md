@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-12 | 2026-11-16 | Linter and validator read the actions inside blocks | #feature #linter #flow | [2026-11](2026-11.md) |
 | U-20261116-11 | 2026-11-16 | File meta: setup, teardown, vars, skip, retries; fail-fast | #feature #executor #flow | [2026-11](2026-11.md) |
 | U-20261116-10 | 2026-11-16 | WR_call_file: run another action file with parameters | #feature #executor #flow | [2026-11](2026-11.md) |
 | U-20261116-09 | 2026-11-16 | Control flow in action files: WR_if, loops, WR_try, WR_retry_block | #feature #executor #flow | [2026-11](2026-11.md) |
@@ -190,7 +191,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 15 |
+| [2026-11.md](2026-11.md) | 2026-11 | 16 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

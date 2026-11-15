@@ -10,6 +10,8 @@ Action format accepted by the executor:
   - ``[command_name, {kwargs}]``                    -- keyword-argument call
   - ``[command_name, [positional]]``                -- positional-argument call
   - ``[command_name, [positional], {kwargs}]``      -- mixed positional + kwargs
+- the actions a block command holds (``WR_if`` ``then`` / ``otherwise``, the ``do`` of the loops,
+  ``WR_try`` …) and those of ``meta.setup`` / ``meta.teardown`` have the same shape.
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from typing import Iterable
 
 from je_web_runner.utils.exception.exception_tags import executor_data_error, executor_list_error
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
+from je_web_runner.utils.flow.structure import misshapen_blocks, nested_actions
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
@@ -39,7 +42,7 @@ def _extract_action_list(data: list | dict) -> list:
     )
 
 
-def _validate_single_action(action: object, index: int) -> None:
+def _validate_single_action(action: object, index: int | str) -> None:
     """Validate one action entry; raise on first problem."""
     if not isinstance(action, list):
         raise WebRunnerExecuteException(
@@ -73,6 +76,33 @@ def _validate_single_action(action: object, index: int) -> None:
             )
 
 
+def _validate_blocks(action: list, label: str) -> None:
+    """Validate the actions ``action`` holds, and theirs; ``label`` names ``action`` in the error."""
+    for key in misshapen_blocks(action):
+        raise WebRunnerExecuteException(
+            f"{executor_data_error}: action #{label} {key} must be a list of actions")
+    for location, nested in nested_actions(action, label):
+        _validate_single_action(nested, location)
+        _validate_blocks(nested, location)
+
+
+def _validate_hooks(data: list | dict) -> None:
+    """Validate the actions of ``meta.setup`` and ``meta.teardown`` of an object document."""
+    meta = data.get("meta") if isinstance(data, dict) else None
+    if not isinstance(meta, dict):
+        return
+    for key in ("setup", "teardown"):
+        hook = meta.get(key)
+        if hook is None:
+            continue
+        if not isinstance(hook, list):
+            raise WebRunnerExecuteException(f"{executor_list_error}: meta.{key} must be a list of actions")
+        for index, action in enumerate(hook):
+            label = f"meta.{key}[{index}]"
+            _validate_single_action(action, label)
+            _validate_blocks(action, label)
+
+
 def validate_action_json(data: list | dict) -> bool:
     """
     驗證動作 JSON 是否符合執行器格式
@@ -88,6 +118,8 @@ def validate_action_json(data: list | dict) -> bool:
         raise WebRunnerExecuteException(executor_list_error)
     for index, action in enumerate(action_list):
         _validate_single_action(action, index)
+        _validate_blocks(action, str(index))
+    _validate_hooks(data)
     return True
 
 

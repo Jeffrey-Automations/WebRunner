@@ -2,7 +2,12 @@
 品質與安全
 ==========
 
-* Action linter
+* Action linter：除了舊命令名、寫死 URL、危險腳本、缺少標籤、連續重複動作之外，也會警告
+  未註冊的命令（``unknown_command``）、不是動作清單的區塊參數（``block_shape``）與沒有
+  ``max_iterations`` 的 ``WR_while``\ （``while_without_limit``），並以資訊等級列出檔案內
+  沒有任何動作設定的 ``${name}``\ （``undefined_variable``；呼叫端的 ``params`` 仍可能設定它）。
+  區塊內與 ``meta.setup`` / ``meta.teardown`` 的動作和頂層動作一樣會被檢查；``--validate`` 與
+  ``WR_validate_action_json`` 也會檢查這些巢狀動作的形狀。
 * Migration helper（舊命令 → 新別名）
 * 寫死密碼掃描
 * HTTP 安全 headers 稽核

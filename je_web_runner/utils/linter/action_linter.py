@@ -2,7 +2,9 @@
 Action JSON linter：警告反模式（舊命令名、寫死 URL、危險 script 等）。
 Action JSON linter that warns about common anti-patterns. Findings are
 ``{rule, severity, message, location}`` dicts; severity is ``warning`` or
-``info``.
+``info``. Actions inside blocks (``WR_if``, the loops, ``WR_try`` …) and in
+``meta.setup`` / ``meta.teardown`` are checked like top-level ones; the rules
+of the action-file language are in :mod:`je_web_runner.utils.linter.flow_rules`.
 """
 from __future__ import annotations
 
@@ -12,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.linter.flow_rules import every_action, flow_findings
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
@@ -69,12 +72,8 @@ def _walk_args(value: Any, location: str, findings: list[dict[str, Any]]) -> Non
             _walk_args(sub, f"{location}[{index}]", findings)
 
 
-def _check_action(action: Any, index: int, findings: list[dict[str, Any]]) -> None:
-    location = f"action[{index}]"
-    if not isinstance(action, list) or not action or not isinstance(action[0], str):
-        # The validator covers structural problems; the linter only adds
-        # advisory findings for well-formed inputs.
-        return
+def _check_name_rules(action: list, location: str, findings: list[dict[str, Any]]) -> None:
+    """The rules that look at one action's name and argument slots; ``action`` is well-formed."""
     name = action[0]
 
     if name in _LEGACY_NAMES:
@@ -101,8 +100,43 @@ def _check_action(action: Any, index: int, findings: list[dict[str, Any]]) -> No
             "location": location,
         })
 
+
+def _check_action(action: Any, index: int, findings: list[dict[str, Any]]) -> None:
+    location = f"action[{index}]"
+    if not isinstance(action, list) or not action or not isinstance(action[0], str):
+        # The validator covers structural problems; the linter only adds
+        # advisory findings for well-formed inputs.
+        return
+    _check_name_rules(action, location, findings)
+    # The walk goes through the whole action, so URLs of nested actions are found here too.
     for slot_index in range(1, len(action)):
         _walk_args(action[slot_index], f"{location}.args[{slot_index - 1}]", findings)
+
+
+def _check_nested(action_list: list[Any], prefix: str, findings: list[dict[str, Any]]) -> None:
+    """Apply the name rules to the actions inside blocks; ``top_level`` ones were checked already."""
+    top_level = {f"{prefix}[{index}]" for index in range(len(action_list))}
+    for location, action in every_action(action_list, prefix):
+        if location not in top_level:
+            _check_name_rules(action, location, findings)
+
+
+def _known_commands() -> list[str] | None:
+    """The registered command names, or None when the executor cannot be imported."""
+    try:
+        from je_web_runner.utils.executor.action_executor import executor
+    except Exception as error:  # pylint: disable=broad-except
+        web_runner_logger.warning(f"action linter: executor unavailable: {error!r}")
+        return None
+    return [name for name in executor.event_dict if isinstance(name, str)]
+
+
+def _check_hook(meta: dict[str, Any], key: str, findings: list[dict[str, Any]]) -> None:
+    """The name rules for the actions of ``meta.setup`` / ``meta.teardown``."""
+    actions = meta.get(key)
+    if isinstance(actions, list):
+        for location, action in every_action(actions, f"meta.{key}"):
+            _check_name_rules(action, location, findings)
 
 
 def _check_duplicates(action_list: list[Any], findings: list[dict[str, Any]]) -> None:
@@ -120,9 +154,12 @@ def _check_duplicates(action_list: list[Any], findings: list[dict[str, Any]]) ->
 def lint_action(data: Any) -> list[dict[str, Any]]:
     """Walk an action structure and return the findings list."""
     findings: list[dict[str, Any]] = []
+    meta: Any = {}
     if isinstance(data, dict):
         action_list = data.get("webdriver_wrapper")
         meta = data.get("meta") or {}
+        if not isinstance(meta, dict):
+            meta = {}
         if not (meta.get("tags") or []):
             findings.append({
                 "rule": "missing_tags",
@@ -136,7 +173,11 @@ def lint_action(data: Any) -> list[dict[str, Any]]:
         return findings
     for index, action in enumerate(action_list):
         _check_action(action, index, findings)
+    _check_nested(action_list, "action", findings)
+    for key in ("setup", "teardown"):
+        _check_hook(meta, key, findings)
     _check_duplicates(action_list, findings)
+    findings.extend(flow_findings(action_list, meta, _known_commands()))
     return findings
 
 

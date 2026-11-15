@@ -885,7 +885,7 @@ asyncio.run(main())
 
 ## 品質與安全
 
-- **動作 linter** —— `WR_lint_action` / `WR_lint_action_file` 標記舊式命令名、硬編碼 URL、危險腳本、缺失標籤、連續重複動作。
+- **動作 linter** —— `WR_lint_action` / `WR_lint_action_file` 標記舊式命令名、硬編碼 URL、危險腳本、缺失標籤、連續重複動作、未註冊的命令、不是動作清單的區塊參數、沒有 `max_iterations` 的 `WR_while`，以及（以資訊等級）檔案內沒有任何動作設定的 `${name}`。區塊內與 `meta.setup` / `meta.teardown` 的動作和頂層動作一樣會被檢查，`--validate` 也會檢查它們的形狀。
 - **遷移小幫手** —— `python -m je_web_runner --migrate ./actions` 將十一個舊式別名重寫為其偏好名稱（`--migrate-dry-run` 只報告而不寫入）。
 - **硬編碼密鑰掃描器** —— `WR_scan_secrets_file` / `WR_assert_no_secrets` 在 AWS / GitHub / Slack / JWT / Google / 私鑰字串落入提交之前將其攔截。
 - **安全回應標頭稽核** —— `WR_audit_security_headers_url` 檢查 HSTS / CSP / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy。

@@ -4,7 +4,14 @@ Quality & security
 
 * **Action linter** — ``WR_lint_action`` warns about legacy command names,
   hard-coded URLs, dangerous scripts, missing tags, duplicate consecutive
-  actions.
+  actions, commands that are not registered (``unknown_command``), a block
+  argument that is not a list of actions (``block_shape``) and a
+  ``WR_while`` without ``max_iterations`` (``while_without_limit``). As
+  information it lists each ``${name}`` no action of the file sets
+  (``undefined_variable``); a caller's ``params`` may still set it. Actions
+  inside blocks and in ``meta.setup`` / ``meta.teardown`` are checked like
+  top-level ones. ``--validate`` and ``WR_validate_action_json`` check the
+  shape of those nested actions too.
 * **Migration helper** — ``python -m je_web_runner --migrate ./actions``
   rewrites legacy aliases to the preferred names.
 * **Hard-coded secrets scanner** — ``scan_action_file`` catches common

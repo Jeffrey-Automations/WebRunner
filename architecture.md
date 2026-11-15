@@ -203,6 +203,8 @@ process share one driver (`--parallel-mode process` exists for isolation).
   `teardown`, `vars`, `skip`, `retries`, `retry_backoff`, `fail_fast` by `Executor.document_actions` and
   `_document_run` (`utils/flow/document.py`). A document without those keys runs as before. Fail-fast
   (`utils/flow/failfast.py`, off by default) skips the actions of a list after a failed one, never `teardown`.
+- Tools that read an action file without running it (linter, validator) find the actions inside blocks through
+  `utils/flow/structure.py`. A new block command must be added there as well as to `DEFERRED_EXPANSION`.
 - `WR_call_file` reads only files below the working directory or below the directory of the file the run started
   from (`executor.files`, a per-thread `FileStack`, set by `execute_files` / `execute_file` and the CLI), refuses a
   file that is already running and stops at 20 nested calls.
