@@ -365,7 +365,7 @@ helpers against real Chrome / network. Each is invoked from the repo root:
 | `fanout_demo.py` | `fanout.run_fan_out` parallel HTTP preflights. |
 | `pii_redact_demo.py` | `pii_scanner.scan_text` + `redact_text` + `assert_no_pii` (pure logic). |
 | `quick_smoke.json` | Minimal `WR_set_driver` → `WR_sleep` → `WR_execute_script` → `WR_quit_all` smoke via the executor CLI. |
-| `flow/suite.json` + `flow/parts/` | The action-file language against the local pages of `examples/agent_demo`: `meta` (`vars`, `setup`, `teardown`, `fail_fast`), `${name}` placeholders, `WR_for_each`, `WR_call_file` with `params`, `WR_capture`, `WR_if` on a `succeeds` condition, `WR_try`, `WR_assert_var`. Headless Chrome, no network. |
+| `flow/suite.json` + `flow/steps/` | The action-file language against the local pages of `examples/agent_demo`: `meta` (`vars`, `setup`, `teardown`, `fail_fast`), `${name}` placeholders, `WR_for_each`, `WR_call_file` with `params`, `WR_capture`, `WR_if` on a `succeeds` condition, `WR_try`, `WR_assert_var`. Headless Chrome, no network. |
 
 Run a Python example directly:
 

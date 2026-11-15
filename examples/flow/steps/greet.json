@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "tags": ["sub-flow"]
+  },
+  "webdriver_wrapper": [
+    ["WR_find_element_by", {"selector": "#name"}],
+    ["WR_element_clear"],
+    ["WR_element_input", {"input_value": "${name}"}],
+    ["WR_find_element_by", {"selector": "#submit"}],
+    ["WR_element_click"],
+    ["WR_find_element_by", {"selector": "#result"}],
+    ["WR_capture", {"name": "greeting", "action": ["WR_element_inner_text"]}]
+  ]
+}

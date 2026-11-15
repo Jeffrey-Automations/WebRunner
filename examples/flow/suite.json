@@ -20,11 +20,11 @@
   },
   "webdriver_wrapper": [
     ["WR_for_each", {"items": "${pages}", "var": "page", "do": [
-      ["WR_call_file", {"path": "parts/check_page.json", "params": {"path": "${page.path}", "title": "${page.title}"}}]
+      ["WR_call_file", {"path": "steps/check_page.json", "params": {"path": "${page.path}", "title": "${page.title}"}}]
     ]}],
     ["WR_to_url", {"url": "${base}/index.html"}],
     ["WR_for_each", {"items": "${names}", "var": "name", "index_var": "round", "do": [
-      ["WR_call_file", {"path": "parts/greet.json", "params": {"name": "${name}"}}],
+      ["WR_call_file", {"path": "steps/greet.json", "params": {"name": "${name}"}}],
       ["WR_assert_var", {"var": "greeting", "op": "eq", "value": "Hello ${name}"}]
     ]}],
     ["WR_if", {

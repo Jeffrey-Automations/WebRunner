@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "tags": ["sub-flow"],
+    "vars": {"title": "Local agent demo"}
+  },
+  "webdriver_wrapper": [
+    ["WR_to_url", {"url": "${base}/${path}"}],
+    ["WR_assert_title", {"value": "${title}"}]
+  ]
+}

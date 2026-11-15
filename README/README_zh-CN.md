@@ -351,7 +351,7 @@ je_web_runner/
 | `fanout_demo.py` | `fanout.run_fan_out` 并行 HTTP 预检。 |
 | `pii_redact_demo.py` | `pii_scanner.scan_text` + `redact_text` + `assert_no_pii`（纯逻辑）。 |
 | `quick_smoke.json` | 通过执行器 CLI 运行的最小 `WR_set_driver` → `WR_sleep` → `WR_execute_script` → `WR_quit_all` 冒烟测试。 |
-| `flow/suite.json` + `flow/parts/` | 针对 `examples/agent_demo` 本地页面的动作文件语言示范：`meta`（`vars`、`setup`、`teardown`、`fail_fast`）、`${name}` 占位符、`WR_for_each`、带 `params` 的 `WR_call_file`、`WR_capture`、以 `succeeds` 为条件的 `WR_if`、`WR_try`、`WR_assert_var`。无头 Chrome，不需网络。 |
+| `flow/suite.json` + `flow/steps/` | 针对 `examples/agent_demo` 本地页面的动作文件语言示范：`meta`（`vars`、`setup`、`teardown`、`fail_fast`）、`${name}` 占位符、`WR_for_each`、带 `params` 的 `WR_call_file`、`WR_capture`、以 `succeeds` 为条件的 `WR_if`、`WR_try`、`WR_assert_var`。无头 Chrome，不需网络。 |
 
 直接运行一个 Python 范例：
 

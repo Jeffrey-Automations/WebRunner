@@ -25,9 +25,9 @@ def _actions(document) -> list:
 
 class TestFlowExamples(unittest.TestCase):
 
-    def test_the_example_has_a_suite_and_its_parts(self):
+    def test_the_example_has_a_suite_and_its_steps(self):
         names = {path.relative_to(FLOW_DIR).as_posix() for path in FILES}
-        self.assertEqual(names, {"suite.json", "parts/check_page.json", "parts/greet.json"})
+        self.assertEqual(names, {"suite.json", "steps/check_page.json", "steps/greet.json"})
 
     def test_every_file_validates(self):
         for path in FILES:
@@ -55,9 +55,9 @@ class TestFlowExamples(unittest.TestCase):
                 with self.subTest(path=path.name, called=keyword_arguments(action)["path"]):
                     self.assertTrue((path.parent / keyword_arguments(action)["path"]).is_file())
 
-    def test_parts_are_tagged_so_a_directory_run_can_leave_them_out(self):
+    def test_steps_are_tagged_so_a_directory_run_can_leave_them_out(self):
         for path in FILES:
-            if path.parent.name == "parts":
+            if path.parent.name == "steps":
                 with self.subTest(path=path.name):
                     self.assertIn("sub-flow", _document(path)["meta"]["tags"])
 
