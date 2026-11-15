@@ -11,13 +11,14 @@ def get_dir_files_as_list(dir_path: str | None = None, default_search_file_exten
                      Directory path to search (default: the working directory at the time of the call)
     :param default_search_file_extension: 要搜尋的副檔名 (預設為 ".json")
                                           File extension to search (default: ".json")
-    :return: 若無符合則回傳空清單，否則回傳檔案完整路徑清單
-             [] if no files found, otherwise [file1, file2, ...] with absolute paths
+    :return: 若無符合則回傳空清單，否則回傳排序後的檔案完整路徑清單
+             [] if no files found, otherwise the absolute paths, sorted, so a directory run has the
+             same order on every file system
     """
     search_root = getcwd() if dir_path is None else dir_path
-    return [
+    return sorted(
         abspath(join(root, file))  # 以檔案所在的資料夾組路徑 / Join to the directory the file is in
         for root, _dirs, files in walk(search_root)  # 遍歷資料夾 / Walk through directory
         for file in files
         if file.endswith(default_search_file_extension.lower())  # 篩選符合副檔名的檔案 / Filter by extension
-    ]
+    )

@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from je_web_runner.utils.file_process.get_dir_file_list import get_dir_files_as_list
 
@@ -27,6 +28,14 @@ class TestGetDirFilesAsList(unittest.TestCase):
     def test_every_path_exists(self):
         paths = get_dir_files_as_list(str(self.root))
         self.assertEqual([path for path in paths if not os.path.isfile(path)], [])
+
+    def test_paths_are_sorted_whatever_order_the_file_system_gives(self):
+        listing = [("/suite", ["z", "a"], ["m.json", "b.json"]), ("/suite/z", [], ["c.json"]),
+                   ("/suite/a", [], ["y.json"])]
+        with patch("je_web_runner.utils.file_process.get_dir_file_list.walk", return_value=listing):
+            found = get_dir_files_as_list("/suite")
+        self.assertEqual(found, sorted(found))
+        self.assertEqual([Path(path).name for path in found], ["y.json", "b.json", "m.json", "c.json"])
 
     def test_extension_filter(self):
         found = get_dir_files_as_list(str(self.root), ".txt")
