@@ -313,6 +313,7 @@ je_web_runner/
     ├── perf_metrics/            # FCP / LCP / CLS / TTFB
     ├── pom_generator/           # POM skeleton from URL/HTML
     ├── project/                 # Project template generator
+    ├── project_config/          # webrunner.toml / [tool.webrunner] run defaults
     ├── recorder/                # JS-injection recorder + PII mask
     ├── replay_studio/           # HTML timeline studio
     ├── run_ledger/              # ledger · flaky · classifier
@@ -1941,7 +1942,36 @@ python -m je_web_runner --validate ./action_smoke.json
 python -m je_web_runner --migrate ./actions --migrate-dry-run
 python -m je_web_runner -d ./actions --affected-by locator:login_button --affected-by url:/checkout
 python -m je_web_runner -d ./actions --changed-since origin/main --impact-cache .webrunner_impact_cache.json
+python -m je_web_runner -d ./actions --var base=https://staging.example --var retries=3   # ${base}, ${retries}
+python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # 供 ${ENV.KEY} 使用的 .env.staging
+python -m je_web_runner -d ./actions --fail-fast             # 文件与目录都在第一个失败处停止
+python -m je_web_runner --lint ./actions                     # 有 warning 时以 1 结束
+python -m je_web_runner --list-commands
+python -m je_web_runner --init ./my_project                  # 起始工作区；已有文件会保留
+python -m je_web_runner -d ./actions --config ci.toml        # 或 --no-config
 ```
+
+**项目配置文件。** 运行的默认值可以放在工作目录的 `webrunner.toml`，或 `pyproject.toml` 的 `[tool.webrunner]` 表里。旗标优先于配置文件，配置文件优先于内置默认；没有配置文件时行为完全不变。`--config FILE` 指定另一个文件，`--no-config` 则不读取任何配置文件。
+
+```toml
+# webrunner.toml（在 pyproject.toml 里，同样的键放在 [tool.webrunner] 之下）
+env = "staging"                 # 运行前加载 .env.staging
+fail_fast = true
+retries = 1
+retry_backoff = 0.5
+failure_screenshot_dir = "artifacts/failures"
+report = "reports/run"
+ledger = ".webrunner/ledger.json"
+parallel = 4
+parallel_mode = "process"
+exclude_tag = ["sub-flow"]
+
+[vars]
+base = "${ENV.BASE_URL}"
+user = "alice"
+```
+
+`vars` 会成为变量（同名时 `--var` 优先）；`tag` 与 `exclude_tag` 是列表。未知的键或类型错误的值会在任何动作执行之前中止。在 `--parallel-mode process` 之下，每个工作进程都会拿到相同的变量、`.env` 文件、fail-fast 与重试设置。
 
 安装包时也会装上两个控制台命令 `webrunner` 与 `web_runner`，参数、输出与退出码都和 `python -m je_web_runner` 相同（`webrunner -e actions.json`、`pipx run --spec je_web_runner webrunner -d ./actions`）。
 

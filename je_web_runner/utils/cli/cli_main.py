@@ -8,17 +8,19 @@ import argparse
 import json
 import sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
 
 from je_web_runner.utils.cli.failure_count import FailureCount, note_failed_file, thread_failure_count
+from je_web_runner.utils.cli.run_settings import RunSettings, apply_run_settings, build_run_settings
 from je_web_runner.utils.exception.exception_tags import argparse_get_wrong_data
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor.action_executor import execute_action, execute_files, executor
 from je_web_runner.utils.file_process.get_dir_file_list import get_dir_files_as_list
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.json.json_validator import validate_action_file
+from je_web_runner.utils.project_config.config import ProjectConfig, discover_config, load_config
 from je_web_runner.utils.run_ledger.ledger import failed_files, record_run
 from je_web_runner.utils.test_filter.dependency import (
     build_dependency_graph,
@@ -34,7 +36,56 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_run_args(parser)
     _add_dir_args(parser)
     _add_impact_args(parser)
+    _add_project_args(parser)
     return parser
+
+
+def _add_config_args(parser: argparse.ArgumentParser) -> None:
+    """Which project configuration file to read; also parsed on their own before everything else."""
+    parser.add_argument(
+        "--config", type=str, default=None, metavar="FILE",
+        help="project configuration file (default: webrunner.toml, else [tool.webrunner] of "
+             "pyproject.toml, in the working directory)",
+    )
+    parser.add_argument(
+        "--no-config", action="store_true", dest="no_config",
+        help="do not read a project configuration file",
+    )
+
+
+def _add_project_args(parser: argparse.ArgumentParser) -> None:
+    """Run settings (variables, .env, fail-fast) and the tools that run no action file."""
+    _add_config_args(parser)
+    parser.add_argument(
+        "--var", action="append", default=None, dest="variables", metavar="NAME=VALUE",
+        help="set a variable the action files read as ${NAME}; VALUE is JSON when it parses as JSON, "
+             "else text; repeatable",
+    )
+    parser.add_argument("--env", type=str, default=None, metavar="NAME",
+                        help="load .env.NAME before the run, for ${ENV.KEY} placeholders")
+    parser.add_argument("--env-dir", type=str, default=None, dest="env_dir", metavar="DIR",
+                        help="directory holding the .env files (default: the working directory)")
+    parser.add_argument(
+        "--fail-fast", action="store_true", dest="fail_fast",
+        help="after the first failed action skip the rest of its file (teardown still runs), and with "
+             "--execute_dir do not start the files after the first failed one (sequential runs)",
+    )
+    parser.add_argument("--lint", type=str, default=None, metavar="PATH",
+                        help="lint an action JSON file or directory; a warning exits 1")
+    parser.add_argument("--list-commands", action="store_true", dest="list_commands",
+                        help="print every registered WR_* command")
+    parser.add_argument("--init", type=str, default=None, metavar="DIR",
+                        help="write a starter workspace into DIR (existing files are kept)")
+
+
+def _project_config(argv: Sequence[str] | None) -> ProjectConfig:
+    """The project configuration for this run, read before the real parse so it can set defaults."""
+    early = argparse.ArgumentParser(add_help=False)
+    _add_config_args(early)
+    chosen, _rest = early.parse_known_args(argv)
+    if chosen.no_config:
+        return ProjectConfig()
+    return load_config(chosen.config) if chosen.config else discover_config()
 
 
 def _add_run_args(parser: argparse.ArgumentParser) -> None:
@@ -285,32 +336,46 @@ def _select_files(directory: str, selection: FileSelection) -> list:
     return files
 
 
-def _run_sequential(files, ledger_path: str | None) -> None:
-    """Sequential execution with optional ledger recording."""
-    if not ledger_path:
-        for path in files:
-            try:
-                execute_files([path])
-            except Exception as error:
-                web_runner_logger.error(f"execute_file, path: {path}, failed: {error!r}")
-                note_failed_file()
-        return
-    for path in files:
-        passed = _run_one_file(path)
-        record_run(ledger_path, path, passed=passed)
+def _run_file_unrecorded(path: str) -> bool:
+    """Run one file without a ledger; return whether it passed."""
+    before = thread_failure_count()
+    try:
+        execute_files([path])
+    except Exception as error:
+        web_runner_logger.error(f"execute_file, path: {path}, failed: {error!r}")
+        note_failed_file()
+        return False
+    return thread_failure_count() == before
 
 
-def _set_worker_recording(enabled: bool) -> None:
-    """Process-pool initializer: a worker starts with fresh singletons, so it is told whether to record."""
-    test_record_instance.set_record_enable(enabled)
+def _run_sequential(files, ledger_path: str | None, fail_fast: bool = False) -> None:
+    """Sequential execution with optional ledger recording; ``fail_fast`` stops at the first failed file."""
+    for position, path in enumerate(files):
+        if ledger_path:
+            passed = _run_one_file(path)
+            record_run(ledger_path, path, passed=passed)
+        else:
+            passed = _run_file_unrecorded(path)
+        if fail_fast and not passed:
+            left = len(files) - position - 1
+            print(f"fail-fast: {path} failed; {left} file(s) not run", file=sys.stderr)
+            return
 
 
-def _run_with_process_pool(files, parallel: int, ledger_path: str | None) -> None:
+def _configure_worker(settings: RunSettings) -> None:
+    """Process-pool initializer: a worker starts with fresh singletons, so it is given the run's settings."""
+    apply_run_settings(settings)
+
+
+def _run_with_process_pool(files, parallel: int, ledger_path: str | None,
+                           settings: RunSettings | None = None) -> None:
     """ProcessPool branch — true singleton isolation, records merged back."""
+    # Workers record when this process does, however recording was turned on.
+    worker_settings = replace(settings or RunSettings(), recording=test_record_instance.init_record)
     with ProcessPoolExecutor(
         max_workers=parallel,
-        initializer=_set_worker_recording,
-        initargs=(test_record_instance.init_record,),
+        initializer=_configure_worker,
+        initargs=(worker_settings,),
     ) as pool:
         for path, passed, records in pool.map(_run_one_file_isolated, files):
             test_record_instance.test_record_list.extend(records)
@@ -371,6 +436,7 @@ def _run_dir(
     selection: FileSelection,
     ledger_path: str | None = None,
     parallel_mode: str = "thread",
+    settings: RunSettings | None = None,
 ) -> None:
     files = _select_files(directory, selection)
     if any(build_dependency_graph(files, allow_invalid=True).values()):
@@ -380,10 +446,10 @@ def _run_dir(
         _run_with_asyncio(files, parallel, ledger_path)
         return
     if parallel <= 1:
-        _run_sequential(files, ledger_path)
+        _run_sequential(files, ledger_path, fail_fast=bool(settings and settings.fail_fast))
         return
     if parallel_mode == "process":
-        _run_with_process_pool(files, parallel, ledger_path)
+        _run_with_process_pool(files, parallel, ledger_path, settings)
         return
     _run_with_thread_pool(files, parallel, ledger_path)
 
@@ -415,9 +481,9 @@ def _dispatch(args: argparse.Namespace) -> None:
     if args.agent_task:
         _run_agent_task(args.agent_task, args.report)
         return
-    if args.report:
-        # The report is built from the records, and recording is off until something turns it on.
-        test_record_instance.set_record_enable(True)
+    settings = _run_settings(args)
+    apply_run_settings(settings)
+    _run_tools(args)
     include_tags = _split_csv(args.tag)
     exclude_tags = _split_csv(args.exclude_tag)
     if args.validate:
@@ -428,7 +494,7 @@ def _dispatch(args: argparse.Namespace) -> None:
         with executor.files.scope(args.execute_file):
             execute_action(read_action_json(args.execute_file))
     if args.execute_dir:
-        _dispatch_directory(args, include_tags, exclude_tags)
+        _dispatch_directory(args, include_tags, exclude_tags, settings)
     if args.execute_str:
         execute_action(_parse_execute_str(args.execute_str))
     if args.report:
@@ -437,8 +503,25 @@ def _dispatch(args: argparse.Namespace) -> None:
         _do_migrate(args.migrate, dry_run=args.migrate_dry_run)
 
 
+def _run_settings(args: argparse.Namespace) -> RunSettings:
+    """The run settings of the parsed arguments and the project configuration ``main`` attached."""
+    config = getattr(args, "project_config", None) or ProjectConfig()
+    return build_run_settings(config, args.report, args.fail_fast, args.env, args.env_dir, args.variables)
+
+
+def _run_tools(args: argparse.Namespace) -> None:
+    """The flags that run no action file: list the commands, lint, write a starter workspace."""
+    from je_web_runner.utils.cli import tooling
+    if args.list_commands:
+        tooling.list_commands()
+    if args.lint:
+        tooling.lint_target(args.lint)
+    if args.init:
+        tooling.init_project(args.init)
+
+
 def _dispatch_directory(args: argparse.Namespace, include_tags: Sequence[str],
-                        exclude_tags: Sequence[str]) -> None:
+                        exclude_tags: Sequence[str], settings: RunSettings | None = None) -> None:
     selection = FileSelection(
         include_tags=include_tags, exclude_tags=exclude_tags,
         rerun_only=failed_files(args.rerun_failed) if args.rerun_failed else None,
@@ -447,7 +530,8 @@ def _dispatch_directory(args: argparse.Namespace, include_tags: Sequence[str],
     )
 
     def do_run() -> None:
-        _run_dir(args.execute_dir, args.parallel, selection, ledger_path=args.ledger, parallel_mode=args.parallel_mode)
+        _run_dir(args.execute_dir, args.parallel, selection, ledger_path=args.ledger,
+                 parallel_mode=args.parallel_mode, settings=settings)
 
     if args.watch:
         from je_web_runner.utils.cli.watch_mode import watch_directory
@@ -466,6 +550,9 @@ def _has_any_action(args: argparse.Namespace) -> bool:
         args.validate_dir,
         args.report,
         args.migrate,
+        args.lint,
+        args.list_commands,
+        args.init,
     ])
 
 
@@ -502,7 +589,11 @@ def _do_migrate(target: str, dry_run: bool) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for ``python -m je_web_runner``."""
     parser = _build_parser()
+    # A flag wins over the project configuration, which wins over the built-in default.
+    config = _project_config(argv)
+    parser.set_defaults(**config.cli_defaults())
     args = parser.parse_args(argv)
+    args.project_config = config
     if args.agent_task and any((args.execute_file, args.execute_dir, args.execute_str, args.validate,
                                args.validate_dir, args.migrate, args.watch)):
         parser.error("--agent-task runs independently; only --report can be combined with it")

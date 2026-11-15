@@ -1,4 +1,4 @@
-"""Façade: driver pin / k8s runner / pipeline / synthetic monitoring / lock / coverage map / impact / diff shard."""
+"""Façade: driver pin / k8s runner / pipeline / synthetic monitoring / lock / coverage map / impact / project config."""
 from je_web_runner.utils.coverage_map.coverage import (
     CoverageMap,
     CoverageMapError,
@@ -68,6 +68,13 @@ from je_web_runner.utils.watch_mode.watcher import (
     snapshot_dir,
     watch_loop,
 )
+from je_web_runner.utils.project_config.config import (
+    ProjectConfig,
+    ProjectConfigError,
+    discover_config,
+    find_config,
+    load_config,
+)
 from je_web_runner.utils.workspace_lock.lock import (
     LockEntry,
     WorkspaceLock,
@@ -79,6 +86,7 @@ from je_web_runner.utils.workspace_lock.lock import (
 )
 
 __all__ = [
+    "ProjectConfig", "ProjectConfigError", "discover_config", "find_config", "load_config",
     "CoverageMap", "CoverageMapError",
     "build_coverage_map", "coverage_for_routes",
     "normalise_path", "render_coverage_markdown",

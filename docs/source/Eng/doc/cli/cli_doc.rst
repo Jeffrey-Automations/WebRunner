@@ -81,6 +81,66 @@ A failed action does not stop its list: the remaining actions run, and so do the
 ``-d``. Once everything has run, the process exits with code 1 and prints
 ``error: N action(s) or file(s) failed`` when anything failed, and with code 0 otherwise.
 
+Run Settings
+------------
+
+``--var NAME=VALUE`` sets a variable the action files read as ``${NAME}``; it is
+repeatable, and ``VALUE`` is read as JSON when it parses as JSON (``3``, ``true``,
+``[1, 2]``), else it is the text. ``--env NAME`` loads ``.env.NAME`` (from
+``--env-dir``, default the working directory) before the run, for ``${ENV.KEY}``.
+
+``--fail-fast`` skips the actions of a file after its first failed one
+(``meta.teardown`` still runs), and in a sequential ``-d`` run does not start the
+files after the first failed one; the number of files left out goes to stderr.
+The thread, process and async pools run every file.
+
+Project Configuration
+---------------------
+
+Defaults for a run can live in ``webrunner.toml``, or in the ``[tool.webrunner]``
+table of ``pyproject.toml``, in the working directory. A flag wins over the file,
+the file over the built-in default; without a file nothing changes.
+``--config FILE`` names another file and ``--no-config`` reads none.
+
+.. code-block:: toml
+
+    # webrunner.toml (in pyproject.toml the same keys go under [tool.webrunner])
+    env = "staging"                 # load .env.staging before the run
+    fail_fast = true
+    retries = 1
+    retry_backoff = 0.5
+    failure_screenshot_dir = "artifacts/failures"
+    report = "reports/run"
+    ledger = ".webrunner/ledger.json"
+    parallel = 4
+    parallel_mode = "process"
+    exclude_tag = ["sub-flow"]
+
+    [vars]
+    base = "${ENV.BASE_URL}"
+    user = "alice"
+
+``vars`` become variables (``--var`` wins for the same name). ``report``,
+``ledger``, ``parallel``, ``parallel_mode``, ``tag`` and ``exclude_tag`` replace
+the defaults of the flags of the same name. ``env``, ``env_dir``, ``fail_fast``,
+``retries``, ``retry_backoff`` and ``failure_screenshot_dir`` set the executor up
+before the first action, in every worker of ``--parallel-mode process`` too. An
+unknown key or a value of the wrong type raises ``ProjectConfigError`` before
+anything runs. A ``pyproject.toml`` without the table, or one that cannot be
+parsed, is not a configuration and is ignored.
+
+Tools
+-----
+
+These flags run no action file and can be combined with the others:
+
+* ``--lint PATH`` lints one action file, or every ``.json`` file below a
+  directory, and prints ``path: severity [rule] location: message``. A warning
+  exits 1; information does not.
+* ``--list-commands`` prints every registered ``WR_*`` command, one per line.
+* ``--init DIR`` writes the starter workspace of ``utils/bootstrapper`` into
+  ``DIR``; existing files are kept.
+
 Reports
 -------
 

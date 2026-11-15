@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-15 | 2026-11-16 | Project configuration file and CLI flags --var, --env, --fail-fast, --lint, --init | #feature #cli #config | [2026-11](2026-11.md) |
 | U-20261116-14 | 2026-11-16 | Example: the action-file language against local pages | #docs #examples #flow | [2026-11](2026-11.md) |
 | U-20261116-13 | 2026-11-16 | A failure the action list handled is not a failure in the reports | #bugfix #executor #report #flow | [2026-11](2026-11.md) |
 | U-20261116-12 | 2026-11-16 | Linter and validator read the actions inside blocks | #feature #linter #flow | [2026-11](2026-11.md) |
@@ -193,7 +194,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 18 |
+| [2026-11.md](2026-11.md) | 2026-11 | 19 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

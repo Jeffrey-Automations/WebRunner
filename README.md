@@ -326,6 +326,7 @@ je_web_runner/
     ├── perf_metrics/            # FCP / LCP / CLS / TTFB
     ├── pom_generator/           # POM skeleton from URL/HTML
     ├── project/                 # Project template generator
+    ├── project_config/          # webrunner.toml / [tool.webrunner] run defaults
     ├── recorder/                # JS-injection recorder + PII mask
     ├── replay_studio/           # HTML timeline studio
     ├── run_ledger/              # ledger · flaky · classifier
@@ -1964,7 +1965,36 @@ python -m je_web_runner --validate ./action_smoke.json
 python -m je_web_runner --migrate ./actions --migrate-dry-run
 python -m je_web_runner -d ./actions --affected-by locator:login_button --affected-by url:/checkout
 python -m je_web_runner -d ./actions --changed-since origin/main --impact-cache .webrunner_impact_cache.json
+python -m je_web_runner -d ./actions --var base=https://staging.example --var retries=3   # ${base}, ${retries}
+python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # .env.staging for ${ENV.KEY}
+python -m je_web_runner -d ./actions --fail-fast             # stop a file, and the directory, at the first failure
+python -m je_web_runner --lint ./actions                     # a warning exits 1
+python -m je_web_runner --list-commands
+python -m je_web_runner --init ./my_project                  # starter workspace; existing files are kept
+python -m je_web_runner -d ./actions --config ci.toml        # or --no-config
 ```
+
+**Project configuration.** Defaults for a run can live in `webrunner.toml`, or in the `[tool.webrunner]` table of `pyproject.toml`, in the working directory. A flag wins over the file, the file over the built-in default; without a file nothing changes. `--config FILE` names another file and `--no-config` reads none.
+
+```toml
+# webrunner.toml (in pyproject.toml the same keys go under [tool.webrunner])
+env = "staging"                 # load .env.staging before the run
+fail_fast = true
+retries = 1
+retry_backoff = 0.5
+failure_screenshot_dir = "artifacts/failures"
+report = "reports/run"
+ledger = ".webrunner/ledger.json"
+parallel = 4
+parallel_mode = "process"
+exclude_tag = ["sub-flow"]
+
+[vars]
+base = "${ENV.BASE_URL}"
+user = "alice"
+```
+
+`vars` become variables (`--var` wins for the same name); `tag` and `exclude_tag` are lists. An unknown key or a value of the wrong type stops the run before anything executes. In `--parallel-mode process` every worker gets the same variables, `.env` file, fail-fast and retry settings.
 
 Installing the package also installs two console scripts, `webrunner` and `web_runner`, with the same flags, output and exit codes as `python -m je_web_runner` (`webrunner -e actions.json`, `pipx run --spec je_web_runner webrunner -d ./actions`).
 
