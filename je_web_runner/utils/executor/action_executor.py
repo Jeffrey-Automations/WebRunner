@@ -38,6 +38,14 @@ from je_web_runner.utils.exception.exceptions import (
 )
 from je_web_runner.utils.executor._event_table import build_event_dict
 from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
+from je_web_runner.utils.flow.document import (
+    fail_fast_setting,
+    planned_actions,
+    read_meta,
+    retry_settings,
+    teardown_count,
+)
+from je_web_runner.utils.flow.failfast import FailFast
 from je_web_runner.utils.flow.subflow import FileStack
 from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
@@ -129,12 +137,14 @@ class _ActionParser:
 
 
 class _ActionList:
-    """Finds the actions as :meth:`Executor.action_list_of` does: an empty list runs nothing."""
+    """Finds the actions as :meth:`Executor.document_actions` does: an empty list runs nothing."""
 
-    @staticmethod
-    def extract(action_list: Any) -> list:
+    def __init__(self, owner: "Executor") -> None:
+        self.owner = owner
+
+    def extract(self, action_list: Any) -> list:
         """The list to run; raises for anything that is not a list or a dict holding one."""
-        return Executor.action_list_of(action_list)
+        return self.owner.document_actions(action_list)
 
 
 class _Reporter(PrintReporter):
@@ -161,7 +171,7 @@ class Executor(ActionExecutor):
     def __init__(self):
         super().__init__(
             ExecutorSettings(
-                rules=_ActionList(),
+                rules=_ActionList(self),
                 parser=_ActionParser(),
                 reporter=_Reporter(),
                 read_json=read_action_json,
@@ -176,6 +186,9 @@ class Executor(ActionExecutor):
         # 正在執行的動作檔；WR_call_file 的相對路徑由此而來
         # The action files that are running; a relative WR_call_file path starts from the current one.
         self.files = FileStack()
+        # 第一個失敗後是否跳過清單其餘動作（預設否）
+        # Whether the actions after a failed one are skipped (off by default); see set_fail_fast.
+        self.fail_fast = FailFast()
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
@@ -213,6 +226,15 @@ class Executor(ActionExecutor):
             return action
         return [action[0], *self.variables.expand(action[1:])]
 
+    def set_fail_fast(self, enabled: bool = True) -> None:
+        """
+        設定第一個失敗後是否跳過清單其餘動作
+        Turn fail-fast on or off. On: after an action of a list fails, the actions after it are recorded
+        as skipped and not run, except ``meta.teardown`` actions. Off (the default): every action runs.
+        It takes effect from the next list; a file can set it for itself with ``meta.fail_fast``.
+        """
+        self.fail_fast.enabled = bool(enabled)
+
     def set_retry_policy(self, retries: int = 0, backoff: float = 0.0) -> None:
         """
         設定全域重試策略
@@ -241,8 +263,10 @@ class Executor(ActionExecutor):
         """
         執行單一動作（含重試與 span），失敗時拋出
         Run one action under the retry policy and the action span; what every action of a list passes.
+        With fail-fast on, an action of a list after a failed one raises instead of running.
         """
-        return self._execute_with_retry(action)
+        with self.fail_fast.step():
+            return self._execute_with_retry(action)
 
     def _do_with_retry(self, action):
         retries = int(self.retry_policy.get("retries", 0))
@@ -454,6 +478,50 @@ class Executor(ActionExecutor):
                 f"failed: {WebRunnerExecuteException(executor_list_error)}")
             raise WebRunnerExecuteException(executor_list_error)
         return action_list
+
+    def document_actions(self, action_list: list | dict, scoped: bool = False) -> list:
+        """
+        文件實際要執行的動作
+        The actions to run for ``action_list``. A plain list, and an object without the keys below, is
+        its own action list (:meth:`action_list_of`). An object's ``meta`` can add ``setup`` actions
+        before and ``teardown`` actions after, set default variables (``vars``), or name a reason to
+        ``skip`` the file, which runs one note carrying that reason instead. ``scoped`` keeps the
+        default variables in the innermost frame (a called file).
+
+        :raises FlowError: when one of those ``meta`` keys has the wrong shape.
+        """
+        actions = planned_actions(action_list, self.action_list_of(action_list), self.variables, scoped)
+        self.fail_fast.set_teardown_count(len(actions), teardown_count(action_list))
+        return actions
+
+    @contextlib.contextmanager
+    def _document_run(self, action_list: Any) -> Iterator[None]:
+        """The run of one list: ``meta.retries`` / ``retry_backoff`` and fail-fast apply for its duration."""
+        meta = read_meta(action_list)
+        settings = retry_settings(meta)
+        previous = self.retry_policy
+        with self.fail_fast.run(fail_fast_setting(meta)):
+            if settings is not None:
+                self.set_retry_policy(*settings)
+            try:
+                yield
+            finally:
+                self.retry_policy = previous
+
+    def execute_action(self, action_list: Any) -> dict:
+        """
+        執行動作清單並回傳紀錄
+        Run every action of ``action_list`` (a list, or an object holding one under
+        ``webdriver_wrapper``), print and return the records. A failed action is recorded and the
+        next one runs.
+        """
+        with self._document_run(action_list):
+            return super().execute_action(action_list)
+
+    def collect_action_results(self, action_list: Any) -> tuple[dict, list]:
+        """Run ``action_list`` like :meth:`execute_action` without printing; return ``(records, failed)``."""
+        with self._document_run(action_list):
+            return super().collect_action_results(action_list)
 
     def _failure_text(self, action, error: Exception) -> str:
         artifacts = []

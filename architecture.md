@@ -68,7 +68,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 
 ```
 action file → utils/json/json_file/json_file.read_action_json
-  → Executor.execute_action              (je_action_core's loop; logs the list, then action_list_of: dict input must carry "webdriver_wrapper")
+  → Executor.execute_action              (je_action_core's loop; logs the list, then document_actions: dict input must carry "webdriver_wrapper"; its meta may add setup / teardown, default vars or a skip)
   → attempt → _execute_with_retry        (optional span factory, global retry policy)
   → _execute_event                       (refused commands and the arbitrary-script gate → expand_placeholders replaces ${name} / ${ENV.KEY} in the arguments from executor.variables → _ActionParser.bind looks up event_dict[cmd]; shapes [cmd] | [cmd, {kw}] | [cmd, [args]] | [cmd, [args], {kw}])
   → webdriver_wrapper_instance / web_element_wrapper / web_runner (WebdriverManager) | playwright_wrapper (WR_pw_*)
@@ -199,6 +199,10 @@ process share one driver (`--parallel-mode process` exists for isolation).
   variable cannot pick a refused command. Unknown placeholders stay as written (`${ROW.col}`, JavaScript template
   literals). Commands that hold actions to run later are in `_flow_commands.DEFERRED_EXPANSION`: their nested
   actions are expanded when each one runs. A new block command must be added to that set.
+- An object document's `meta` is read in two places: `tags` / `depends_on` by the CLI's file selection, and `setup`,
+  `teardown`, `vars`, `skip`, `retries`, `retry_backoff`, `fail_fast` by `Executor.document_actions` and
+  `_document_run` (`utils/flow/document.py`). A document without those keys runs as before. Fail-fast
+  (`utils/flow/failfast.py`, off by default) skips the actions of a list after a failed one, never `teardown`.
 - `WR_call_file` reads only files below the working directory or below the directory of the file the run started
   from (`executor.files`, a per-thread `FileStack`, set by `execute_files` / `execute_file` and the CLI), refuses a
   file that is already running and stops at 20 nested calls.

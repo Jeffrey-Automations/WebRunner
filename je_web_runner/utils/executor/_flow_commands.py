@@ -73,5 +73,6 @@ FLOW_COMMANDS: dict[str, Any] = {
     "WR_retry_block": _block(blocks.retry_block),
     "WR_call_file": _block(subflow.call_file),
     "WR_fail": _block(blocks.fail),
+    "WR_set_fail_fast": Bound(lambda executor: executor.set_fail_fast),
     "WR_assert_var": _block(blocks.assert_var),
 }

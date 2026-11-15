@@ -519,6 +519,7 @@
             "WR_set_download_directory",
             "WR_set_driver",
             "WR_set_extra_http_headers",
+            "WR_set_fail_fast",
             "WR_set_failure_screenshot_dir",
             "WR_set_geolocation",
             "WR_set_locale",
@@ -629,6 +630,39 @@
               "items": {
                 "type": "string"
               }
+            },
+            "skip": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Reason the file does not run."
+            },
+            "vars": {
+              "type": "object",
+              "description": "Default variables, set unless already set."
+            },
+            "setup": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/action"
+              }
+            },
+            "teardown": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/action"
+              }
+            },
+            "retries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "retry_backoff": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fail_fast": {
+              "type": "boolean"
             }
           },
           "additionalProperties": true

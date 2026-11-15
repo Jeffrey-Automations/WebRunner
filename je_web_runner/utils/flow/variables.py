@@ -57,10 +57,11 @@ class VariableStore:
                 return frame
         return None
 
-    def set(self, name: str, value: Any = None) -> Any:
+    def set(self, name: str, value: Any = None, local: bool = False) -> Any:
         """
         設定變數
         Store ``value`` under ``name`` for later actions to read as ``${name}``; return the value.
+        ``local`` puts a new name in the innermost frame, so it ends with the block that is running.
 
         :raises FlowError: when ``name`` is not an identifier, or is ``ENV`` or ``ROW``.
         """
@@ -69,7 +70,9 @@ class VariableStore:
         if name in RESERVED_NAMES:
             raise FlowError(f"{name!r} is reserved: ${{{name}.…}} is not a variable")
         frame = self._frame_of(name)
-        (self._frames[0] if frame is None else frame)[name] = value
+        if frame is None:
+            frame = self._frames[-1] if local else self._frames[0]
+        frame[name] = value
         return value
 
     def get(self, name: str, default: Any = None) -> Any:

@@ -558,3 +558,60 @@ in place, so a shared flow is written once.
   ``WR_call_file`` action. ``WR_execute_files`` is the older command: it takes
   no parameters, resolves paths from the working directory, and records a
   failure without failing its own action.
+
+File ``meta``
+-------------
+
+An object document carries its actions under ``webdriver_wrapper`` and settings
+for its run under ``meta``. ``tags`` and ``depends_on`` are read by the CLI's
+file selection; the executor reads the rest.
+
+.. code-block:: json
+
+    {
+      "meta": {
+        "tags": ["checkout"],
+        "vars": {"base": "${ENV.BASE_URL}", "user": "alice"},
+        "setup": [["WR_new_driver", {"webdriver_name": "chrome"}]],
+        "teardown": [["WR_quit_all"]],
+        "retries": 1,
+        "fail_fast": true
+      },
+      "webdriver_wrapper": [
+        ["WR_call_file", {"path": "login.json", "params": {"user": "${user}"}}],
+        ["WR_to_url", {"url": "${base}/cart"}]
+      ]
+    }
+
+* ``setup``: actions run before the file's own.
+* ``teardown``: actions run after them, also when an earlier action failed and
+  under fail-fast.
+* ``vars``: default variables. Each is set unless a variable of that name
+  already exists; placeholders in the value are expanded. In a file run by
+  ``WR_call_file`` they fill the names ``params`` left out and end with the
+  call.
+* ``skip``: a reason, as text. The file's actions, ``setup`` and ``teardown``
+  do not run; one ``WR_note`` action carrying ``skipped: <reason>`` is recorded
+  instead. ``true`` without a reason is an error.
+* ``retries`` (0 to 100) and ``retry_backoff`` (seconds): the retry policy for
+  the actions of this file. The previous policy is restored afterwards.
+* ``fail_fast``: ``true`` or ``false`` for this file, whatever the executor's
+  setting.
+
+A ``meta`` key of the wrong shape raises ``FlowError`` before any action runs.
+
+Fail-fast
+---------
+
+By default a failed action is recorded and the next one runs.
+``executor.set_fail_fast(True)``, the action ``["WR_set_fail_fast"]`` (from the
+next list on) or ``meta.fail_fast`` changes that: after the first failed action
+of a list, the remaining ones are recorded as
+``skipped: an earlier action of this list failed (fail-fast)`` and not run,
+except the ``teardown`` actions. Skipped actions count as failed in the CLI's
+exit status.
+
+It applies to the actions of a list or file. A single ``execute_one`` call is
+never skipped, a list run from inside an action (``WR_execute_action``) belongs
+to that action, and a ``WR_try`` block that handles its failure does not trip
+it. ``--parallel-mode async`` does not use it.

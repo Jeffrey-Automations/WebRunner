@@ -640,7 +640,35 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 }
 ```
 
-`meta.tags` 與 `meta.depends_on` 會被 CLI 擷取，用於過濾和拓撲執行。
+`meta.tags` 與 `meta.depends_on` 會被 CLI 擷取，用於過濾和拓撲執行。`meta` 的其餘部分由執行器讀取：
+
+```json
+{
+  "meta": {
+    "tags": ["checkout"],
+    "vars": {"base": "${ENV.BASE_URL}", "user": "alice"},
+    "setup": [["WR_new_driver", {"webdriver_name": "chrome"}]],
+    "teardown": [["WR_quit_all"]],
+    "retries": 1,
+    "fail_fast": true
+  },
+  "webdriver_wrapper": [
+    ["WR_call_file", {"path": "login.json", "params": {"user": "${user}"}}],
+    ["WR_to_url", {"url": "${base}/cart"}]
+  ]
+}
+```
+
+| 鍵 | 作用 |
+|---|---|
+| `setup` | 在檔案本身的動作之前執行的動作。 |
+| `teardown` | 在其後執行的動作；前面有動作失敗時、以及 fail-fast 之下也照樣執行。 |
+| `vars` | 預設變數：同名變數尚未存在時才設定。 |
+| `skip` | 文字形式的原因。檔案的動作、`setup` 與 `teardown` 都不執行，原因會被記錄。 |
+| `retries`、`retry_backoff` | 這個檔案每個動作的額外嘗試次數，以及兩次之間的秒數；結束後恢復原本的重試策略。 |
+| `fail_fast` | 這個檔案用 `true` 或 `false`，不論執行器的設定為何。 |
+
+**Fail-fast。** 預設情況下，失敗的動作會被記錄，然後繼續執行下一個。`executor.set_fail_fast(True)`、`["WR_set_fail_fast"]`（從下一份清單起生效）或 `meta.fail_fast` 可以改變這點：第一個動作失敗之後，其餘動作會被記錄為已跳過而不執行，`teardown` 除外。它作用於一份清單或一個檔案的動作，不作用於單次的 `execute_one` 呼叫，在 `--parallel-mode async` 之下也不生效。
 
 ### 新增自訂命令
 
@@ -942,7 +970,7 @@ python -m je_web_runner.mcp_server
 預設工具清單（28 個工具）公開：
 
 即時瀏覽器執行：
-- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 568 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 569 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批次執行磁碟上的 JSON 檔案
 - `webrunner_list_commands` —— 探索完整的 `WR_*` 介面面
 

@@ -81,13 +81,15 @@ def call_file(executor: Any, path: str, params: dict[str, Any] | None = None) ->
     """
     執行另一個動作檔的動作
     Run the actions of another action file here and return what each returned. ``params`` become
-    variables the called file reads as ``${name}``; they end with the call. A relative ``path`` is taken
+    variables the called file reads as ``${name}``; they end with the call, as do the ``meta.vars``
+    defaults of the called file for names ``params`` left out. A relative ``path`` is taken
     from the directory of the file making the call. The first action that fails stops the called file and
     fails this action.
     """
     if params is not None and not isinstance(params, dict):
         raise FlowError(f"WR_call_file params must be an object of name: value, got {params!r}")
     target = executor.files.resolve_call(path)
-    actions = executor.action_list_of(executor.settings.read_json(str(target)))
+    document = executor.settings.read_json(str(target))
     with executor.files.scope(target), executor.variables.scope(params):
-        return executor.run_nested(actions)
+        # The called file's meta applies: its default vars fill what params left out, for this call.
+        return executor.run_nested(executor.document_actions(document, scoped=True))

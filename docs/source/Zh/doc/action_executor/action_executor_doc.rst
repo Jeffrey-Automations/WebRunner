@@ -233,3 +233,51 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 * 第一個失敗的動作會中止被呼叫的檔案，並讓 ``WR_call_file`` 這個動作失敗。
   ``WR_execute_files`` 是較舊的指令：不接受參數、路徑從工作目錄算起，而且只記錄
   失敗、自己不會失敗。
+
+檔案的 ``meta``
+---------------
+
+物件形式的文件把動作放在 ``webdriver_wrapper``，把這次執行的設定放在 ``meta``。
+``tags`` 與 ``depends_on`` 由 CLI 的檔案選取讀取；其餘由執行器讀取。
+
+.. code-block:: json
+
+    {
+      "meta": {
+        "tags": ["checkout"],
+        "vars": {"base": "${ENV.BASE_URL}", "user": "alice"},
+        "setup": [["WR_new_driver", {"webdriver_name": "chrome"}]],
+        "teardown": [["WR_quit_all"]],
+        "retries": 1,
+        "fail_fast": true
+      },
+      "webdriver_wrapper": [
+        ["WR_call_file", {"path": "login.json", "params": {"user": "${user}"}}],
+        ["WR_to_url", {"url": "${base}/cart"}]
+      ]
+    }
+
+* ``setup``：在檔案本身的動作之前執行的動作。
+* ``teardown``：在其後執行的動作；前面有動作失敗時、以及 fail-fast 之下也照樣執行。
+* ``vars``：預設變數。同名變數尚未存在時才設定；值裡的佔位符會展開。由
+  ``WR_call_file`` 執行的檔案裡，它們補上 ``params`` 沒給的名稱，並在呼叫結束時消失。
+* ``skip``：文字形式的原因。檔案的動作、``setup`` 與 ``teardown`` 都不執行；改為記錄
+  一個帶有 ``skipped: <原因>`` 的 ``WR_note`` 動作。只寫 ``true`` 而沒有原因是錯誤。
+* ``retries``\ （0 到 100）與 ``retry_backoff``\ （秒）：這個檔案的動作所用的重試策略。
+  結束後恢復原本的策略。
+* ``fail_fast``：這個檔案用 ``true`` 或 ``false``，不論執行器的設定為何。
+
+``meta`` 的鍵形狀不對時，會在任何動作執行之前拋出 ``FlowError``。
+
+Fail-fast
+---------
+
+預設情況下，失敗的動作會被記錄，然後繼續執行下一個。``executor.set_fail_fast(True)``、
+動作 ``["WR_set_fail_fast"]``\ （從下一份清單起生效）或 ``meta.fail_fast`` 可以改變這點：
+清單中第一個動作失敗之後，其餘動作會被記錄為
+``skipped: an earlier action of this list failed (fail-fast)`` 而不執行，``teardown``
+的動作除外。被跳過的動作在 CLI 的結束狀態中算作失敗。
+
+它作用於一份清單或一個檔案的動作。單次的 ``execute_one`` 呼叫永遠不會被跳過；從動作
+內部執行的清單（``WR_execute_action``）屬於那個動作；自行處理失敗的 ``WR_try`` 區塊
+不會觸發它。``--parallel-mode async`` 不使用它。

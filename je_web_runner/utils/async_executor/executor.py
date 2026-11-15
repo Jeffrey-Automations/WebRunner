@@ -87,7 +87,7 @@ class AsyncExecutor:
         ``Executor.collect_action_results`` does: a failed action is recorded and the next
         one runs. The list's browser context is closed at the end.
         """
-        actions = Executor.action_list_of(action_list)
+        actions = self.sync.document_actions(action_list)
         record: dict[str, Any] = {}
         failed: list[str] = []
         state: dict[str, AsyncSession | None] = {"session": None}
