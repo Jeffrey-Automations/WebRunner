@@ -72,6 +72,16 @@ class TestAsyncExecutor(unittest.TestCase):
         self.assertEqual(session.calls, [1, 2])
         self.assertTrue(session.closed)
 
+    def test_variables_reach_async_commands(self):
+        record, failed = self._run(self.runner.run([
+            ["WR_set_var", {"name": "who", "value": "alice"}],
+            ["WR_apw_echo", {"value": "hello ${who}"}],
+            ["WR_apw_echo", ["${who}"]],
+        ]))
+        self.assertEqual(failed, [])
+        self.assertEqual(list(record.values()), ["alice", "user0:hello alice", "user0:alice"])
+        self.assertIn("execute: ['WR_apw_echo', {'value': 'hello ${who}'}]", record)
+
     def test_failures_are_recorded_and_the_list_goes_on(self):
         self.sync.event_dict["WR_sync_fail"] = MagicMock(side_effect=ValueError("bad value"))
         record, failed = self._run(self.runner.run([["WR_apw_boom"], ["WR_sync_fail"], ["WR_apw_echo", [3]]]))

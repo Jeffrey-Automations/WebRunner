@@ -4,7 +4,8 @@ The action executor, built on je_action_core's :class:`~je_action_core.ActionExe
 
 The core runs the list, keys the records (``execute: <action>``, repeats numbered ``#2`` …), prints them and
 holds the commands. WebRunner adds its dialect: ``[name, [args], {kwargs}]`` actions, refused commands and the
-arbitrary-script gate (checked before the name is looked up), the retry policy and the action span (around
+arbitrary-script gate (checked before the name is looked up), ``${name}`` placeholders expanded in the
+arguments from :attr:`Executor.variables`, the retry policy and the action span (around
 every action, through :meth:`Executor.attempt`), failure screenshots and traces in the failure record, and
 :meth:`Executor.execute_one`.
 """
@@ -36,6 +37,8 @@ from je_web_runner.utils.exception.exceptions import (
     describe_error,
 )
 from je_web_runner.utils.executor._event_table import build_event_dict
+from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
+from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.package_manager.package_manager_class import package_manager
@@ -161,11 +164,14 @@ class Executor(ActionExecutor):
                 parser=_ActionParser(),
                 reporter=_Reporter(),
                 read_json=read_action_json,
+                prepare=self.expand_placeholders,
                 failure_record=self._failure_text,
                 duplicate_keys=DuplicateKeys.NUMBER,
             ),
             CommandRegistry(policy=CommandPolicy.FUNCTIONS_ONLY, rejection=_refuse_command),
         )
+        # 動作清單的變數；${name} 由此展開 / The variables of the action lists; ${name} reads them.
+        self.variables = VariableStore()
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
@@ -191,6 +197,17 @@ class Executor(ActionExecutor):
         # 只把允許清單裡的內建函式加入事件字典
         # Register only the allowlisted builtins.
         self.event_dict.update(safe_builtin_commands())
+
+    def expand_placeholders(self, action: Any) -> Any:
+        """
+        展開動作參數裡的 ``${name}``
+        The action with the known ``${name}`` / ``${ENV.KEY}`` placeholders of its arguments replaced.
+        The command name is never expanded, so a variable cannot choose the command the gates check;
+        a command that holds actions to run later keeps its placeholders for when they run.
+        """
+        if not isinstance(action, list) or len(action) < 2 or action[0] in DEFERRED_EXPANSION:
+            return action
+        return [action[0], *self.variables.expand(action[1:])]
 
     def set_retry_policy(self, retries: int = 0, backoff: float = 0.0) -> None:
         """

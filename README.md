@@ -309,6 +309,7 @@ je_web_runner/
     ├── extensions/              # Browser extension loaders
     ├── factories/               # Factory pattern helpers
     ├── file_process/            # File utilities
+    ├── flow/                    # Action-file variables + ${name} placeholders
     ├── file_transfer/           # Upload / download helpers
     ├── generate_report/         # HTML/JSON/XML/JUnit/Allure + manifest
     ├── har_diff/                # HAR file diff
@@ -560,6 +561,26 @@ The executor maps a string command name to a Python callable. Every backend, int
 ```
 
 Negative or non-numeric `seconds` raise `ValueError`. For pacing inside JavaScript (e.g. waiting on a custom event from the page) use `WR_execute_async_script` with a `setTimeout`-driven callback.
+
+### Variables
+
+An action can store a value and later actions can use it. The executor replaces `${name}` in the arguments of an action just before the command is called:
+
+```python
+[
+    ["WR_set_var", {"name": "base", "value": "${ENV.BASE_URL}"}],
+    ["WR_to_url", {"url": "${base}/login"}],
+    ["WR_capture", {"name": "title", "action": ["WR_get_title"]}],
+    ["WR_assert_title", {"value": "${title}"}],
+]
+```
+
+- `WR_set_var` (`name`, `value`) stores a value; `WR_capture` (`name`, `action`) runs one action and stores what it returned. `WR_get_var`, `WR_unset_var`, `WR_clear_vars` and `WR_list_vars` (names only) read and remove them.
+- `${name}` reads a variable, `${name.key.0}` a key of a dict or an index of a list, `${ENV.KEY}` an environment variable (after `WR_load_env`, the values of the `.env` file).
+- An argument that is exactly one placeholder gets the value with its type (a number, a list …); inside a longer string the value is inserted as text.
+- A placeholder that names nothing known is left as it is, so `${ROW.col}` of a dataset and a JavaScript template literal in a script still work. A known variable with a path that does not exist fails the action.
+- The command name is never replaced. The record of an action shows it as written, not the expanded values.
+- Variables belong to the executor and stay until `WR_clear_vars`; in a directory run, later files see the variables of earlier ones (`--parallel-mode process` gives each worker its own).
 
 ### Top-level shapes
 
@@ -874,7 +895,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 553 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 559 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 

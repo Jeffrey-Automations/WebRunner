@@ -32,6 +32,7 @@ CORE = {
     "exception": "WebRunner exception hierarchy and error-message tags.",
     "executor": "Action executor: resolves WR_* command names and runs action lists (Command).",
     "file_process": "Directory listing used by the batch runners.",
+    "flow": "Action-file language: variables and ${name} placeholders expanded before each command.",
     "generate_report": "Report generators: HTML, JSON, XML, JUnit XML and Allure (Strategy).",
     "json": "Action JSON file read and write, and structure validation before a run.",
     "logging": "Rotating file logger for WebRunner.",

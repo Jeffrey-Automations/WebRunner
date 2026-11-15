@@ -111,3 +111,37 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 
    僅接受 ``types.MethodType`` 和 ``types.FunctionType``。
    傳入其他可呼叫類型會引發 ``WebRunnerAddCommandException``。
+
+變數
+----
+
+動作可以存下一個值，讓後面的動作使用。執行器會在呼叫指令之前，把動作參數裡的
+``${name}`` 換成實際的值。
+
+.. code-block:: python
+
+    [
+        ["WR_set_var", {"name": "base", "value": "${ENV.BASE_URL}"}],
+        ["WR_to_url", {"url": "${base}/login"}],
+        ["WR_capture", {"name": "title", "action": ["WR_get_title"]}],
+        ["WR_assert_title", {"value": "${title}"}],
+    ]
+
+* ``WR_set_var``\ （``name``、``value``）存下一個值。``WR_capture``\ （``name``、
+  ``action``）執行一個動作並存下它的回傳值；該動作失敗時 ``WR_capture`` 也失敗，
+  變數維持原狀。``WR_get_var``\ （``name``、``default``）、``WR_unset_var``、
+  ``WR_clear_vars`` 與 ``WR_list_vars``\ （只列名稱）用來讀取與移除。
+* ``${name}`` 讀取變數，``${name.key.0}`` 讀取 dict 的鍵或 list 的索引，
+  ``${ENV.KEY}`` 讀取環境變數。``ENV`` 與 ``ROW`` 不能當變數名稱。
+* 參數剛好是一個佔位符時，會得到保留型別的值；佔位符在較長的字串裡時，值會以
+  文字插入。
+* 指向未知名稱的佔位符會原樣保留，所以資料集的 ``${ROW.col}`` 與腳本參數裡的
+  JavaScript 樣板字面值照常運作。變數存在但路徑不存在時，該動作失敗。
+* 指令名稱永遠不會被替換，所以變數無法選到被閘門拒絕的指令。動作的紀錄顯示的是
+  原本寫的內容，不是展開後的值；Selenium wrapper 呼叫所記錄的則是展開後的值。
+* ``WR_execute_action``、``WR_run_with_dataset`` 與 ``WR_capture`` 內含稍後才執行
+  的動作：它們的佔位符會在每個內層動作執行時才展開。
+* 變數屬於執行器（``executor.variables``，一個
+  ``je_web_runner.utils.flow.VariableStore``），會一直保留到 ``WR_clear_vars``。
+  以目錄執行時，後面的檔案看得到前面檔案的變數；``--parallel-mode process``
+  讓每個工作行程各有一份。

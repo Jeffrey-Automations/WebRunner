@@ -1,7 +1,7 @@
 # WebRunner Architecture
 
 > Short overview for people and agents.
-> Last verified: 2026-11-16 on dev (executor command modules, language server).
+> Last verified: 2026-11-16 on dev (action variables, executor command modules, language server).
 
 ## 1. Purpose
 
@@ -23,7 +23,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 | `je_web_runner/webdriver/` | `webdriver_wrapper.py` (`WebDriverWrapper`, singleton `webdriver_wrapper_instance`) composed from `_wrapper_mixins/` (actions, cookies, media, navigation, scripting, parity: JSON waits / raw selectors / dialogs / CDP emulation; the Selenium event capture, HAR and response mocks live in `utils/bidi/selenium_events.py`, over W3C BiDi); `webdriver_with_options.py`; Playwright backend `playwright_wrapper.py` (`PlaywrightWrapper`: launch, context, quit, plus the `pw_*` module functions) composed from `_playwright_mixins/` (context, page, interaction, state, recording, scope: current frame / user-facing lookup / dialogs, connect: CDP attach / browser server / persistent profile, sessions: several browsers switched by index), `playwright_element_wrapper.py`, `playwright_locator.py`. |
 | `je_web_runner/element/` | `web_element_wrapper.py`: operations on the currently selected Selenium element. |
 | `je_web_runner/manager/` | `webrunner_manager.py`: `WebdriverManager` (singleton `web_runner`) for multiple live drivers. |
-| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS`, which merges `_playwright_commands.PLAYWRIGHT_COMMANDS`, `_authoring_commands.AUTHORING_COMMANDS` (what `md_authoring` and the action templates emit) and the async stand-ins; `_bound.Bound` marks an entry that needs the executor. |
+| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS`, which merges `_playwright_commands.PLAYWRIGHT_COMMANDS`, `_flow_commands.FLOW_COMMANDS` (variables), `_authoring_commands.AUTHORING_COMMANDS` (what `md_authoring` and the action templates emit) and the async stand-ins; `_bound.Bound` marks an entry that needs the executor. |
 | `je_web_runner/mcp_server/` | MCP stdio server: `McpServer` and per-request era routing (`server.py`), versions and identity (`_protocol.py`), the stateless 2026-07-28 revision (`_stateless.py`), `Tool` / `ToolResult` / errors (`_types.py`), offline tools (`offline_tools.py`, `build_default_tools()`), live-browser tools (`browser_tools.py`) and the caller policy (`_policy.py`). |
 | `je_web_runner/action_lsp/` | Language server for action JSON files. |
 | `je_web_runner/utils/` | One flat level of subpackages; functional areas below. |
@@ -35,7 +35,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 
 | Area | Example subpackages |
 | --- | --- |
-| Core engine and action I/O | `executor`, `callback`, `package_manager`, `json`, `test_object`, `test_record`, `exception`, `logging`, `file_process`, `xml` |
+| Core engine and action I/O | `executor`, `flow` (variables and `${name}` placeholders), `callback`, `package_manager`, `json`, `test_object`, `test_record`, `exception`, `logging`, `file_process`, `xml` |
 | Run orchestration and CI | `async_executor` (asyncio engine, `WR_apw_*`), `cli`, `socket_server`, `watch_mode`, `scheduler`, `sharding`, `test_filter`, `run_ledger`, `pipeline`, `k8s_runner`, `fanout`, `multi_user`, `ab_run` |
 | Browser and driver control | `cdp`, `cdp_tap`, `bidi`, `bidi_backend`, `driver_dispatch`, `chrome_profile`, `browser_pool`, `process_supervisor`, `driver_pin`, `cloud_grid` (self-hosted Grid), `appium_integration`, `dom_traversal`, `storage`, `network_emulation`, `smart_wait`, `autocontrol_bridge` (desktop control through AutoControl) |
 | Authoring and code generation | `recorder`, `action_formatter`, `action_templates`, `md_authoring`, `linter`, `schema`, `docs`, `pom_generator`, `sel_to_pw`, `session_to_test`, `openapi_to_e2e`, `project` |
@@ -70,7 +70,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 action file → utils/json/json_file/json_file.read_action_json
   → Executor.execute_action              (je_action_core's loop; logs the list, then action_list_of: dict input must carry "webdriver_wrapper")
   → attempt → _execute_with_retry        (optional span factory, global retry policy)
-  → _execute_event                       (refused commands and the arbitrary-script gate → _ActionParser.bind looks up event_dict[cmd]; shapes [cmd] | [cmd, {kw}] | [cmd, [args]] | [cmd, [args], {kw}])
+  → _execute_event                       (refused commands and the arbitrary-script gate → expand_placeholders replaces ${name} / ${ENV.KEY} in the arguments from executor.variables → _ActionParser.bind looks up event_dict[cmd]; shapes [cmd] | [cmd, {kw}] | [cmd, [args]] | [cmd, [args], {kw}])
   → webdriver_wrapper_instance / web_element_wrapper / web_runner (WebdriverManager) | playwright_wrapper (WR_pw_*)
   → Selenium / Playwright; wrappers append to test_record_instance
   → result dict {"execute: [...]": return value or the error text}; a repeated key gets " #2" …; each entry is also printed to stdout
@@ -195,6 +195,10 @@ process share one driver (`--parallel-mode process` exists for isolation).
 - MCP calls run inside `executor.restricted(...)`, which refuses the package-loading commands and
   `WR_set_allow_arbitrary_script` in nested action lists too (`mcp_server/_policy.py`;
   `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` lifts it, `WEBRUNNER_MCP_ROOT` fences the file tools).
+- `${name}` placeholders are expanded in the arguments only, after the gates looked at the command name, so a
+  variable cannot pick a refused command. Unknown placeholders stay as written (`${ROW.col}`, JavaScript template
+  literals). Commands that hold actions to run later are in `_flow_commands.DEFERRED_EXPANSION`: their nested
+  actions are expanded when each one runs. A new block command must be added to that set.
 - Validate all external input (URLs, action JSON, socket messages, CLI args); prevent path traversal; socket server binds
   localhost unless configured; escape dynamic content in HTML reports; parameterize values passed to JS. → same section
 - Credentials are never logged or stored in plaintext; use `python-dotenv`. → same section
@@ -218,7 +222,7 @@ process share one driver (`--parallel-mode process` exists for isolation).
 
 - A top-level subpackage of `je_web_runner/` is added, removed or renamed, or a `utils/` subpackage does not fit any area in §2.
 - An entry point changes: CLI flag, `python -m` module, MCP tool family, LSP, socket server defaults or framing.
-- The executor contract changes: action shapes, the `webdriver_wrapper` / `meta` top-level keys, retry, gate or error handling.
+- The executor contract changes: action shapes, the `webdriver_wrapper` / `meta` top-level keys, placeholders, retry, gate or error handling.
 - Anything in the §6 promise or de-facto public list changes (top-level names, wrapper methods, `loggin_instance`,
   `action_executor.executor`, the log file name or location).
 - A sibling repo starts or stops depending on WebRunner, or changes how it loads it.

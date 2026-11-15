@@ -296,6 +296,7 @@ je_web_runner/
     ├── extensions/              # Browser extension loaders
     ├── factories/               # Factory pattern helpers
     ├── file_process/            # File utilities
+    ├── flow/                    # Action-file variables + ${name} placeholders
     ├── file_transfer/           # Upload / download helpers
     ├── generate_report/         # HTML/JSON/XML/JUnit/Allure + manifest
     ├── har_diff/                # HAR file diff
@@ -544,6 +545,26 @@ WebRunner 桥接取用 `executor` 与 `execute_one`，Jeffrey_RPA 以那个确�
 ```
 
 负数或非数字的 `seconds` 会抛出 `ValueError`。若要在 JavaScript 内部进行节奏控制（例如等待来自页面的自定义事件），请使用带有 `setTimeout` 驱动回调的 `WR_execute_async_script`。
+
+### 变量
+
+动作可以存下一个值，让后面的动作使用。执行器会在调用命令之前，把动作参数里的 `${name}` 换成实际的值：
+
+```python
+[
+    ["WR_set_var", {"name": "base", "value": "${ENV.BASE_URL}"}],
+    ["WR_to_url", {"url": "${base}/login"}],
+    ["WR_capture", {"name": "title", "action": ["WR_get_title"]}],
+    ["WR_assert_title", {"value": "${title}"}],
+]
+```
+
+- `WR_set_var`（`name`、`value`）存下一个值；`WR_capture`（`name`、`action`）执行一个动作并存下它的返回值。`WR_get_var`、`WR_unset_var`、`WR_clear_vars` 与 `WR_list_vars`（只列名称）用来读取与移除。
+- `${name}` 读取变量，`${name.key.0}` 读取 dict 的键或 list 的索引，`${ENV.KEY}` 读取环境变量（`WR_load_env` 之后即为 `.env` 文件的值）。
+- 参数刚好是一个占位符时，会得到保留类型的值（数字、list……）；占位符在较长的字符串里时，值会以文本插入。
+- 指向未知名称的占位符会原样保留，所以数据集的 `${ROW.col}` 与脚本里的 JavaScript 模板字面量照常运作。变量存在但路径不存在时，该动作失败。
+- 命令名称永远不会被替换。动作的记录显示的是原本写的内容，不是展开后的值。
+- 变量属于执行器，会一直保留到 `WR_clear_vars`；以目录执行时，后面的文件看得到前面文件的变量（`--parallel-mode process` 让每个工作进程各有一份）。
 
 ### 顶层形态
 
@@ -858,7 +879,7 @@ python -m je_web_runner.mcp_server
 默认工具列表（28 个工具）暴露：
 
 实时浏览器执行：
-- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 553 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 559 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批量运行磁盘上的 JSON 文件
 - `webrunner_list_commands` —— 发现完整的 `WR_*` 接口面
 

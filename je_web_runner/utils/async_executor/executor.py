@@ -58,7 +58,6 @@ class AsyncExecutor:
         if not isinstance(action, list) or not action or not isinstance(action[0], str):
             raise WebRunnerExecuteException(f"an action is a list that starts with a command name, got {action!r}")
         name = action[0]
-        args, kwargs = _arguments(action)
         command = ASYNC_COMMANDS.get(name)
         if command is None:
             # The sync executor applies its gates, retry policy and failure screenshots; its
@@ -68,6 +67,8 @@ class AsyncExecutor:
             except WebRunnerExecuteException as error:
                 raise _RecordedFailure(str(error)) from error
         self.sync.check_allowed(name, ARBITRARY_SCRIPT_COMMANDS)
+        # ``${name}`` placeholders, from the sync executor's variables (it expands its own commands' itself).
+        args, kwargs = _arguments(self.sync.expand_placeholders(action))
         if state.get("session") is None:
             state["session"] = await self.pool.open_session(**context_options)
         try:

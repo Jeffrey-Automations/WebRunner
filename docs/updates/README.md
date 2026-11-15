@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-07 | 2026-11-16 | Action variables: WR_set_var, WR_capture and ${name} placeholders | #feature #executor #flow | [2026-11](2026-11.md) |
 | U-20261116-06 | 2026-11-16 | Correct four statements the code no longer matched | #docs | [2026-11](2026-11.md) |
 | U-20261116-05 | 2026-11-16 | Register the commands md_authoring and the action templates emit | #bugfix #executor #authoring | [2026-11](2026-11.md) |
 | U-20261116-04 | 2026-11-16 | --report turns recording on for the run | #bugfix #cli #report | [2026-11](2026-11.md) |
@@ -185,7 +186,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 10 |
+| [2026-11.md](2026-11.md) | 2026-11 | 11 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

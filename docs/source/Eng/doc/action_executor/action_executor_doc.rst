@@ -419,3 +419,41 @@ Register your own functions as executor commands:
 
    Only ``types.MethodType`` and ``types.FunctionType`` are accepted.
    Passing other callable types will raise ``WebRunnerAddCommandException``.
+
+Variables
+---------
+
+An action can store a value and later actions can use it. The executor replaces
+``${name}`` in the arguments of an action just before the command is called.
+
+.. code-block:: python
+
+    [
+        ["WR_set_var", {"name": "base", "value": "${ENV.BASE_URL}"}],
+        ["WR_to_url", {"url": "${base}/login"}],
+        ["WR_capture", {"name": "title", "action": ["WR_get_title"]}],
+        ["WR_assert_title", {"value": "${title}"}],
+    ]
+
+* ``WR_set_var`` (``name``, ``value``) stores a value. ``WR_capture`` (``name``,
+  ``action``) runs one action and stores what it returned; when that action
+  fails, ``WR_capture`` fails and the variable is left as it was.
+  ``WR_get_var`` (``name``, ``default``), ``WR_unset_var``, ``WR_clear_vars``
+  and ``WR_list_vars`` (names only) read and remove them.
+* ``${name}`` reads a variable, ``${name.key.0}`` a key of a dict or an index
+  of a list, ``${ENV.KEY}`` an environment variable. ``ENV`` and ``ROW`` cannot
+  be variable names.
+* An argument that is exactly one placeholder gets the value with its type;
+  inside a longer string the value is inserted as text.
+* A placeholder that names nothing known is left as it is, so ``${ROW.col}``
+  of a dataset and a JavaScript template literal in a script argument still
+  work. A known variable with a path that does not exist fails the action.
+* The command name is never replaced, so a variable cannot choose a command the
+  gates refuse. The record of an action shows it as written, not the expanded
+  values; the values a Selenium wrapper call records are the expanded ones.
+* ``WR_execute_action``, ``WR_run_with_dataset`` and ``WR_capture`` hold actions
+  to run later: their placeholders are expanded when each nested action runs.
+* Variables belong to the executor (``executor.variables``, a
+  ``je_web_runner.utils.flow.VariableStore``) and stay until ``WR_clear_vars``.
+  In a directory run, later files see the variables of earlier ones;
+  ``--parallel-mode process`` gives each worker its own.

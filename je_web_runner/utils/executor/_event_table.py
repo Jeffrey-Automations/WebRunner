@@ -120,6 +120,7 @@ from je_web_runner.utils.async_executor.commands import ASYNC_COMMANDS as _ASYNC
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor._authoring_commands import AUTHORING_COMMANDS
 from je_web_runner.utils.executor._bound import Bound as _Bound
+from je_web_runner.utils.executor._flow_commands import FLOW_COMMANDS
 from je_web_runner.utils.executor._playwright_commands import PLAYWRIGHT_COMMANDS
 from je_web_runner.utils.json.json_validator import validate_action_file, validate_action_json
 from je_web_runner.utils.package_manager.package_manager_class import package_manager
@@ -698,6 +699,9 @@ COMMANDS: dict[str, Any] = {
         "WR_ac_assert_image_on_screen": _autocontrol.assert_image_on_screen,
         "WR_ac_click_element_native": _autocontrol.click_element_native,
         "WR_ac_basic_auth": _autocontrol.basic_auth_native,
+
+        # ----- variables of the action-file language -----
+        **FLOW_COMMANDS,
 
         # ----- what md_authoring and the action templates emit -----
         **AUTHORING_COMMANDS,

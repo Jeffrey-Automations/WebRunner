@@ -1,6 +1,6 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (553 commands).
+Auto-generated from the executor's event_dict (559 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
@@ -61,6 +61,7 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_build_command_reference` | `(title: 'str' = 'WebRunner command reference') -> 'str'` | 產生整份命令參考（Markdown 字串） |
 | `WR_build_dependency_graph` | `(paths: 'Sequence[str]', *, allow_invalid: 'bool' = False) -> 'dict[str, list[str]]'` | 依基本檔名建立 ``{path: [dep_path, ...]}`` 圖 |
 | `WR_build_replay_html` | `(records: 'list[dict[str, Any]] | None' = None, screenshot_dir: 'str | None' = None, title: 'str' = 'WebRunner replay') -> 'str'` | 產生 self-contained HTML 報告字串 |
+| `WR_capture` | `(name: 'str', action: 'list') -> 'Any'` | 執行一個動作並把回傳值存成變數 |
 | `WR_cdp` | `(method: 'str', params: 'dict[str, Any] | None' = None) -> 'Any'` | 在當前 Selenium driver 執行 CDP 命令 |
 | `WR_change_index_of_webdriver` | `(index_of_webdriver: int) -> None` | 切換當前 WebDriver |
 | `WR_check_current_webdriver` | `(check_dict: 'dict') -> 'None'` | 驗證當前 WebDriver 狀態，若不符合會拋出例外 |
@@ -75,6 +76,7 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_clear_origin_storage` | `(origin: 'str') -> 'None'` | 透過 CDP ``Storage.clearDataForOrigin`` 一次清掉指定 origin 的所有儲存 |
 | `WR_clear_permissions` | `() -> 'None'` | Reset every granted permission. |
 | `WR_clear_test_objects` | `() -> None` | 清空所有測試物件紀錄 |
+| `WR_clear_vars` | `() -> 'None'` | 清除所有變數 |
 | `WR_click_element` | `() -> 'None'` | 點擊 WebElement |
 | `WR_clock_freeze` | `(moment: 'str | int | float', advance_ms_per_real_second: 'float' = 0.0) -> 'None'` | 凍結頁面時間 |
 | `WR_close_window` | `() -> 'None'` | 關閉當前 tab / window (不會結束整個 driver；要結束請用 ``quit``) |
@@ -192,6 +194,7 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_get_screenshot_as_base64` | `() -> 'str | None'` | 取得當前頁面截圖 (Base64 字串) |
 | `WR_get_screenshot_as_png` | `() -> 'bytes | None'` | 取得當前頁面截圖 (PNG 格式) |
 | `WR_get_title` | `() -> 'str | None'` | 取得當前頁面的 <title> |
+| `WR_get_var` | `(name: 'str', default: 'Any' = None) -> 'Any'` | 讀取變數 |
 | `WR_get_webdriver_manager` | `(webdriver_name: str, options: list[str] | None = None, **kwargs) -> None` | 建立新的 WebDriver 實例 |
 | `WR_get_window_handles` | `() -> 'list[str] | None'` | 取得所有開啟中的視窗 / tab handle |
 | `WR_get_window_position` | `(window_handle='current') -> 'dict | None'` | 取得視窗位置 |
@@ -230,6 +233,7 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_list_commands` | `() -> 'list[str]'` | Just the command names (handy for shell completion). |
 | `WR_list_devices` | `() -> 'list[str]'` | The device preset names :meth:`emulate_device` accepts. |
 | `WR_list_new_downloads` | `(directory: 'str', before: 'list[str]') -> 'list[str]'` | 回傳 ``directory`` 內目前存在但不在 ``before`` 清單中的檔案 |
+| `WR_list_vars` | `() -> 'list[str]'` | 列出變數名稱 |
 | `WR_llm_generate_actions` | `(request: 'str', context: 'str | None' = None) -> 'list[Any]'` | 把自然語言敘述轉成 WR_* action JSON 草稿 |
 | `WR_llm_has_callable` | `() -> 'bool'` |  |
 | `WR_llm_self_heal_locator` | `(name: 'str', html_provider: 'Callable[[], str]') -> 'dict[str, str]'` | 當既有 fallback locator 都失敗時，呼叫 LLM 提供新的選擇器 |
@@ -512,6 +516,7 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_set_script_timeout` | `(time_to_wait: 'int') -> 'None'` | 設定 script 最大執行時間 / Set max script execution time |
 | `WR_set_timezone` | `(timezone_id: 'str') -> 'None'` | 以 CDP ``Emulation.setTimezoneOverride`` 覆寫時區。 |
 | `WR_set_user_agent` | `(user_agent: 'str') -> 'None'` | 以 CDP ``Network.setUserAgentOverride`` 動態覆寫 User-Agent。 |
+| `WR_set_var` | `(name: 'str', value: 'Any' = None) -> 'Any'` | 設定變數 |
 | `WR_set_webdriver_options_capability` | `(key_and_vale_dict: 'dict') -> 'Options | None'` | 設定 WebDriver 的 capabilities |
 | `WR_set_window_position` | `(x: 'int', y: 'int', window_handle: 'str' = 'current') -> 'dict | None'` | 設定視窗位置 |
 | `WR_set_window_rect` | `(x: 'int | None' = None, y: 'int | None' = None, width: 'int | None' = None, height: 'int | None' = None) -> 'dict | None'` | 設定視窗矩形 (位置與大小)，僅支援 W3C 相容瀏覽器 |
@@ -544,13 +549,14 @@ Auto-generated from the executor's event_dict (553 commands).
 | `WR_to_url` | `(url: 'str') -> 'None'` | 導航到指定 URL |
 | `WR_topological_order` | `(graph: 'dict[str, list[str]]') -> 'list[str]'` | Kahn 演算法拓樸排序；偵測環時拋例外 |
 | `WR_unblock_urls` | `() -> 'None'` | 清空 ``block_urls`` 列表。 |
+| `WR_unset_var` | `(name: 'str') -> 'bool'` | 移除變數 |
 | `WR_update_snapshot` | `(name: 'str', value: 'str', snapshot_dir: 'str' = 'snapshots') -> 'str'` | 強制覆蓋基準 |
 | `WR_upload_file` | `(input_selector: 'str', file_path: 'str') -> 'None'` | 對 ``<input type="file">`` 送入檔案路徑（Selenium） |
 | `WR_user_factory` | `(prefix: 'str' = 'user') -> 'Factory'` | Default user shape: id / name / email / password. |
 | `WR_validate_action_file` | `(json_file_path: 'str') -> 'bool'` | 讀取並驗證動作 JSON 檔案 |
 | `WR_validate_action_json` | `(data: 'list | dict') -> 'bool'` | 驗證動作 JSON 是否符合執行器格式 |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001F197F3EDE0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001F197F3EDE0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001C688A771A0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001C688A771A0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_wait_for_download` | `(directory: 'str', timeout: 'float' = 60.0, suffix: 'str | None' = None, poll_seconds: 'float' = 0.5) -> 'str'` | 等待 ``directory`` 內出現新檔案（會跳過 ``.crdownload`` / ``.part``） |
 | `WR_wait_for_element` | `(selector: 'str', by: 'str' = 'css selector', timeout: 'float' = 10.0, state: 'str' = 'visible') -> 'Any'` | 等元素出現（``present`` / ``visible`` / ``clickable``）或消失（``hidden``） |
 | `WR_wait_for_ready_state` | `(timeout: 'float' = 30.0) -> 'bool'` | Wait until ``document.readyState`` is ``complete``. |
