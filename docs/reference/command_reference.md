@@ -1,9 +1,10 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (547 commands).
+Auto-generated from the executor's event_dict (553 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
+| `WR__note` | `(text: 'str' = '') -> 'str'` | 不做任何事的註記 |
 | `WR_a11y_load_axe` | `(path: 'str') -> 'str'` | 讀取本地 axe-core JS 原始碼檔案 / Read a local axe-core source file. |
 | `WR_a11y_run_audit` | `(axe_source: 'str', options: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` | 在當前 Selenium 頁面執行 axe.run，回傳結果 dict |
 | `WR_a11y_summarise` | `(results: 'dict[str, Any]') -> 'list[dict[str, Any]]'` | 將 axe 結果壓縮成只含 ``id`` / ``impact`` / ``help`` / ``nodes`` 數量的清單 |
@@ -48,6 +49,7 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_assert_no_5xx` | `() -> 'None'` |  |
 | `WR_assert_no_console_errors` | `() -> 'None'` |  |
 | `WR_assert_no_secrets` | `(data: 'Any') -> 'None'` | 掃描並在有發現時拋例外 / Scan and raise ``SecretsFound`` on any hit. |
+| `WR_assert_title` | `(value: 'str') -> 'str'` | 斷言目前頁面標題等於 ``value`` |
 | `WR_assert_web_vitals` | `(budgets: 'dict[str, float] | None' = None, observe_ms: 'int' = 1000, source: 'str' = 'page', url: 'str | None' = None, json_path: 'str | None' = None, html_path: 'str | None' = None, lighthouse_path: 'str' = 'lighthouse') -> 'dict[str, Any]'` | 斷言 LCP / CLS / INP / FCP 都在預算內 |
 | `WR_attach_to_existing_browser` | `(debugger_address: 'str', webdriver_name: 'str' = 'chrome', options: 'list[str] | None' = None, experimental_options: 'dict | None' = None, **kwargs)` | 附加到一個已啟動且開啟 remote debugging 埠的 Chrome / Edge 實例。 |
 | `WR_audit_security_headers` | `(headers: 'dict[str, str]', required: 'list[dict[str, Any]] | None' = None) -> 'list[dict[str, Any]]'` | 對 headers dict 套用規則表，回傳所有違反項目 |
@@ -91,6 +93,7 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_diff_har` | `(left: 'Any', right: 'Any') -> 'dict[str, list[dict[str, Any]]]'` | 比對兩份 HAR；回傳 ``{added, removed, changed}`` |
 | `WR_diff_har_files` | `(left_path: 'str', right_path: 'str') -> 'dict[str, list[dict[str, Any]]]'` | 讀取兩個 HAR 檔並比對 / Read two HAR files from disk and diff them. |
 | `WR_disable_fetch_interception` | `() -> 'None'` | 停止 Fetch 攔截 / Disable Fetch interception. |
+| `WR_dismiss_cookie_consent` | `(timeout_per_selector: 'float' = 0.5) -> 'str | None'` | 點掉常見的 cookie 同意橫幅 |
 | `WR_dom_mutations` | `() -> 'list[dict[str, Any]]'` | ``{type, target, added, removed, attribute}`` per DOM mutation collected. |
 | `WR_drag_and_drop` | `(element_name: 'str', target_element_name: 'str') -> 'None'` | 使用 TestObjectRecord 中的元素名稱，拖曳元素到另一個元素上 |
 | `WR_drag_and_drop_offset` | `(element_name: 'str', offset_x: 'int', offset_y: 'int') -> 'None'` | 使用 TestObjectRecord 中的元素名稱，拖曳元素到指定偏移位置 |
@@ -255,6 +258,7 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_network_responses` | `() -> 'list[dict[str, Any]]'` | ``{url, status, method, ok}`` per response collected. |
 | `WR_new_driver` | `(webdriver_name: str, options: list[str] | None = None, **kwargs) -> None` | 建立新的 WebDriver 實例 |
 | `WR_new_window` | `(type_hint: 'str' = 'tab') -> 'None'` | 開啟新的 tab 或 window，並自動切換到該視窗 |
+| `WR_note` | `(text: 'str' = '') -> 'str'` | 不做任何事的註記 |
 | `WR_notify_run_summary` | `(webhook_url: 'str', header: 'str' = 'WebRunner Run Summary') -> 'int'` | 一鍵：取摘要 → Slack 格式 → 送出 |
 | `WR_notify_slack` | `(webhook_url: 'str', summary: 'dict[str, Any] | None' = None, header: 'str' = 'WebRunner Run Summary') -> 'int'` | 將摘要包成 Slack incoming-webhook 格式並送出 |
 | `WR_notify_webhook` | `(url: 'str', payload: 'dict[str, Any]', timeout: 'int' = 10, headers: 'dict[str, str] | None' = None) -> 'int'` | POST 任意 JSON payload 到 webhook，回傳 HTTP 狀態碼 |
@@ -273,6 +277,7 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_perf_collect` | `(observe_ms: 'int' = 1000) -> 'dict[str, Any]'` | 透過 ``execute_async_script`` 抓取效能指標 |
 | `WR_perform` | `() -> 'None'` | 執行累積的 ActionChains 動作 |
 | `WR_press_key` | `(keycode_on_key_class, element_name: 'str | None' = None) -> 'None'` | 使用 TestObject 名稱找到元素並按下鍵盤按鍵 |
+| `WR_press_keys` | `(keys: 'str | Sequence[str]') -> 'None'` | 對目前聚焦的元素按下並放開按鍵 |
 | `WR_print_page` | `(file_path: 'str', print_options=None) -> 'bool'` | 將當前頁面列印為 PDF 並存檔 (Selenium 4 內建 ``print_page``)。 |
 | `WR_product_factory` | `() -> 'Factory'` |  |
 | `WR_pw_a11y_run_audit` | `(axe_source: 'str', options: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` | 在當前 Playwright 頁面執行 axe.run，回傳結果 dict |
@@ -458,6 +463,7 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_release` | `(element_name: 'str | None' = None) -> 'None'` | 使用 TestObject 名稱找到元素並釋放滑鼠 |
 | `WR_release_key` | `(keycode_on_key_class, element_name: 'str | None' = None) -> 'None'` | 使用 TestObject 名稱找到元素並釋放鍵盤按鍵 |
 | `WR_reload` | `(ignore_cache: 'bool' = False) -> 'None'` | 重新整理頁面，可選擇是否旁路快取 (透過 CDP ``Page.reload``)。 |
+| `WR_render_template` | `(template: 'str', parameters: 'dict[str, Any] | None' = None) -> 'list'` | 套用參數後執行一個動作範本 |
 | `WR_report_expected_paths` | `(base_name: 'str', allure_dir: 'str | None' = None) -> 'dict[str, list[str]]'` | 回傳每個格式預期寫出的路徑（實際是否存在由 manifest 確認） |
 | `WR_reset_actions` | `() -> 'None'` | 清除目前累積的 ActionChains 動作（搭配 ``WR_perform`` 使用） |
 | `WR_reset_scheduler` | `() -> 'None'` | Drop all registered jobs and counts (mainly for tests). |
@@ -543,8 +549,8 @@ Auto-generated from the executor's event_dict (547 commands).
 | `WR_user_factory` | `(prefix: 'str' = 'user') -> 'Factory'` | Default user shape: id / name / email / password. |
 | `WR_validate_action_file` | `(json_file_path: 'str') -> 'bool'` | 讀取並驗證動作 JSON 檔案 |
 | `WR_validate_action_json` | `(data: 'list | dict') -> 'bool'` | 驗證動作 JSON 是否符合執行器格式 |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000002AB9A47DB20>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000002AB9A47DB20>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001F197F3EDE0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001F197F3EDE0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_wait_for_download` | `(directory: 'str', timeout: 'float' = 60.0, suffix: 'str | None' = None, poll_seconds: 'float' = 0.5) -> 'str'` | 等待 ``directory`` 內出現新檔案（會跳過 ``.crdownload`` / ``.part``） |
 | `WR_wait_for_element` | `(selector: 'str', by: 'str' = 'css selector', timeout: 'float' = 10.0, state: 'str' = 'visible') -> 'Any'` | 等元素出現（``present`` / ``visible`` / ``clickable``）或消失（``hidden``） |
 | `WR_wait_for_ready_state` | `(timeout: 'float' = 30.0) -> 'bool'` | Wait until ``document.readyState`` is ``complete``. |

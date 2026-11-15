@@ -1,7 +1,7 @@
 # WebRunner Architecture
 
 > Short overview for people and agents.
-> Last verified: 2026-10-25 on feat/managed-browser-sessions (managed SDK contracts).
+> Last verified: 2026-11-16 on dev (executor command modules, language server).
 
 ## 1. Purpose
 
@@ -23,7 +23,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 | `je_web_runner/webdriver/` | `webdriver_wrapper.py` (`WebDriverWrapper`, singleton `webdriver_wrapper_instance`) composed from `_wrapper_mixins/` (actions, cookies, media, navigation, scripting, parity: JSON waits / raw selectors / dialogs / CDP emulation; the Selenium event capture, HAR and response mocks live in `utils/bidi/selenium_events.py`, over W3C BiDi); `webdriver_with_options.py`; Playwright backend `playwright_wrapper.py` (`PlaywrightWrapper`: launch, context, quit, plus the `pw_*` module functions) composed from `_playwright_mixins/` (context, page, interaction, state, recording, scope: current frame / user-facing lookup / dialogs, connect: CDP attach / browser server / persistent profile, sessions: several browsers switched by index), `playwright_element_wrapper.py`, `playwright_locator.py`. |
 | `je_web_runner/element/` | `web_element_wrapper.py`: operations on the currently selected Selenium element. |
 | `je_web_runner/manager/` | `webrunner_manager.py`: `WebdriverManager` (singleton `web_runner`) for multiple live drivers. |
-| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS` plus `_playwright_commands.PLAYWRIGHT_COMMANDS`. |
+| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS`, which merges `_playwright_commands.PLAYWRIGHT_COMMANDS`, `_authoring_commands.AUTHORING_COMMANDS` (what `md_authoring` and the action templates emit) and the async stand-ins; `_bound.Bound` marks an entry that needs the executor. |
 | `je_web_runner/mcp_server/` | MCP stdio server: `McpServer` and per-request era routing (`server.py`), versions and identity (`_protocol.py`), the stateless 2026-07-28 revision (`_stateless.py`), `Tool` / `ToolResult` / errors (`_types.py`), offline tools (`offline_tools.py`, `build_default_tools()`), live-browser tools (`browser_tools.py`) and the caller policy (`_policy.py`). |
 | `je_web_runner/action_lsp/` | Language server for action JSON files. |
 | `je_web_runner/utils/` | One flat level of subpackages; functional areas below. |
@@ -98,7 +98,9 @@ python -m je_web_runner -d DIR [--tag/--exclude-tag] [--rerun-failed LEDGER] [--
    `webdriver/_wrapper_mixins/_*_mixin.py`, `element/web_element_wrapper.py` or
    `webdriver/_playwright_mixins/_*_mixin.py` (with a `pw_*` function in `webdriver/playwright_wrapper.py`).
 2. Register `"WR_<name>"` in the command table: `COMMANDS` in `utils/executor/_event_table.py`, or
-   `PLAYWRIGHT_COMMANDS` in `utils/executor/_playwright_commands.py` for `WR_pw_*`. Add aliases instead of
+   `PLAYWRIGHT_COMMANDS` in `utils/executor/_playwright_commands.py` for `WR_pw_*`. `_event_table.py` is close to
+   the 750-line limit, so a new group of commands gets its own `utils/executor/_<group>_commands.py` dict merged into
+   `COMMANDS` (as `_authoring_commands.py` is). Add aliases instead of
    renaming existing names. Commands that ship JS or CDP strings to the browser also go into `_ARBITRARY_SCRIPT_COMMANDS`.
 3. If callbacks must reach it, add it to the separate `event_dict` in `utils/callback/callback_function_executor.py`.
 4. For a Python-level public name, re-export it in `je_web_runner/__init__.py` (`__all__`) and/or the matching

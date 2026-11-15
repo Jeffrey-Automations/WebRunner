@@ -92,7 +92,11 @@ Action formatter / Markdown authoring
   <url>``, ``click <selector>``, ``type "<text>" into <selector>``,
   ``wait <n>s``, ``assert title "<text>"``, ``press <Key>``,
   ``screenshot``, ``run template <name>``, ``quit``. Unrecognised lines
-  become ``WR__note`` entries.
+  become ``WR_note`` entries. Every command it emits is registered
+  (``WR_assert_title``, ``WR_press_keys``, ``WR_render_template``,
+  ``WR_note``), so the result runs as it is; ``WR_render_template`` fills
+  an action template and runs its actions, failing at the first one that
+  fails.
 
 Page Object codegen
 ===================

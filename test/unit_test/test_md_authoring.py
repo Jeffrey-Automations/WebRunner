@@ -72,7 +72,7 @@ class TestParseMarkdown(unittest.TestCase):
 
     def test_unrecognised_preserved_as_note(self):
         actions = parse_markdown("- swipe gestures here")
-        self.assertEqual(actions, [["WR__note", {"text": "swipe gestures here"}]])
+        self.assertEqual(actions, [["WR_note", {"text": "swipe gestures here"}]])
 
     def test_empty_markdown_raises(self):
         with self.assertRaises(MdAuthoringError):

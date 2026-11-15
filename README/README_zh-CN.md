@@ -858,7 +858,7 @@ python -m je_web_runner.mcp_server
 默认工具列表（28 个工具）暴露：
 
 实时浏览器执行：
-- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 547 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 553 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批量运行磁盘上的 JSON 文件
 - `webrunner_list_commands` —— 发现完整的 `WR_*` 接口面
 
@@ -966,7 +966,7 @@ python -m je_web_runner.action_lsp
 ### 编写 / 格式化
 
 - **动作 JSON 格式化器** —— `action_formatter.format_actions(actions)` 写出一个规范的多行数组，kwargs 按稳定的“首选优先再字母序”排列；`format_file(path)` 就地重格式化并报告 `(text, changed)`。
-- **Markdown → 动作 JSON** —— `md_authoring.parse_markdown(text)` 理解 `- open <url>`、`- click #id`、`- type "x" into <selector>`、`- wait 3s`、`- assert title "..."`、`- press Enter`、`- screenshot`、`- run template <name>`、`- quit`。不匹配的行会保留为 `WR__note`，使往返无损。
+- **Markdown → 动作 JSON** —— `md_authoring.parse_markdown(text)` 理解 `- open <url>`、`- click #id`、`- type "x" into <selector>`、`- wait 3s`、`- assert title "..."`、`- press Enter`、`- screenshot`、`- run template <name>`、`- quit`。不匹配的行会保留为 `WR_note`，使往返无损。它产出的每个命令都已注册，所以结果可以直接执行：`WR_assert_title`、`WR_press_keys`、`WR_render_template`（填入动作模板并执行）与 `WR_note` 可以写在任何动作文件里，`accept_cookies` 模板使用的 `WR_dismiss_cookie_consent` 也一样。
 
 ### 分诊 / 生产可观测性
 

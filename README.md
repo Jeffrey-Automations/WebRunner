@@ -874,7 +874,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 547 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 553 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 
@@ -983,7 +983,7 @@ Smaller modules, grouped by what they help with. The larger areas have their own
 ### Authoring / formatting
 
 - **Action JSON formatter** — `action_formatter.format_actions(actions)` writes a canonical multi-line array with kwargs in a stable preferred-then-alphabetical order; `format_file(path)` reformats in place and reports `(text, changed)`.
-- **Markdown → action JSON** — `md_authoring.parse_markdown(text)` understands `- open <url>`, `- click #id`, `- type "x" into <selector>`, `- wait 3s`, `- assert title "..."`, `- press Enter`, `- screenshot`, `- run template <name>`, `- quit`. Lines that don't match are preserved as `WR__note` so the round-trip is loss-less.
+- **Markdown → action JSON** — `md_authoring.parse_markdown(text)` understands `- open <url>`, `- click #id`, `- type "x" into <selector>`, `- wait 3s`, `- assert title "..."`, `- press Enter`, `- screenshot`, `- run template <name>`, `- quit`. Lines that don't match are preserved as `WR_note` so the round-trip is loss-less. Every command it emits is registered, so the result runs as it is: `WR_assert_title`, `WR_press_keys`, `WR_render_template` (fills an action template and runs it) and `WR_note` can be written in any action file, and so can `WR_dismiss_cookie_consent`, which the `accept_cookies` template uses.
 
 ### Triage / production observability
 

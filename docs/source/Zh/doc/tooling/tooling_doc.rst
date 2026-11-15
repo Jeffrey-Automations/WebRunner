@@ -62,7 +62,10 @@ Action formatter / Markdown 撰寫
 * ``action_formatter.format_actions`` — canonical 縮排與鍵順序，搭配
   既有 LSP 一起用
 * ``md_authoring.parse_markdown`` — 用 Markdown bullet 寫測試流程，再
-  轉成 ``WR_*`` action JSON
+  轉成 ``WR_*`` action JSON。無法辨識的條目保留為 ``WR_note``。產出的
+  每個命令都已註冊（``WR_assert_title``、``WR_press_keys``、
+  ``WR_render_template``、``WR_note``），結果可以直接執行；
+  ``WR_render_template`` 會填入動作範本並執行，遇到第一個失敗就停止。
 
 Page Object codegen
 ===================

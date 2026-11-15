@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-05 | 2026-11-16 | Register the commands md_authoring and the action templates emit | #bugfix #executor #authoring | [2026-11](2026-11.md) |
 | U-20261116-04 | 2026-11-16 | --report turns recording on for the run | #bugfix #cli #report | [2026-11](2026-11.md) |
 | U-20261116-03 | 2026-11-16 | Directory runs find action files in subdirectories | #bugfix #cli | [2026-11](2026-11.md) |
 | U-20261116-02 | 2026-11-16 | Language server no longer crashes on lint findings | #bugfix #lsp | [2026-11](2026-11.md) |
@@ -183,7 +184,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 8 |
+| [2026-11.md](2026-11.md) | 2026-11 | 9 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

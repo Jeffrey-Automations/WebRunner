@@ -15,7 +15,7 @@ small set of templates:
 - ``- quit`` → ``["WR_quit_all"]``.
 
 Lines that don't match any template are preserved as comments
-(``["WR__note", {"text": "..."}]``) so the transpilation is loss-less.
+(``["WR_note", {"text": "..."}]``) so the transpilation is loss-less.
 """
 from __future__ import annotations
 
@@ -123,9 +123,9 @@ def _parse_bullet(text: str) -> list[list[Any]] | None:
 
 def parse_markdown(text: str) -> list[list[Any]]:
     """
-    把 Markdown bullets 解析成 action list；無法辨識的條目保留為 ``WR__note``。
+    把 Markdown bullets 解析成 action list；無法辨識的條目保留為 ``WR_note``。
     Parse a Markdown body and return a flat WR_* action list. Each bullet
-    line that doesn't match a template is preserved as a ``WR__note`` so
+    line that doesn't match a template is preserved as a ``WR_note`` so
     the round-trip stays loss-less.
     """
     if not isinstance(text, str):
@@ -140,7 +140,7 @@ def parse_markdown(text: str) -> list[list[Any]]:
             continue
         parsed = _parse_bullet(bullet_text)
         if parsed is None:
-            actions.append(["WR__note", {"text": bullet_text}])
+            actions.append(["WR_note", {"text": bullet_text}])
             continue
         actions.extend(parsed)
     if not actions:

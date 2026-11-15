@@ -118,6 +118,8 @@ from je_web_runner.utils.bidi.selenium_events import selenium_bidi_events as _bi
 from je_web_runner.utils import autocontrol_bridge as _autocontrol
 from je_web_runner.utils.async_executor.commands import ASYNC_COMMANDS as _ASYNC_COMMANDS
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
+from je_web_runner.utils.executor._authoring_commands import AUTHORING_COMMANDS
+from je_web_runner.utils.executor._bound import Bound as _Bound
 from je_web_runner.utils.executor._playwright_commands import PLAYWRIGHT_COMMANDS
 from je_web_runner.utils.json.json_validator import validate_action_file, validate_action_json
 from je_web_runner.utils.package_manager.package_manager_class import package_manager
@@ -158,13 +160,6 @@ def _async_only(name: str, command: Callable[..., Any]) -> Callable[..., Any]:
     refuse.__doc__ = f"{(command.__doc__ or '').strip()}\n\nAsync executor only (``--parallel-mode async``)."
     refuse.__name__ = command.__name__
     return refuse
-
-
-class _Bound:
-    """A table entry that needs the owning executor, e.g. ``WR_execute_action``."""
-
-    def __init__(self, factory: Callable[[Any], Callable[..., Any]]) -> None:
-        self.factory = factory
 
 
 # 事件字典：將字串名稱對應到實際可執行的函式
@@ -703,6 +698,9 @@ COMMANDS: dict[str, Any] = {
         "WR_ac_assert_image_on_screen": _autocontrol.assert_image_on_screen,
         "WR_ac_click_element_native": _autocontrol.click_element_native,
         "WR_ac_basic_auth": _autocontrol.basic_auth_native,
+
+        # ----- what md_authoring and the action templates emit -----
+        **AUTHORING_COMMANDS,
 
         # ----- async executor only (WR_apw_*): listed here so references, schema and validation know them -----
         **{name: _async_only(name, command) for name, command in _ASYNC_COMMANDS.items()},

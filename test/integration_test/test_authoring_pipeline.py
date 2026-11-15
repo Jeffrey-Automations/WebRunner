@@ -58,9 +58,9 @@ class TestMarkdownToFormatToLint(unittest.TestCase):
                         msg=f"linter rules: {rules}")
 
     def test_clean_actions_lint_clean(self):
-        # Strip the WR__note placeholders the markdown parser leaves for
+        # Strip the WR_note placeholders the markdown parser leaves for
         # unmatched bullets so the linter doesn't flag unknown commands.
-        actions = [a for a in parse_markdown(_MARKDOWN) if a[0] != "WR__note"]
+        actions = [a for a in parse_markdown(_MARKDOWN) if a[0] != "WR_note"]
         findings = lint_action(actions)
         # The default cookbook should produce no error-severity findings.
         errors = [f for f in findings if f.get("severity") == "error"]
