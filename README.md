@@ -582,6 +582,45 @@ An action can store a value and later actions can use it. The executor replaces 
 - The command name is never replaced. The record of an action shows it as written, not the expanded values.
 - Variables belong to the executor and stay until `WR_clear_vars`; in a directory run, later files see the variables of earlier ones (`--parallel-mode process` gives each worker its own).
 
+### Control flow
+
+Blocks decide which actions run. Their actions are ordinary actions, so blocks nest:
+
+```python
+[
+    ["WR_for_each", {"items": ["/", "/pricing", "/docs"], "var": "path", "do": [
+        ["WR_to_url", {"url": "${base}${path}"}],
+        ["WR_if", {
+            "condition": {"succeeds": ["WR_wait_for_element", {"selector": "#cookie-banner", "timeout": 2}]},
+            "then": [["WR_dismiss_cookie_consent"]],
+        }],
+    ]}],
+    ["WR_try", {
+        "do": [["WR_retry_block", {"retries": 2, "backoff": 1, "do": [
+            ["WR_refresh"],
+            ["WR_wait_for_title", {"pattern": "Dashboard", "timeout": 5}],
+        ]}]],
+        "on_error": [["WR_save_screenshot", {"file_path": "dashboard_never_loaded.png"}], ["WR_fail", {"message": "${error}"}]],
+        "always": [["WR_quit_all"]],
+    }],
+]
+```
+
+| Command | Arguments | What it does |
+|---|---|---|
+| `WR_if` | `condition`, `then`, `otherwise` | Runs `then` when the condition holds, `otherwise` when it does not. |
+| `WR_for_each` | `items`, `do`, `var` (default `item`), `index_var` | Runs `do` once per element; the element and its position are variables that end with the loop. |
+| `WR_repeat` | `times`, `do`, `index_var` | Runs `do` a fixed number of times. |
+| `WR_while` | `condition`, `do`, `max_iterations` (required) | Runs `do` while the condition holds; fails when it still holds after `max_iterations` rounds. |
+| `WR_try` | `do`, `on_error`, `always` | With `on_error`, a failure in `do` runs it (the failure text is `${error}`) and the action passes; `always` runs in every case. |
+| `WR_retry_block` | `do`, `retries`, `backoff` | Starts the whole block again when one of its actions fails. |
+| `WR_fail` | `message` | Fails. |
+| `WR_assert_var` | `var`, `op`, `value` | Fails unless the variable satisfies the operator. |
+
+A condition is a JSON object, never code: `{"var": "name.path", "op": "eq", "value": 1}`, `{"succeeds": [action]}` (true when the action does not fail), `{"all": [...]}`, `{"any": [...]}`, `{"not": ...}`, or a plain value such as `"${flag}"`. Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `in`, `startswith`, `endswith`, `exists`, `truthy` (the default), `falsy`.
+
+The first action that fails stops its block and fails the action that holds the block, which is recorded once. Every nested action passes the same gates as a top-level one (refused commands, the arbitrary-script gate, the MCP policy), and its placeholders are expanded when it runs, so a loop sees the values of each round.
+
 ### Top-level shapes
 
 ```python
@@ -895,7 +934,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 559 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 567 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 

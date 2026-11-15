@@ -395,6 +395,26 @@ class Executor(ActionExecutor):
         self.check_allowed(action[0])
         return super()._execute_event(action)
 
+    def run_nested(self, actions: list) -> list:
+        """
+        執行一個命令自己帶的動作
+        Run the actions a command holds (a block of ``WR_if``, a template …) in order and return what
+        each returned. Every action passes :meth:`attempt`, so the gates, placeholder expansion, the
+        retry policy and the action span apply. The first failure stops the block and is raised as it
+        is, so the action that holds the block fails once and is recorded once.
+
+        :raises WebRunnerExecuteException: when ``actions`` is not a list of actions.
+        """
+        if not isinstance(actions, list):
+            raise WebRunnerExecuteException(f"{executor_data_error}: a block is a list of actions, got {actions!r}")
+        results = []
+        for action in actions:
+            if not isinstance(action, list) or not action or not isinstance(action[0], str):
+                raise WebRunnerExecuteException(
+                    f"{executor_data_error}: an action is a list that starts with a command name, got {action!r}")
+            results.append(self.attempt(action))
+        return results
+
     def execute_one(self, action: list) -> Any:
         """
         執行單一動作並回傳結果；失敗時拋出例外，不印出任何東西

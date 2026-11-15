@@ -457,3 +457,67 @@ An action can store a value and later actions can use it. The executor replaces
   ``je_web_runner.utils.flow.VariableStore``) and stay until ``WR_clear_vars``.
   In a directory run, later files see the variables of earlier ones;
   ``--parallel-mode process`` gives each worker its own.
+
+Control Flow
+------------
+
+Blocks decide which actions run. Their actions are ordinary actions, so blocks
+nest.
+
+.. code-block:: python
+
+    [
+        ["WR_for_each", {"items": ["/", "/pricing", "/docs"], "var": "path", "do": [
+            ["WR_to_url", {"url": "${base}${path}"}],
+            ["WR_if", {
+                "condition": {"succeeds": ["WR_wait_for_element", {"selector": "#cookie-banner", "timeout": 2}]},
+                "then": [["WR_dismiss_cookie_consent"]],
+            }],
+        ]}],
+        ["WR_try", {
+            "do": [["WR_retry_block", {"retries": 2, "backoff": 1, "do": [
+                ["WR_refresh"],
+                ["WR_wait_for_title", {"pattern": "Dashboard", "timeout": 5}],
+            ]}]],
+            "on_error": [["WR_save_screenshot", {"file_path": "dashboard_never_loaded.png"}], ["WR_fail", {"message": "${error}"}]],
+            "always": [["WR_quit_all"]],
+        }],
+    ]
+
+* ``WR_if`` (``condition``, ``then``, ``otherwise``) runs ``then`` when the
+  condition holds and ``otherwise`` when it does not.
+* ``WR_for_each`` (``items``, ``do``, ``var``, ``index_var``) runs ``do`` once per
+  element of a list (or of a ``${name}`` that holds one). The element is the
+  variable ``var`` (``item`` by default) and its position from 0 is
+  ``index_var``; both end with the loop.
+* ``WR_repeat`` (``times``, ``do``, ``index_var``) runs ``do`` a fixed number of
+  times.
+* ``WR_while`` (``condition``, ``do``, ``max_iterations``) runs ``do`` while the
+  condition holds. ``max_iterations`` is required; the loop fails when the
+  condition still holds after that many rounds.
+* ``WR_try`` (``do``, ``on_error``, ``always``): with ``on_error``, a failure in
+  ``do`` runs it with the failure text as ``${error}`` and the action passes;
+  without it the failure stays a failure. ``always`` runs in every case.
+* ``WR_retry_block`` (``do``, ``retries``, ``backoff``) starts the whole block
+  again when one of its actions fails, up to ``retries`` more times.
+* ``WR_fail`` (``message``) fails. ``WR_assert_var`` (``var``, ``op``, ``value``)
+  fails unless the variable satisfies the operator.
+
+A condition is a JSON object, never code:
+
+* ``{"var": "name.path", "op": "eq", "value": 1}`` compares a variable;
+  placeholders in ``value`` are expanded. Operators: ``eq``, ``ne``, ``gt``,
+  ``ge``, ``lt``, ``le``, ``contains``, ``in``, ``startswith``, ``endswith``,
+  ``exists``, ``truthy`` (the default), ``falsy``. A variable that is not set is
+  false for ``exists`` and ``truthy``, true for ``falsy`` and an error for the
+  comparisons.
+* ``{"succeeds": [action]}`` runs one action and is true when it does not fail.
+* ``{"all": [...]}``, ``{"any": [...]}`` and ``{"not": ...}`` combine
+  conditions; ``all`` and ``any`` stop at the first condition that decides.
+* A plain value (``true``, ``"${flag}"``) is itself, after expansion.
+
+The first action that fails stops its block and fails the action that holds the
+block, which is recorded once. Every nested action passes the same gates as a
+top-level one (refused commands, the arbitrary-script gate, the MCP policy) and
+the retry policy, and its placeholders are expanded when it runs, so a loop sees
+the values of each round.

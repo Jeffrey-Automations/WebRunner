@@ -145,3 +145,59 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
   ``je_web_runner.utils.flow.VariableStore``），會一直保留到 ``WR_clear_vars``。
   以目錄執行時，後面的檔案看得到前面檔案的變數；``--parallel-mode process``
   讓每個工作行程各有一份。
+
+流程控制
+--------
+
+區塊決定哪些動作會執行。區塊裡的動作就是一般的動作，所以區塊可以巢狀。
+
+.. code-block:: python
+
+    [
+        ["WR_for_each", {"items": ["/", "/pricing", "/docs"], "var": "path", "do": [
+            ["WR_to_url", {"url": "${base}${path}"}],
+            ["WR_if", {
+                "condition": {"succeeds": ["WR_wait_for_element", {"selector": "#cookie-banner", "timeout": 2}]},
+                "then": [["WR_dismiss_cookie_consent"]],
+            }],
+        ]}],
+        ["WR_try", {
+            "do": [["WR_retry_block", {"retries": 2, "backoff": 1, "do": [
+                ["WR_refresh"],
+                ["WR_wait_for_title", {"pattern": "Dashboard", "timeout": 5}],
+            ]}]],
+            "on_error": [["WR_save_screenshot", {"file_path": "dashboard_never_loaded.png"}], ["WR_fail", {"message": "${error}"}]],
+            "always": [["WR_quit_all"]],
+        }],
+    ]
+
+* ``WR_if``\ （``condition``、``then``、``otherwise``）條件成立時執行 ``then``，
+  不成立時執行 ``otherwise``。
+* ``WR_for_each``\ （``items``、``do``、``var``、``index_var``）對清單（或存放清單的
+  ``${name}``）的每個項目執行一次 ``do``。項目是變數 ``var``\ （預設 ``item``），
+  從 0 起算的位置是 ``index_var``；兩者在迴圈結束時消失。
+* ``WR_repeat``\ （``times``、``do``、``index_var``）把 ``do`` 執行固定次數。
+* ``WR_while``\ （``condition``、``do``、``max_iterations``）條件成立時重複執行
+  ``do``。``max_iterations`` 必填；執行這麼多輪後條件仍成立，迴圈就失敗。
+* ``WR_try``\ （``do``、``on_error``、``always``）：有 ``on_error`` 時，``do`` 失敗會
+  執行它，失敗訊息為 ``${error}``，該動作算通過；沒有時失敗仍是失敗。
+  ``always`` 一定會執行。
+* ``WR_retry_block``\ （``do``、``retries``、``backoff``）區塊內任一動作失敗時，整個
+  區塊從頭重跑，最多再跑 ``retries`` 次。
+* ``WR_fail``\ （``message``）直接失敗。``WR_assert_var``\ （``var``、``op``、
+  ``value``）在變數不符合運算子時失敗。
+
+條件是 JSON 物件，絕不是程式碼：
+
+* ``{"var": "name.path", "op": "eq", "value": 1}`` 比較變數；``value`` 裡的佔位符
+  會展開。運算子：``eq``、``ne``、``gt``、``ge``、``lt``、``le``、``contains``、
+  ``in``、``startswith``、``endswith``、``exists``、``truthy``\ （預設）、``falsy``。
+  未設定的變數對 ``exists`` 與 ``truthy`` 為假，對 ``falsy`` 為真，用於比較則是錯誤。
+* ``{"succeeds": [action]}`` 執行一個動作，該動作沒有失敗時為真。
+* ``{"all": [...]}``、``{"any": [...]}`` 與 ``{"not": ...}`` 組合條件；``all`` 與
+  ``any`` 在第一個能決定結果的條件就停止。
+* 單純的值（``true``、``"${flag}"``）展開後即為其本身。
+
+第一個失敗的動作會中止所在的區塊，並讓持有該區塊的動作失敗，只記錄一次。每個巢狀動作
+都要通過與頂層動作相同的閘門（被拒絕的指令、任意腳本閘門、MCP 政策）與重試策略，
+佔位符在動作執行時才展開，所以迴圈每一輪看到的都是當輪的值。

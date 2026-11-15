@@ -1,6 +1,6 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (559 commands).
+Auto-generated from the executor's event_dict (567 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
@@ -50,6 +50,7 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_assert_no_console_errors` | `() -> 'None'` |  |
 | `WR_assert_no_secrets` | `(data: 'Any') -> 'None'` | 掃描並在有發現時拋例外 / Scan and raise ``SecretsFound`` on any hit. |
 | `WR_assert_title` | `(value: 'str') -> 'str'` | 斷言目前頁面標題等於 ``value`` |
+| `WR_assert_var` | `(var: 'str', op: 'str' = 'truthy', value: 'Any' = None) -> 'bool'` | 斷言變數符合條件 |
 | `WR_assert_web_vitals` | `(budgets: 'dict[str, float] | None' = None, observe_ms: 'int' = 1000, source: 'str' = 'page', url: 'str | None' = None, json_path: 'str | None' = None, html_path: 'str | None' = None, lighthouse_path: 'str' = 'lighthouse') -> 'dict[str, Any]'` | 斷言 LCP / CLS / INP / FCP 都在預算內 |
 | `WR_attach_to_existing_browser` | `(debugger_address: 'str', webdriver_name: 'str' = 'chrome', options: 'list[str] | None' = None, experimental_options: 'dict | None' = None, **kwargs)` | 附加到一個已啟動且開啟 remote debugging 埠的 Chrome / Edge 實例。 |
 | `WR_audit_security_headers` | `(headers: 'dict[str, str]', required: 'list[dict[str, Any]] | None' = None) -> 'list[dict[str, Any]]'` | 對 headers dict 套用規則表，回傳所有違反項目 |
@@ -141,6 +142,7 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_export_action_schema` | `(path: 'str') -> 'str'` | 將 Schema 寫到 ``path`` 並回傳寫出的路徑 |
 | `WR_export_command_reference` | `(path: 'str', title: 'str | None' = None) -> 'str'` | Write the Markdown reference to ``path`` and return the resolved path. |
 | `WR_export_replay_studio` | `(output_path: 'str', records: 'list[dict[str, Any]] | None' = None, screenshot_dir: 'str | None' = None, title: 'str' = 'WebRunner replay') -> 'str'` | Write the studio to ``output_path`` and return the resolved path. |
+| `WR_fail` | `(message: 'str' = 'WR_fail') -> 'None'` | 讓這個動作失敗 |
 | `WR_faker` | `(method: 'str', *args: 'Any', **kwargs: 'Any') -> 'Any'` | 任意 faker provider 的通用呼叫器 |
 | `WR_faker_address` | `() -> 'str'` |  |
 | `WR_faker_credit_card` | `() -> 'str'` |  |
@@ -168,6 +170,7 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_find_with_healing` | `(name: 'str')` | 依序嘗試 primary + fallback locator，回傳第一個命中的 WebElement |
 | `WR_flakiness_stats` | `(ledger_path: 'str', min_runs: 'int' = 3) -> 'dict[str, dict[str, int]]'` | 從 ledger 算出每個檔案的 ``{runs, passes, fails, flaky}`` 統計 |
 | `WR_flaky_paths` | `(ledger_path: 'str', min_runs: 'int' = 3, min_fail_rate: 'float' = 0.0) -> 'list[str]'` | 回傳被判為 flaky 的檔案 |
+| `WR_for_each` | `(items: 'Any', do: 'list', var: 'str' = 'item', index_var: 'str | None' = None) -> 'int'` | 對清單的每個項目執行一次 ``do`` |
 | `WR_forward` | `() -> 'None'` | 前進到下一頁 / Navigate forward |
 | `WR_fullscreen_window` | `() -> 'None'` | 全螢幕顯示當前視窗 |
 | `WR_generate_all_reports` | `(base_name: 'str', allure_dir: 'str | None' = None, write_manifest: 'bool' = True) -> 'dict[str, Any]'` | 依預設慣例產出所有報告；回傳 ``{format: [paths produced]}`` 與 manifest 路徑 |
@@ -211,6 +214,7 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_http_post` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
 | `WR_http_put` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
 | `WR_http_request` | `(method: 'str', url: 'str', timeout: 'int' = 30, headers: 'dict[str, str] | None' = None, params: 'dict[str, Any] | None' = None, json_body: 'Any' = None, data: 'Any' = None, **request_kwargs: 'Any') -> 'dict[str, Any]'` | 通用 HTTP 請求；其他 ``http_*`` 命令皆呼叫此函式 |
+| `WR_if` | `(condition: 'Any', then: 'list | None' = None, otherwise: 'list | None' = None) -> 'list'` | 條件成立時執行 ``then``，否則執行 ``otherwise`` |
 | `WR_iframe_back_to_default` | `() -> 'None'` | Return Selenium focus to the top-level frame. |
 | `WR_iframe_switch_chain` | `(selectors: 'Sequence[str]') -> 'None'` | 依序切換進入多層 iframe（每層用 CSS selector 指定） |
 | `WR_implicitly_wait` | `(time_to_wait: 'int') -> 'None'` | 設定 Selenium 的隱式等待時間 |
@@ -468,9 +472,11 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_release_key` | `(keycode_on_key_class, element_name: 'str | None' = None) -> 'None'` | 使用 TestObject 名稱找到元素並釋放鍵盤按鍵 |
 | `WR_reload` | `(ignore_cache: 'bool' = False) -> 'None'` | 重新整理頁面，可選擇是否旁路快取 (透過 CDP ``Page.reload``)。 |
 | `WR_render_template` | `(template: 'str', parameters: 'dict[str, Any] | None' = None) -> 'list'` | 套用參數後執行一個動作範本 |
+| `WR_repeat` | `(times: 'Any', do: 'list', index_var: 'str | None' = None) -> 'int'` | 把 ``do`` 執行 ``times`` 次 |
 | `WR_report_expected_paths` | `(base_name: 'str', allure_dir: 'str | None' = None) -> 'dict[str, list[str]]'` | 回傳每個格式預期寫出的路徑（實際是否存在由 manifest 確認） |
 | `WR_reset_actions` | `() -> 'None'` | 清除目前累積的 ActionChains 動作（搭配 ``WR_perform`` 使用） |
 | `WR_reset_scheduler` | `() -> 'None'` | Drop all registered jobs and counts (mainly for tests). |
+| `WR_retry_block` | `(do: 'list', retries: 'Any' = 1, backoff: 'float' = 0.0) -> 'int'` | 整個區塊失敗時從頭重跑 |
 | `WR_right_click` | `(element_name: 'str | None' = None) -> 'None'` | 使用 TestObject 名稱找到元素並右鍵點擊 |
 | `WR_route_clear` | `() -> 'None'` | Remove every mock and stop intercepting. |
 | `WR_route_mock` | `(url_pattern: 'str | dict[str, str]', response: 'dict[str, Any]') -> 'None'` | 以固定回應回答符合 pattern 的請求 |
@@ -548,6 +554,7 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_throttle_presets` | `() -> 'list'` | Return all registered preset names. |
 | `WR_to_url` | `(url: 'str') -> 'None'` | 導航到指定 URL |
 | `WR_topological_order` | `(graph: 'dict[str, list[str]]') -> 'list[str]'` | Kahn 演算法拓樸排序；偵測環時拋例外 |
+| `WR_try` | `(do: 'list', on_error: 'list | None' = None, always: 'list | None' = None) -> 'dict'` | 執行 ``do``；失敗時執行 ``on_error``，最後一定執行 ``always`` |
 | `WR_unblock_urls` | `() -> 'None'` | 清空 ``block_urls`` 列表。 |
 | `WR_unset_var` | `(name: 'str') -> 'bool'` | 移除變數 |
 | `WR_update_snapshot` | `(name: 'str', value: 'str', snapshot_dir: 'str' = 'snapshots') -> 'str'` | 強制覆蓋基準 |
@@ -555,11 +562,12 @@ Auto-generated from the executor's event_dict (559 commands).
 | `WR_user_factory` | `(prefix: 'str' = 'user') -> 'Factory'` | Default user shape: id / name / email / password. |
 | `WR_validate_action_file` | `(json_file_path: 'str') -> 'bool'` | 讀取並驗證動作 JSON 檔案 |
 | `WR_validate_action_json` | `(data: 'list | dict') -> 'bool'` | 驗證動作 JSON 是否符合執行器格式 |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001C688A771A0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001C688A771A0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x00000235C73E1120>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x00000235C73E1120>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_wait_for_download` | `(directory: 'str', timeout: 'float' = 60.0, suffix: 'str | None' = None, poll_seconds: 'float' = 0.5) -> 'str'` | 等待 ``directory`` 內出現新檔案（會跳過 ``.crdownload`` / ``.part``） |
 | `WR_wait_for_element` | `(selector: 'str', by: 'str' = 'css selector', timeout: 'float' = 10.0, state: 'str' = 'visible') -> 'Any'` | 等元素出現（``present`` / ``visible`` / ``clickable``）或消失（``hidden``） |
 | `WR_wait_for_ready_state` | `(timeout: 'float' = 30.0) -> 'bool'` | Wait until ``document.readyState`` is ``complete``. |
 | `WR_wait_for_title` | `(pattern: 'str', timeout: 'float' = 10.0) -> 'bool'` | Wait until the page title contains ``pattern``. |
 | `WR_wait_for_url` | `(pattern: 'str', timeout: 'float' = 10.0) -> 'bool'` | Wait until the current URL contains ``pattern``. |
+| `WR_while` | `(condition: 'Any', do: 'list', max_iterations: 'Any') -> 'int'` | 條件成立時重複執行 ``do`` |
 | `WR_write_pom_to_file` | `(source: 'str', output_path: 'str') -> 'str'` | Write generated source to ``output_path``; returns the path written. |

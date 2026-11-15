@@ -94,7 +94,7 @@ def _render_and_run(executor: Any) -> Callable[..., list]:
         Fill the action template ``template`` with ``parameters`` and run its actions in order; return
         what each returned. The first action that fails stops the template and fails this action.
         """
-        return [executor.execute_one(action) for action in render_template(template, parameters)]
+        return executor.run_nested(render_template(template, parameters))
 
     return run_template
 

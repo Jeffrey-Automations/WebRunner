@@ -566,6 +566,45 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 - 命令名稱永遠不會被替換。動作的紀錄顯示的是原本寫的內容，不是展開後的值。
 - 變數屬於執行器，會一直保留到 `WR_clear_vars`；以目錄執行時，後面的檔案看得到前面檔案的變數（`--parallel-mode process` 讓每個工作行程各有一份）。
 
+### 流程控制
+
+區塊決定哪些動作會執行。區塊裡的動作就是一般的動作，所以區塊可以巢狀：
+
+```python
+[
+    ["WR_for_each", {"items": ["/", "/pricing", "/docs"], "var": "path", "do": [
+        ["WR_to_url", {"url": "${base}${path}"}],
+        ["WR_if", {
+            "condition": {"succeeds": ["WR_wait_for_element", {"selector": "#cookie-banner", "timeout": 2}]},
+            "then": [["WR_dismiss_cookie_consent"]],
+        }],
+    ]}],
+    ["WR_try", {
+        "do": [["WR_retry_block", {"retries": 2, "backoff": 1, "do": [
+            ["WR_refresh"],
+            ["WR_wait_for_title", {"pattern": "Dashboard", "timeout": 5}],
+        ]}]],
+        "on_error": [["WR_save_screenshot", {"file_path": "dashboard_never_loaded.png"}], ["WR_fail", {"message": "${error}"}]],
+        "always": [["WR_quit_all"]],
+    }],
+]
+```
+
+| 命令 | 參數 | 作用 |
+|---|---|---|
+| `WR_if` | `condition`、`then`、`otherwise` | 條件成立時執行 `then`，不成立時執行 `otherwise`。 |
+| `WR_for_each` | `items`、`do`、`var`（預設 `item`）、`index_var` | 對每個項目執行一次 `do`；項目與其位置是變數，迴圈結束即消失。 |
+| `WR_repeat` | `times`、`do`、`index_var` | 把 `do` 執行固定次數。 |
+| `WR_while` | `condition`、`do`、`max_iterations`（必填） | 條件成立時重複執行 `do`；執行 `max_iterations` 輪後條件仍成立就失敗。 |
+| `WR_try` | `do`、`on_error`、`always` | 有 `on_error` 時，`do` 失敗會執行它（失敗訊息為 `${error}`），該動作算通過；`always` 一定會執行。 |
+| `WR_retry_block` | `do`、`retries`、`backoff` | 區塊內任一動作失敗時，整個區塊從頭重跑。 |
+| `WR_fail` | `message` | 直接失敗。 |
+| `WR_assert_var` | `var`、`op`、`value` | 變數不符合運算子時失敗。 |
+
+條件是 JSON 物件，絕不是程式碼：`{"var": "name.path", "op": "eq", "value": 1}`、`{"succeeds": [action]}`（該動作沒有失敗時為真）、`{"all": [...]}`、`{"any": [...]}`、`{"not": ...}`，或 `"${flag}"` 這樣的單純值。運算子：`eq`、`ne`、`gt`、`ge`、`lt`、`le`、`contains`、`in`、`startswith`、`endswith`、`exists`、`truthy`（預設）、`falsy`。
+
+第一個失敗的動作會中止所在的區塊，並讓持有該區塊的動作失敗，只記錄一次。每個巢狀動作都要通過與頂層動作相同的閘門（被拒絕的命令、任意腳本閘門、MCP 政策），佔位符在動作執行時才展開，所以迴圈每一輪看到的都是當輪的值。
+
 ### 頂層形態
 
 ```python
@@ -879,7 +918,7 @@ python -m je_web_runner.mcp_server
 預設工具清單（28 個工具）公開：
 
 即時瀏覽器執行：
-- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 559 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 567 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批次執行磁碟上的 JSON 檔案
 - `webrunner_list_commands` —— 探索完整的 `WR_*` 介面面
 

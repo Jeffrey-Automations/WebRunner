@@ -126,13 +126,13 @@ class TestNoteAndTemplate(unittest.TestCase):
 
     def test_render_template_runs_the_rendered_actions(self):
         ran = []
-        with patch.object(executor, "execute_one", side_effect=lambda action: ran.append(action) or "ok"):
+        with patch.object(executor, "attempt", side_effect=lambda action: ran.append(action) or "ok"):
             result = executor.event_dict["WR_render_template"]("accept_cookies")
         self.assertEqual(ran, get_template("accept_cookies").actions)
         self.assertEqual(result, ["ok"] * len(ran))
 
     def test_render_template_fails_when_a_step_fails(self):
-        with patch.object(executor, "execute_one", side_effect=WebRunnerExecuteException("boom")):
+        with patch.object(executor, "attempt", side_effect=WebRunnerExecuteException("boom")):
             with self.assertRaises(WebRunnerExecuteException):
                 executor.event_dict["WR_render_template"]("accept_cookies")
 
