@@ -912,7 +912,7 @@ The `WR_apw_*` commands act in the file's own context: `WR_apw_goto`, `WR_apw_cl
 
 ## Quality & Security
 
-- **Action linter** — `WR_lint_action` / `WR_lint_action_file` flag legacy command names, hard-coded URLs, dangerous scripts, missing tags, duplicate consecutive actions, commands that are not registered, a block argument that is not a list of actions, a `WR_while` without `max_iterations`, and (as information) a `${name}` no action of the file sets. Actions inside blocks and in `meta.setup` / `meta.teardown` are checked like top-level ones, and `--validate` checks their shape too.
+- **Action linter** — `WR_lint_action` / `WR_lint_action_file` flag legacy command names, hard-coded URLs, dangerous scripts, missing tags, duplicate consecutive actions, commands that are not registered, a keyword a command does not take (usually a typo) or a required argument that is missing, checked against the command's own signature, a block argument that is not a list of actions, a `WR_while` without `max_iterations`, and (as information) a `${name}` no action of the file sets. Actions inside blocks and in `meta.setup` / `meta.teardown` are checked like top-level ones, and `--validate` checks their shape too.
 - **Migration helper** — `python -m je_web_runner --migrate ./actions` rewrites the eleven legacy aliases to their preferred names (`--migrate-dry-run` reports without writing).
 - **Hard-coded secrets scanner** — `WR_scan_secrets_file` / `WR_assert_no_secrets` catch AWS / GitHub / Slack / JWT / Google / private-key strings before they land in commits.
 - **Security headers audit** — `WR_audit_security_headers_url` checks HSTS / CSP / X-Frame-Options / X-Content-Type-Options / Referrer-Policy / Permissions-Policy.

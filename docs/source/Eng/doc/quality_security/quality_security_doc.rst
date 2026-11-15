@@ -4,7 +4,11 @@ Quality & security
 
 * **Action linter** — ``WR_lint_action`` warns about legacy command names,
   hard-coded URLs, dangerous scripts, missing tags, duplicate consecutive
-  actions, commands that are not registered (``unknown_command``), a block
+  actions, commands that are not registered (``unknown_command``), a keyword
+  the command does not take, a required argument that is missing or more
+  positional values than it has parameters (``unknown_argument``,
+  ``missing_argument``, ``too_many_arguments``; read from the command's own
+  signature, so a command that takes ``**kwargs`` accepts any keyword), a block
   argument that is not a list of actions (``block_shape``) and a
   ``WR_while`` without ``max_iterations`` (``while_without_limit``). As
   information it lists each ``${name}`` no action of the file sets

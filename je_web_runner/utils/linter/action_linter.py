@@ -121,14 +121,14 @@ def _check_nested(action_list: list[Any], prefix: str, findings: list[dict[str, 
             _check_name_rules(action, location, findings)
 
 
-def _known_commands() -> list[str] | None:
-    """The registered command names, or None when the executor cannot be imported."""
+def _known_commands() -> dict[str, Any] | None:
+    """The registered commands by name, or None when the executor cannot be imported."""
     try:
         from je_web_runner.utils.executor.action_executor import executor
     except Exception as error:  # pylint: disable=broad-except
         web_runner_logger.warning(f"action linter: executor unavailable: {error!r}")
         return None
-    return [name for name in executor.event_dict if isinstance(name, str)]
+    return {name: command for name, command in executor.event_dict.items() if isinstance(name, str)}
 
 
 def _check_hook(meta: dict[str, Any], key: str, findings: list[dict[str, Any]]) -> None:

@@ -3,7 +3,9 @@
 ==========
 
 * Action linter：除了舊命令名、寫死 URL、危險腳本、缺少標籤、連續重複動作之外，也會警告
-  未註冊的命令（``unknown_command``）、不是動作清單的區塊參數（``block_shape``）與沒有
+  未註冊的命令（``unknown_command``）、命令不接受的關鍵字、漏填的必要參數或過多的位置參數
+  （``unknown_argument``、``missing_argument``、``too_many_arguments``；依命令本身的簽章判斷，
+  接受 ``**kwargs`` 的命令可帶任何關鍵字）、不是動作清單的區塊參數（``block_shape``）與沒有
   ``max_iterations`` 的 ``WR_while``\ （``while_without_limit``），並以資訊等級列出檔案內
   沒有任何動作設定的 ``${name}``\ （``undefined_variable``；呼叫端的 ``params`` 仍可能設定它）。
   區塊內與 ``meta.setup`` / ``meta.teardown`` 的動作和頂層動作一樣會被檢查；``--validate`` 與

@@ -6,6 +6,7 @@ without a limit, and placeholders that no action of the file defines.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Any, Iterable
 
 from je_web_runner.utils.flow.structure import (
@@ -15,6 +16,7 @@ from je_web_runner.utils.flow.structure import (
     nested_actions,
 )
 from je_web_runner.utils.flow.variables import RESERVED_NAMES
+from je_web_runner.utils.linter.argument_rules import all_argument_findings
 
 _PLACEHOLDER_ROOT_RE = re.compile(r"\$\{([A-Za-z_]\w*)[.}]")
 # Arguments whose strings are code for the browser: ``${x}`` there is a JavaScript template literal.
@@ -77,7 +79,8 @@ def flow_findings(action_list: list, meta: dict[str, Any] | None = None,
                   known_commands: Iterable[str] | None = None) -> list[dict[str, Any]]:
     """
     The findings of the language rules for ``action_list`` (and the ``setup`` / ``teardown`` / ``vars`` of
-    ``meta``). ``known_commands`` enables the unknown-command rule; None leaves it out.
+    ``meta``). ``known_commands`` enables the unknown-command rule; None leaves it out. When it maps
+    each name to its command, the arguments are checked against the command's signature too.
     """
     meta = meta if isinstance(meta, dict) else {}
     known = None if known_commands is None else frozenset(known_commands)
@@ -99,4 +102,6 @@ def flow_findings(action_list: list, meta: dict[str, Any] | None = None,
                 "undefined_variable", "info",
                 f"${{{root}}} is not set by this file; it stays as written unless a caller or --var sets it",
                 location))
+    if isinstance(known_commands, Mapping):
+        findings.extend(all_argument_findings(actions, known_commands))
     return findings
