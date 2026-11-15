@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-03 | 2026-11-16 | Directory runs find action files in subdirectories | #bugfix #cli | [2026-11](2026-11.md) |
 | U-20261116-02 | 2026-11-16 | Language server no longer crashes on lint findings | #bugfix #lsp | [2026-11](2026-11.md) |
 | U-20261116-01 | 2026-11-16 | Plan the next expansion as progress items #28 to #32 | #decision #planning | [2026-11](2026-11.md) |
 | U-20261102-02 | 2026-11-02 | Require Python 3.11 so every install gets Pillow 13 | #done #deps #security #ci | [2026-11](2026-11.md) |
@@ -181,7 +182,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 6 |
+| [2026-11.md](2026-11.md) | 2026-11 | 7 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

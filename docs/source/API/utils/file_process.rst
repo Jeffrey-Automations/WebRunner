@@ -6,13 +6,13 @@ File Process API
 .. code-block:: python
 
     def get_dir_files_as_list(
-        dir_path: str = getcwd(),
+        dir_path: str | None = None,
         default_search_file_extension: str = ".json"
     ) -> List[str]:
         """
         Recursively walk a directory and return files matching the given extension.
 
-        :param dir_path: directory to search (default: current working directory)
+        :param dir_path: directory to search (default: the working directory at the time of the call)
         :param default_search_file_extension: file extension to filter (default: ".json")
         :return: list of absolute file paths, or empty list if none found
         """
