@@ -273,17 +273,31 @@ class _ContextMixin(_PlaywrightHost):
             raise PlaywrightBackendError(CLOCK_API_UNAVAILABLE)
         return clock
 
+    @staticmethod
+    def _clock_moment(moment: float | str) -> float | str:
+        """
+        ``moment`` as Playwright for Python reads it: it takes a number as seconds since the epoch, so the
+        milliseconds this wrapper takes are divided; an ISO date string goes through as it is.
+        """
+        if isinstance(moment, (int, float)) and not isinstance(moment, bool):
+            return moment / 1000
+        return moment
+
     @recorded()
-    def clock_install(self, fake_now_ms: float | None = None) -> None:
-        """Install Playwright's clock (requires Playwright 1.45+)."""
+    def clock_install(self, fake_now_ms: float | str | None = None) -> None:
+        """
+        Install Playwright's clock (requires Playwright 1.45+). ``fake_now_ms`` is the moment it starts
+        at: milliseconds since the epoch, or an ISO date string.
+        """
         if fake_now_ms is None:
             self._clock().install()
         else:
-            self._clock().install(time=fake_now_ms)
+            self._clock().install(time=self._clock_moment(fake_now_ms))
 
     @recorded()
-    def clock_set_time(self, time_ms: float) -> None:
-        self._clock().set_fixed_time(time_ms)
+    def clock_set_time(self, time_ms: float | str) -> None:
+        """Freeze the page's clock at ``time_ms``: milliseconds since the epoch, or an ISO date string."""
+        self._clock().set_fixed_time(self._clock_moment(time_ms))
 
     @recorded()
     def clock_run_for(self, duration_ms: float) -> None:

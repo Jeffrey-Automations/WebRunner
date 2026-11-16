@@ -270,11 +270,11 @@ def pw_set_timezone(timezone_id: str) -> None:
     playwright_wrapper_instance.set_timezone(timezone_id)
 
 
-def pw_clock_install(fake_now_ms: float | None = None) -> None:
+def pw_clock_install(fake_now_ms: float | str | None = None) -> None:
     playwright_wrapper_instance.clock_install(fake_now_ms)
 
 
-def pw_clock_set_time(time_ms: float) -> None:
+def pw_clock_set_time(time_ms: float | str) -> None:
     playwright_wrapper_instance.clock_set_time(time_ms)
 
 

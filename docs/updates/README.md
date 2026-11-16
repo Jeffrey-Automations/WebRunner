@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-29 | 2026-11-16 | Fix the Playwright clock unit and where type_text types | #fix #playwright | [2026-11](2026-11.md) |
 | U-20261116-28 | 2026-11-16 | Clear the type and lint debt of the utils subpackages | #quality #typing #lint | [2026-11](2026-11.md) |
 | U-20261116-27 | 2026-11-16 | Clear the type and lint debt of the Selenium and Playwright wrappers | #quality #typing #webdriver | [2026-11](2026-11.md) |
 | U-20261116-26 | 2026-11-16 | Async lists get their own variables, file, fail-fast and retries (closes #28) | #done #executor #async #flow | [2026-11](2026-11.md) |
@@ -207,7 +208,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 32 |
+| [2026-11.md](2026-11.md) | 2026-11 | 33 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

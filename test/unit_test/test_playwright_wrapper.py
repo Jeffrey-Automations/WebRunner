@@ -336,15 +336,27 @@ class TestContextOverrides(unittest.TestCase):
         wrapper.clock_install()
         clock.install.assert_called_once_with()
         clock.install.reset_mock()
-        wrapper.clock_install(123456789)
-        clock.install.assert_called_once_with(time=123456789)
+        # Playwright for Python reads a number as seconds; the wrapper takes milliseconds.
+        wrapper.clock_install(1767225600000)
+        clock.install.assert_called_once_with(time=1767225600.0)
+        clock.install.reset_mock()
+        wrapper.clock_install("2026-01-01T00:00:00Z")
+        clock.install.assert_called_once_with(time="2026-01-01T00:00:00Z")
+
+    def test_clock_milliseconds_reach_the_page_as_milliseconds(self):
+        wrapper, _, _, context, _ = _launch_with_fakes()
+        context.clock = MagicMock()
+        wrapper.clock_set_time(1767225600000)
+        sent = context.clock.set_fixed_time.call_args.args[0]
+        # What playwright._impl._clock.parse_time does with a number: seconds to whole milliseconds.
+        self.assertEqual(int(sent * 1_000), 1767225600000)
 
     def test_clock_set_and_run_for(self):
         wrapper, _, _, context, _ = _launch_with_fakes()
         clock = MagicMock()
         context.clock = clock
         wrapper.clock_set_time(1000)
-        clock.set_fixed_time.assert_called_once_with(1000)
+        clock.set_fixed_time.assert_called_once_with(1.0)
         wrapper.clock_run_for(500)
         clock.run_for.assert_called_once_with(500)
 

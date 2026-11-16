@@ -39,6 +39,20 @@ class TestPlaywrightElementWrapper(unittest.TestCase):
         self.wrapper.type_text("abc", delay=15)
         self.element.type.assert_called_once_with("abc", delay=15)
 
+    def test_type_text_types_after_the_existing_text(self):
+        # Focus, then caret to the end, then type: in that order, or the text lands before what is there.
+        self.element.evaluate.return_value = True
+        self.wrapper.type_text("bc")
+        names = [call[0] for call in self.element.method_calls]
+        self.assertEqual(names, ["focus", "evaluate", "type"])
+
+    def test_type_text_uses_the_end_key_where_the_field_has_no_selection(self):
+        self.element.evaluate.return_value = False
+        self.wrapper.type_text("5")
+        names = [call[0] for call in self.element.method_calls]
+        self.assertEqual(names, ["focus", "evaluate", "press", "type"])
+        self.element.press.assert_called_once_with("End")
+
     def test_press_passes_key(self):
         self.wrapper.press("Enter")
         self.element.press.assert_called_once_with("Enter")

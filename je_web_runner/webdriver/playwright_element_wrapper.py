@@ -34,6 +34,13 @@ _SUBMIT_SCRIPT = (
     " if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); } }"
 )
 _CSS_VALUE_SCRIPT = "(el, name) => getComputedStyle(el).getPropertyValue(name)"
+# Puts the caret after the field's text. True: done. False: a single-line input whose type has no text
+# selection (number, email ...), where the End key does it. None: not a field with a value.
+_CARET_TO_END_JS = (
+    "el => { if (typeof el.value !== 'string' || typeof el.setSelectionRange !== 'function') return null; "
+    "try { el.setSelectionRange(el.value.length, el.value.length); return true; } "
+    "catch (error) { return false; } }"
+)
 
 
 class PlaywrightElementWrapper:
@@ -91,11 +98,19 @@ class PlaywrightElementWrapper:
             _record("fill", params, error)
 
     def type_text(self, input_value: str, delay: float = 0) -> None:
-        """Type text key-by-key (analogue of Selenium ``send_keys``)."""
+        """
+        Type text key-by-key after the text the field already has, like Selenium ``send_keys``. Playwright
+        alone types at the caret, which is at the start of a field that was never focused.
+        """
         web_runner_logger.info(f"PlaywrightElementWrapper type_text: {input_value!r}")
         params = {"input_value": input_value, "delay": delay}
         try:
-            self._require_element().type(input_value, delay=delay)
+            element = self._require_element()
+            # Focus first: focusing an input afterwards would put the caret back at the start.
+            element.focus()
+            if element.evaluate(_CARET_TO_END_JS) is False:
+                element.press("End")
+            element.type(input_value, delay=delay)
             _record("type_text", params, None)
         except Exception as error:
             web_runner_logger.error(f"PlaywrightElementWrapper type_text failed: {error!r}")
