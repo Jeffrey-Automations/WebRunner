@@ -662,6 +662,26 @@ WebRunner 桥接取用 `executor` 与 `execute_one`，Jeffrey_RPA 以那个确�
 
 `WR_load_locators`（`path`，相对于动作文件）把每个条目以其名称存起来；`WR_save_locator`（`name`、`value`、`by`）则存一个。之后两个后端按记录名称查找的命令（`WR_find_recorded_element`、`WR_pw_find_element`……）都可以使用逻辑名称。`by` 是 Selenium 的定位策略（默认 `css selector`，另有 `id`、`xpath`、`link text`……）。也可以用 `--locators FILE`，或在项目配置文件写 `locators = ["locators.json"]`，让整次运行都加载这些文件。
 
+### 函数库命令
+
+`je_web_runner/utils` 底下的每个辅助函数库都可以从动作文件使用。原本只为 Python 调用者写的函数库，现在有名为 `WR_<函数库>_<动词>` 的适配命令（例如 `WR_sri_verify_html`、`WR_cors_matrix_classify`、`WR_flake_detector_scores`）：它们接收并返回 JSON 值，所以结果可以搭配 `WR_capture`、`WR_if` 与 `WR_assert_var` 使用。
+
+```python
+[
+    ["WR_to_url", {"url": "${base}/checkout"}],
+    ["WR_sri_verify_assert_all_ok"],                                   # reads the current page
+    ["WR_capture", {"name": "leaks", "action": ["WR_token_leak_detector_scan_page"]}],
+    ["WR_assert_var", {"var": "leaks", "op": "eq", "value": []}],
+    ["WR_wcag22_touch_target_audit_page"],
+    ["WR_download_verify_assert", {"path": "downloads/invoice.pdf", "checks": {"min_size_bytes": 1024}}],
+]
+```
+
+- 一个函数库的命令通常有三种：依你传入的数据返回结果的；名称含 `_page`（或省略数据参数时自动改读页面）、从当前 Selenium 浏览器的页面读取的；以及名称含 `assert`、检查不通过就让动作失败的。
+- `python -m je_web_runner --list-commands` 会打印所有名称；`docs/reference/command_reference.md` 有每个命令的参数与说明，语言服务器与 `--lint` 也会依此检查文件。
+- 只能搭配调用者提供的 Python callable 或运行中对象的函数库（浏览器池、函数的扇出、delta-debugging 执行器……）没有命令；`je_web_runner/utils/executor/_adapter_commands.py` 列出它们与原因。
+- 会连到参数所指定主机的命令（`WR_tls_cipher_audit_handshake`、`WR_graphql_execute`、`WR_otp_interceptor_wait`……）或会启动本机进程的命令，MCP 的执行工具默认会拒绝，除非设置 `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1`。
+
 ### 顶层形态
 
 ```python
@@ -1004,7 +1024,7 @@ python -m je_web_runner.mcp_server
 默认工具列表（28 个工具）暴露：
 
 实时浏览器执行：
-- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 572 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 1199 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批量运行磁盘上的 JSON 文件
 - `webrunner_list_commands` —— 发现完整的 `WR_*` 接口面
 

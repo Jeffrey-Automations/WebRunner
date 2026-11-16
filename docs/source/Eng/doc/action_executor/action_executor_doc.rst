@@ -630,3 +630,40 @@ It applies to the actions of a list or file. A single ``execute_one`` call is
 never skipped, a list run from inside an action (``WR_execute_action``) belongs
 to that action, and a ``WR_try`` block that handles its failure does not trip
 it. ``--parallel-mode async`` does not use it.
+
+Library Commands
+----------------
+
+Every helper library under ``je_web_runner/utils`` can be used from an action
+file. A library written for Python callers has adapter commands named
+``WR_<library>_<verb>``; they take and return JSON values, so their results work
+with ``WR_capture``, ``WR_if`` and ``WR_assert_var``.
+
+.. code-block:: python
+
+    [
+        ["WR_to_url", {"url": "${base}/checkout"}],
+        ["WR_sri_verify_assert_all_ok"],                                   # reads the current page
+        ["WR_capture", {"name": "leaks", "action": ["WR_token_leak_detector_scan_page"]}],
+        ["WR_assert_var", {"var": "leaks", "op": "eq", "value": []}],
+        ["WR_wcag22_touch_target_audit_page"],
+        ["WR_download_verify_assert", {"path": "downloads/invoice.pdf", "checks": {"min_size_bytes": 1024}}],
+    ]
+
+* The adapters live in ``je_web_runner/utils/executor/_commands_<theme>.py`` and
+  are merged by ``_adapter_commands.py``. Each imports its library only when it is
+  called, so importing ``je_web_runner`` does not load them.
+* A library's commands usually come in three kinds: one that returns findings
+  from data passed as arguments, one that reads the page of the current Selenium
+  browser (``_page`` in its name, or a fallback when the data argument is
+  omitted), and one with ``assert`` in its name that raises the library's own
+  exception when the check fails. Page commands run only fixed scripts.
+* ``_adapter_commands.PYTHON_ONLY`` names the subpackages without a command and
+  the reason: they need caller-supplied Python callables or live objects, or they
+  are part of the engine. ``test/unit_test/test_adapter_commands.py`` fails when a
+  subpackage has neither a command nor a reason.
+* ``_adapter_commands.NETWORK_COMMANDS`` (commands that contact a host an argument
+  names) and ``PROCESS_COMMANDS`` (commands that start a local process) are refused
+  by the MCP run tools unless ``WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1``.
+* Adapters were tested with mocked browsers and recorded data, not in a real
+  browser.

@@ -13,8 +13,9 @@ a wide set of self-contained testing helpers (API, security, performance, access
 ## 2. Layers and directories
 
 Layering: entry points (CLI, TCP, MCP, LSP, Python) → `utils/executor/` (`WR_*` dispatch) → wrappers in
-`webdriver/`, `element/`, `manager/` → Selenium / Playwright. Most `utils/` subpackages are leaf libraries: some are
-wired into the executor as `WR_*` commands, others are reachable only from Python.
+`webdriver/`, `element/`, `manager/` → Selenium / Playwright. Most `utils/` subpackages are leaf libraries. Every one
+has a `WR_*` command or a stated reason for having none (`utils/executor/_adapter_commands.py`, guarded by
+`test/unit_test/test_adapter_commands.py`).
 
 | Path | Responsibility |
 | --- | --- |
@@ -23,7 +24,7 @@ wired into the executor as `WR_*` commands, others are reachable only from Pytho
 | `je_web_runner/webdriver/` | `webdriver_wrapper.py` (`WebDriverWrapper`, singleton `webdriver_wrapper_instance`) composed from `_wrapper_mixins/` (actions, cookies, media, navigation, scripting, parity: JSON waits / raw selectors / dialogs / CDP emulation; the Selenium event capture, HAR and response mocks live in `utils/bidi/selenium_events.py`, over W3C BiDi); `webdriver_with_options.py`; Playwright backend `playwright_wrapper.py` (`PlaywrightWrapper`: launch, context, quit, plus the `pw_*` module functions) composed from `_playwright_mixins/` (context, page, interaction, state, recording, scope: current frame / user-facing lookup / dialogs, connect: CDP attach / browser server / persistent profile, sessions: several browsers switched by index), `playwright_element_wrapper.py`, `playwright_locator.py`. |
 | `je_web_runner/element/` | `web_element_wrapper.py`: operations on the currently selected Selenium element. |
 | `je_web_runner/manager/` | `webrunner_manager.py`: `WebdriverManager` (singleton `web_runner`) for multiple live drivers. |
-| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS`, which merges `_playwright_commands.PLAYWRIGHT_COMMANDS`, `_flow_commands.FLOW_COMMANDS` (variables and the control-flow blocks of `utils/flow/blocks.py`, whose actions run through `Executor.run_nested`, and `WR_call_file` of `utils/flow/subflow.py`), `_authoring_commands.AUTHORING_COMMANDS` (what `md_authoring` and the action templates emit) and the async stand-ins; `_bound.Bound` marks an entry that needs the executor. |
+| `je_web_runner/utils/executor/` | `action_executor.py`: `Executor`, a `je_action_core.ActionExecutor` (WebRunner's action parser and list rules, command gate, retry and span through `attempt`, failure screenshots in the failure record), and the `executor` singleton; its `event_dict` is built by `_event_table.build_event_dict()` from `COMMANDS`, which merges `_playwright_commands.PLAYWRIGHT_COMMANDS`, `_adapter_commands.ADAPTER_COMMANDS` (the `_commands_<theme>.py` adapters that give the libraries written for Python callers `WR_<library>_<verb>` commands taking and returning JSON values, each importing its library only when called), `_flow_commands.FLOW_COMMANDS` (variables and the control-flow blocks of `utils/flow/blocks.py`, whose actions run through `Executor.run_nested`, and `WR_call_file` of `utils/flow/subflow.py`), `_authoring_commands.AUTHORING_COMMANDS` (what `md_authoring` and the action templates emit) and the async stand-ins; `_bound.Bound` marks an entry that needs the executor. |
 | `je_web_runner/mcp_server/` | MCP stdio server: `McpServer` and per-request era routing (`server.py`), versions and identity (`_protocol.py`), the stateless 2026-07-28 revision (`_stateless.py`), `Tool` / `ToolResult` / errors (`_types.py`), offline tools (`offline_tools.py`, `build_default_tools()`), live-browser tools (`browser_tools.py`) and the caller policy (`_policy.py`). |
 | `je_web_runner/action_lsp/` | Language server for action JSON files. |
 | `je_web_runner/utils/` | One flat level of subpackages; functional areas below. |
@@ -193,7 +194,9 @@ process share one driver (`--parallel-mode process` exists for isolation).
   `executor.set_allow_arbitrary_packages(...)` are Python-only, never `WR_*` commands, so an action file cannot open
   its own gate. Unconfigured, any package loads with a `DeprecationWarning` (progress #22 flips the default).
 - MCP calls run inside `executor.restricted(...)`, which refuses the package-loading commands and
-  `WR_set_allow_arbitrary_script` in nested action lists too (`mcp_server/_policy.py`;
+  `WR_set_allow_arbitrary_script` in nested action lists too, and the adapter commands that contact a host an
+  argument names or start a local process (`_adapter_commands.NETWORK_COMMANDS`, `PROCESS_COMMANDS`)
+  (`mcp_server/_policy.py`;
   `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` lifts it, `WEBRUNNER_MCP_ROOT` fences the file tools).
 - `${name}` placeholders are expanded in the arguments only, after the gates looked at the command name, so a
   variable cannot pick a refused command. Unknown placeholders stay as written (`${ROW.col}`, JavaScript template

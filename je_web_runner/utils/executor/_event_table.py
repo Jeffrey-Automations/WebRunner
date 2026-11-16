@@ -118,6 +118,7 @@ from je_web_runner.utils.bidi.selenium_events import selenium_bidi_events as _bi
 from je_web_runner.utils import autocontrol_bridge as _autocontrol
 from je_web_runner.utils.async_executor.commands import ASYNC_COMMANDS as _ASYNC_COMMANDS
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
+from je_web_runner.utils.executor._adapter_commands import ADAPTER_COMMANDS
 from je_web_runner.utils.executor._authoring_commands import AUTHORING_COMMANDS
 from je_web_runner.utils.executor._bound import Bound as _Bound
 from je_web_runner.utils.executor._flow_commands import FLOW_COMMANDS
@@ -702,6 +703,9 @@ COMMANDS: dict[str, Any] = {
 
         # ----- variables of the action-file language -----
         **FLOW_COMMANDS,
+
+        # ----- adapters for the libraries written for Python callers (_commands_<theme>.py) -----
+        **ADAPTER_COMMANDS,
 
         # ----- what md_authoring and the action templates emit -----
         **AUTHORING_COMMANDS,

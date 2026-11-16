@@ -292,3 +292,35 @@ Fail-fast
 它作用於一份清單或一個檔案的動作。單次的 ``execute_one`` 呼叫永遠不會被跳過；從動作
 內部執行的清單（``WR_execute_action``）屬於那個動作；自行處理失敗的 ``WR_try`` 區塊
 不會觸發它。``--parallel-mode async`` 不使用它。
+
+函式庫指令
+----------
+
+``je_web_runner/utils`` 底下的每個輔助函式庫都可以從動作檔使用。原本只為 Python 呼叫者
+寫的函式庫，現在有名為 ``WR_<函式庫>_<動詞>`` 的轉接指令；它們接收並回傳 JSON 值，所以
+結果可以搭配 ``WR_capture``、``WR_if`` 與 ``WR_assert_var`` 使用。
+
+.. code-block:: python
+
+    [
+        ["WR_to_url", {"url": "${base}/checkout"}],
+        ["WR_sri_verify_assert_all_ok"],                                   # reads the current page
+        ["WR_capture", {"name": "leaks", "action": ["WR_token_leak_detector_scan_page"]}],
+        ["WR_assert_var", {"var": "leaks", "op": "eq", "value": []}],
+        ["WR_wcag22_touch_target_audit_page"],
+        ["WR_download_verify_assert", {"path": "downloads/invoice.pdf", "checks": {"min_size_bytes": 1024}}],
+    ]
+
+* 轉接層位於 ``je_web_runner/utils/executor/_commands_<主題>.py``，由
+  ``_adapter_commands.py`` 合併。每個轉接函式在被呼叫時才匯入對應的函式庫，所以匯入
+  ``je_web_runner`` 不會載入它們。
+* 一個函式庫的指令通常有三種：依參數傳入的資料回傳結果的；從目前 Selenium 瀏覽器的頁面
+  讀取的（名稱含 ``_page``，或省略資料參數時自動改讀頁面）；以及名稱含 ``assert``、檢查
+  不通過時拋出該函式庫自己的例外的。讀取頁面的指令只執行固定的腳本。
+* ``_adapter_commands.PYTHON_ONLY`` 列出沒有指令的子套件與原因：它們需要呼叫者提供的
+  Python callable 或執行中物件，或屬於引擎本身。子套件既沒有指令也沒有原因時，
+  ``test/unit_test/test_adapter_commands.py`` 會失敗。
+* ``_adapter_commands.NETWORK_COMMANDS``\ （會連到參數所指定主機的指令）與
+  ``PROCESS_COMMANDS``\ （會啟動本機行程的指令）預設會被 MCP 的執行工具拒絕，除非設定
+  ``WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1``。
+* 轉接層是以模擬的瀏覽器與錄下的資料測試，沒有在真實瀏覽器中執行過。

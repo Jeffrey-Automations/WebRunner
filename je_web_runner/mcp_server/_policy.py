@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 from je_web_runner.mcp_server._types import McpServerError
+from je_web_runner.utils.executor._adapter_commands import NETWORK_COMMANDS, PROCESS_COMMANDS
 
 UNSAFE_COMMANDS = frozenset({
     "WR_add_package_to_executor",
@@ -32,6 +33,10 @@ UNSAFE_COMMANDS = frozenset({
     "WR_ac_assert_image_on_screen",
     "WR_ac_click_element_native",
     "WR_ac_basic_auth",
+    # Adapter commands that contact a host an argument names, or start a local process: a model must
+    # not turn the server into a probe of other machines.
+    *NETWORK_COMMANDS,
+    *PROCESS_COMMANDS,
 })
 ALLOW_UNSAFE_ENV = "WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS"
 ROOT_ENV = "WEBRUNNER_MCP_ROOT"
