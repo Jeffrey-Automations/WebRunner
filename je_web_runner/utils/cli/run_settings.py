@@ -15,6 +15,7 @@ from je_web_runner.utils.env_config.env_loader import load_env
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor.action_executor import executor
 from je_web_runner.utils.flow.dataset import read_rows_file
+from je_web_runner.utils.package_manager.entry_point_commands import load_command_plugins
 from je_web_runner.utils.project_config.config import ProjectConfig
 from je_web_runner.utils.test_object.locator_file import load_locators
 from je_web_runner.utils.test_record.test_record_class import test_record_instance
@@ -33,6 +34,8 @@ class RunSettings:
     failure_screenshot_dir: str | None = None
     dataset: str | None = None
     locators: tuple[str, ...] = ()
+    plugins: tuple[str, ...] = ()
+    backend: str | None = None
     variables: dict[str, Any] = field(default_factory=dict)
 
 
@@ -65,8 +68,25 @@ def build_run_settings(config: ProjectConfig, report: str | None, fail_fast: boo
         retry_backoff=config.retry_backoff,
         failure_screenshot_dir=config.failure_screenshot_dir,
         locators=tuple(config.locators),
+        plugins=tuple(config.plugins),
+        backend=config.backend,
         variables=merged,
     )
+
+
+def _apply_executor_settings(settings: RunSettings) -> None:
+    """The settings that are switches of the executor itself."""
+    if settings.fail_fast:
+        executor.set_fail_fast(True)
+    if settings.retries is not None:
+        executor.set_retry_policy(settings.retries, settings.retry_backoff)
+    if settings.failure_screenshot_dir is not None:
+        executor.set_failure_screenshot_dir(settings.failure_screenshot_dir)
+    if settings.plugins:
+        # Commands the operator chose to add; loaded before anything that could name them.
+        load_command_plugins(settings.plugins)
+    if settings.backend is not None:
+        executor.set_backend(settings.backend)
 
 
 def apply_run_settings(settings: RunSettings) -> None:
@@ -80,12 +100,7 @@ def apply_run_settings(settings: RunSettings) -> None:
         test_record_instance.set_record_enable(True)
     if settings.env is not None:
         load_env(settings.env, settings.env_dir)
-    if settings.fail_fast:
-        executor.set_fail_fast(True)
-    if settings.retries is not None:
-        executor.set_retry_policy(settings.retries, settings.retry_backoff)
-    if settings.failure_screenshot_dir is not None:
-        executor.set_failure_screenshot_dir(settings.failure_screenshot_dir)
+    _apply_executor_settings(settings)
     for locator_path in settings.locators:
         load_locators(locator_path)
     if settings.dataset is not None:

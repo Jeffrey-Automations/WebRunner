@@ -66,18 +66,18 @@ class TestEventTranslation(unittest.TestCase):
     def test_click_translates_to_save_find_click_triplet(self):
         actions = events_to_actions([{"type": "click", "selector": "#submit"}])
         self.assertEqual(len(actions), 3)
-        self.assertEqual(actions[0][0], "WR_SaveTestObject")
+        self.assertEqual(actions[0][0], "WR_save_test_object")
         self.assertEqual(actions[0][1]["test_object_name"], "#submit")
         self.assertEqual(actions[0][1]["object_type"], "CSS_SELECTOR")
-        self.assertEqual(actions[1][0], "WR_find_element")
-        self.assertEqual(actions[2][0], "WR_left_click")
+        self.assertEqual(actions[1], ["WR_find_recorded_element", {"element_name": "#submit"}])
+        self.assertEqual(actions[2], ["WR_element_click"])
 
     def test_input_translates_with_value(self):
         actions = events_to_actions([
             {"type": "input", "selector": "input[name=\"q\"]", "value": "hello"}
         ])
         self.assertEqual(len(actions), 3)
-        self.assertEqual(actions[2][0], "WR_input_to_element")
+        self.assertEqual(actions[2][0], "WR_element_input")
         self.assertEqual(actions[2][1]["input_value"], "hello")
 
     def test_unknown_event_type_is_skipped(self):
@@ -145,7 +145,7 @@ class TestSaveRecording(unittest.TestCase):
             self.assertTrue(os.path.exists(raw))
             with open(output, encoding="utf-8") as out_file:
                 actions = json.load(out_file)
-            self.assertEqual(actions[0][0], "WR_SaveTestObject")
+            self.assertEqual(actions[0][0], "WR_save_test_object")
             self.assertEqual(len(actions), 6)
 
 

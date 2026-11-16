@@ -95,8 +95,9 @@ PLAYWRIGHT_COMMANDS: dict[str, Any] = {
     "WR_pw_recorder_start": lambda: _recorder_start(_PW_SCRIPTS),
     "WR_pw_recorder_stop": lambda: _recorder_stop(_PW_SCRIPTS),
     "WR_pw_recorder_pull_events": lambda: _recorder_pull_events(_PW_SCRIPTS),
-    "WR_pw_recorder_save": lambda output_path, raw_events_path=None: _recorder_save_recording(
-        _PW_SCRIPTS, output_path, raw_events_path
+    # A recording made on Playwright is written with WR_pw_* commands unless asked otherwise.
+    "WR_pw_recorder_save": lambda output_path, raw_events_path=None, backend="playwright": (
+        _recorder_save_recording(_PW_SCRIPTS, output_path, raw_events_path, backend)
     ),
     "WR_pw_element_submit": _pw_element.submit,
     "WR_pw_element_value_of_css_property": _pw_element.value_of_css_property,

@@ -3,6 +3,9 @@ from je_web_runner.mcp_server.browser_tools import build_browser_tools
 from je_web_runner.mcp_server.server import (
     McpServer,
     McpServerError,
+    Prompt,
+    Resource,
+    ResourceTemplate,
     Tool,
     ToolResult,
     build_default_tools,
@@ -10,6 +13,6 @@ from je_web_runner.mcp_server.server import (
 )
 
 __all__ = [
-    "McpServer", "McpServerError", "Tool", "ToolResult",
+    "McpServer", "McpServerError", "Prompt", "Resource", "ResourceTemplate", "Tool", "ToolResult",
     "build_default_tools", "build_browser_tools", "serve_stdio",
 ]

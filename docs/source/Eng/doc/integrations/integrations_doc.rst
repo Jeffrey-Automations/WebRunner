@@ -5,11 +5,18 @@ Integrations
 Recorder
 ========
 
-JS-injection recorder (no CDP, cross-browser): captures click / change
-events and emits a ``WR_*`` action JSON draft. Sensitive fields
-(``type=password``, names matching password / card / cvv / ssn / secret /
-token / api_key / otp / passcode, 13–19-digit values) are masked by
-default.
+JS-injection recorder (no CDP, cross-browser): captures clicks, typed
+values, ``<select>`` choices, checkbox and radio changes, presses of named
+keys and address changes, and emits a ``WR_*`` action JSON draft with the
+current command names (``WR_element_click``, ``WR_element_input``,
+``WR_press_keys``, ``WR_to_url`` …). ``backend="playwright"`` (the default
+of ``WR_pw_recorder_save``) writes ``WR_pw_*`` commands instead. Sensitive
+fields (``type=password``, names matching password / card / cvv / ssn /
+secret / token / api_key / otp / passcode, 13–19-digit values), passwords
+and sensitive parameters in URLs, and typed characters other than named
+keys are masked by default. The buffer lives in the page, so after a
+navigation to a new document the events must be pulled and the recorder
+started again.
 
 CI / integrations
 =================
@@ -135,13 +142,29 @@ Action JSON LSP
 
    python -m je_web_runner.action_lsp
 
-Standard LSP 3.17-shaped server over stdio. ``textDocument/completion``
-suggests every registered ``WR_*`` command; ``textDocument/didOpen`` /
-``didChange`` push ``publishDiagnostics`` based on
-:func:`linter.action_linter.lint_action`, each finding on the line of its
-action; ``didClose`` clears them. A document is a list of actions or an
-object whose ``webdriver_wrapper`` holds one. Notifications the server does
-not know are ignored.
+Standard LSP 3.17-shaped server over stdio, also installed as the console
+script ``webrunner-lsp``. A document is a list of actions or an object whose
+``webdriver_wrapper`` holds one. Notifications the server does not know are
+ignored.
+
+* ``textDocument/completion`` depends on the cursor: command names in the
+  first element of an action, the command's parameter names in its arguments
+  object (those not written yet), variable names after an open ``${``
+  (variables any action of the document defines, and ``meta.vars``). Actions
+  inside blocks work like top-level ones. A request without a position still
+  returns every command name.
+* ``textDocument/hover`` on a command name returns its signature and docstring.
+* ``textDocument/didOpen`` / ``didChange`` push ``publishDiagnostics`` from
+  :func:`linter.action_linter.lint_action`. A finding sits on the line of the
+  action or argument it is about, nested ones included, and carries the rule
+  as ``code``; ``didClose`` clears them.
+* ``textDocument/codeAction`` offers a quick fix for a ``legacy_name`` finding
+  whose command has exactly one modern alias.
+* ``textDocument/formatting`` returns one edit with the formatter's canonical
+  layout for a list-form document; an object document or invalid JSON gets no
+  edit.
+* Messages are read and written as UTF-8 bytes through the streams' buffers,
+  so ``Content-Length`` stays right with non-ASCII text on any console encoding.
 
 
 Native basic-auth navigation requires HTTPS. Plain HTTP is allowed only for localhost or a literal loopback address used by local test servers. URLs with embedded credentials are refused before navigation or typing.

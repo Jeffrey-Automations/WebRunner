@@ -61,10 +61,18 @@ classifiers = [
 # 0.0.225 is the first release with AC_write_secret, which WR_ac_basic_auth refuses to run without.
 autocontrol = ["je_auto_control>=1.1.0"]
 
-# Console scripts: the same entry point as ``python -m je_web_runner``.
+# Console scripts: ``webrunner`` / ``web_runner`` are ``python -m je_web_runner``; the others start the
+# servers that have their own ``python -m`` module.
 [project.scripts]
 webrunner = "je_web_runner.__main__:run"
 web_runner = "je_web_runner.__main__:run"
+webrunner-mcp = "je_web_runner.utils.cli.entry_points:mcp_main"
+webrunner-lsp = "je_web_runner.utils.cli.entry_points:lsp_main"
+webrunner-issue-worker = "je_web_runner.utils.cli.entry_points:issue_worker_main"
+
+# The pytest plugin (inert unless a project sets webrunner_action_paths or passes --webrunner-actions).
+[project.entry-points.pytest11]
+webrunner = "je_web_runner_pytest"
 
 [project.urls]
 Homepage = "https://github.com/Integration-Automation/WebRunner"
@@ -75,6 +83,10 @@ Code = "https://github.com/Integration-Automation/WebRunner"
 file = "README.md"
 content-type = "text/markdown"
 
+
+[tool.setuptools]
+# The pytest plugin's hooks, outside the package so that loading them does not import je_web_runner.
+py-modules = ["je_web_runner_pytest"]
 
 [tool.setuptools.packages]
 find = { namespaces = false }

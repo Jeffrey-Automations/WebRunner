@@ -7,14 +7,16 @@ from importlib import metadata
 from typing import Any
 
 #: Every revision with the ``initialize`` handshake this server speaks, newest first.
-#: The server offers tools only, so the later revisions' optional features (resources,
-#: prompts, elicitation, tasks) do not apply; it follows the rules they add for every
-#: version: tool failures are ``isError`` results, notifications get no reply, batches
-#: are rejected.
+#: The server offers tools, resources and prompts, which every one of these revisions
+#: defines; the later revisions' other optional features (subscriptions, completion,
+#: elicitation, tasks) are not offered. It follows the rules they add for every version:
+#: tool failures are ``isError`` results, notifications get no reply, batches are rejected.
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 _NEWEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]
 #: The first revision whose ``Implementation`` carries ``description``.
 DESCRIPTION_SINCE = "2025-11-25"
+#: The first revision whose resources, resource templates, prompts and prompt arguments carry ``title``.
+TITLE_SINCE = "2025-06-18"
 SERVER_DESCRIPTION = (
     "Browser automation with Selenium or Playwright: run WebRunner action lists, "
     "plus offline tools for authoring, linting and triaging them."
@@ -24,7 +26,9 @@ INSTRUCTIONS = (
     "Call webrunner_list_commands to see the WR_* commands, then webrunner_run_actions to run them; "
     "the browser stays open between calls until an action list runs WR_quit (Selenium) or WR_pw_quit "
     "(Playwright). A result with isError true lists the failed actions under 'failed'. The other "
-    "tools (lint, format, translate, scan, shard...) work offline and never open a browser."
+    "tools (lint, format, translate, scan, shard...) work offline and never open a browser. "
+    "Before writing an action file, read the resource webrunner://guide/action-language; "
+    "webrunner://commands/{name} gives one command's signature."
 )
 
 SERVER_NAME = "webrunner-mcp"

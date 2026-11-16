@@ -78,7 +78,8 @@ Equivalent commands
      - ``WR_find_element_by`` / ``WR_find_elements_by`` (``by``: ``css
        selector``, ``xpath``, ``id`` …)
      - ``WR_pw_find_element`` / ``WR_pw_find_elements``
-     - Selenium's make the match the current element.
+     - Selenium's make the match the current element. Playwright's return
+       the match (``None`` when nothing matches) without making it current.
    * - Check, hover, element text
      - ``WR_element_check``, ``WR_element_uncheck``, ``WR_element_hover``,
        ``WR_element_inner_text``, ``WR_element_inner_html``,
@@ -116,12 +117,13 @@ Equivalent commands
    * - Type
      - ``WR_element_input``
      - ``WR_pw_element_type_text``, ``WR_pw_element_fill``
-     - ``WR_element_input`` and ``type_text`` append; ``fill`` replaces the
-       value.
+     - ``WR_element_input`` and ``type_text`` type after the text a field
+       already has; ``fill`` replaces the value.
    * - Select an option
      - ``WR_element_select_by_value`` / ``_by_index`` / ``_by_visible_text``
      - ``WR_pw_select_option``, ``WR_pw_element_select_option``
-     - Playwright takes a value, ``{"index": n}`` or ``{"label": text}``.
+     - ``WR_pw_element_select_option`` takes a value. ``WR_pw_select_option``
+       takes a selector and a value, or the keywords ``index`` / ``label``.
    * - Wait
      - ``WR_implicitly_wait``, ``WR_wait_for_element`` (``present`` /
        ``visible`` / ``clickable`` / ``hidden``), ``WR_wait_for_url``,

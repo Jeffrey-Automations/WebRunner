@@ -5,8 +5,13 @@
 錄製器
 ======
 
-JS 注入式錄製，跨 Chrome / Firefox / Edge。預設遮罩敏感欄位（密碼、
-卡號、CVV、SSN、token、api_key 等）。
+JS 注入式錄製，跨 Chrome / Firefox / Edge：錄下點擊、輸入的值、``<select>`` 的選擇、
+核取方塊與單選鈕的變更、具名按鍵與網址變更，並以現行的指令名稱（``WR_element_click``、
+``WR_element_input``、``WR_press_keys``、``WR_to_url``……）輸出動作 JSON 草稿。
+``backend="playwright"``\ （``WR_pw_recorder_save`` 的預設）則改寫出 ``WR_pw_*`` 指令。
+預設遮罩敏感欄位（密碼、卡號、CVV、SSN、token、api_key 等）、網址中的密碼與敏感參數，
+以及具名按鍵以外的輸入字元。事件緩衝區存在頁面裡，導覽到新文件之後必須先取回事件再重新
+啟動錄製器。
 
 CI 與整合
 =========
@@ -111,11 +116,23 @@ Action JSON LSP
 
    python -m je_web_runner.action_lsp
 
-標準 LSP 3.17 stdio server，``textDocument/completion`` 回傳所有已註冊
-``WR_*`` 指令；``textDocument/didOpen`` / ``didChange`` 觸發
-``publishDiagnostics`` 跑 action linter，每個發現標在該動作所在的行；
-``didClose`` 會清除診斷。文件可以是動作清單，或 ``webdriver_wrapper``
-存放動作清單的物件。伺服器不認得的 notification 會被忽略。
+標準 LSP 3.17 stdio server，也會安裝成主控台指令 ``webrunner-lsp``。文件可以是動作
+清單，或 ``webdriver_wrapper`` 存放動作清單的物件。伺服器不認得的 notification 會被
+忽略。
+
+* ``textDocument/completion`` 依游標位置而定：動作的第一個元素補指令名稱，引數物件裡
+  補該指令尚未寫出的參數名稱，未關閉的 ``${`` 之後補變數名稱（文件中任何動作定義的
+  變數，以及 ``meta.vars``）。區塊內的動作與頂層動作相同。沒有帶位置的請求仍回傳所有
+  指令名稱。
+* ``textDocument/hover``：停在指令名稱上回傳簽章與說明。
+* ``textDocument/didOpen`` / ``didChange`` 觸發 ``publishDiagnostics`` 跑 action
+  linter。每個發現標在它所指的動作或引數那一行（包含巢狀動作），並以規則名稱作為
+  ``code``；``didClose`` 會清除診斷。
+* ``textDocument/codeAction``：只有一個新別名的 ``legacy_name`` 發現可一鍵替換。
+* ``textDocument/formatting``：清單形式的文件回傳一個改成標準排版的編輯；物件形式
+  或不合法的 JSON 不回傳編輯。
+* 訊息透過串流的 buffer 以 UTF-8 位元組讀寫，所以不論主控台使用何種編碼，含非 ASCII
+  文字時 ``Content-Length`` 仍然正確。
 
 
 原生基本認證導覽必須使用 HTTPS。只有本機測試伺服器的 localhost 或明確 loopback 位址可使用 HTTP。含內嵌帳密的 URL 會在導覽或輸入前被拒絕。

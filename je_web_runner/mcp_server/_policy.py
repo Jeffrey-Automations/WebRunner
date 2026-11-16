@@ -12,8 +12,8 @@ to one directory:
   the real mouse, keyboard and screen through AutoControl, outside the browser.
 
 ``WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1`` lifts the refusal. ``WEBRUNNER_MCP_ROOT``,
-when set, is the only directory ``webrunner_run_action_files`` and
-``webrunner_compute_trend`` may read from.
+when set, is the only directory ``webrunner_run_action_files``,
+``webrunner_compute_trend`` and ``webrunner_lint_action_file`` may read from.
 """
 from __future__ import annotations
 

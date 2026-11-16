@@ -9,6 +9,7 @@ Note: the subprocess pipes use binary mode. ``text=True`` would convert
 ``\\n`` to ``\\r\\n`` on Windows, corrupting the framing.
 """
 import json
+import os
 import subprocess  # nosec B404 — argv-only invocation, controlled args
 import sys
 import unittest
@@ -43,13 +44,14 @@ def _read_messages(stream_bytes: bytes):
     return messages
 
 
-def _spawn():
+def _spawn(env=None):
     return subprocess.Popen(  # nosec B603 — argv list, no shell
         [sys.executable, "-m", "je_web_runner.action_lsp"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         bufsize=0,
+        env=env,
     )
 
 
@@ -111,6 +113,44 @@ class TestActionLspSubprocess(unittest.TestCase):
         completion = next(m for m in messages if m.get("id") == 2)
         labels = [item["label"] for item in completion["result"]["items"]]
         self.assertTrue(any(name.startswith("WR_") for name in labels))
+
+    def test_hover_completion_formatting_and_quick_fix(self):
+        uri = "file:///x.json"
+        text = '[["WR_quit"],\n ["WR_set_var", {"name": "token", "": 1}]]'
+        document = {"textDocument": {"uri": uri}}
+        # The hover text holds the bilingual docstring, so this also checks that the server writes UTF-8
+        # whatever the locale's encoding is. A non-UTF-8 locale is forced to make that a real check.
+        proc = _spawn(env={**os.environ, "PYTHONIOENCODING": "ascii"})
+        stdout_data, stderr_data = _drive(proc, [
+            _frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+            _frame({"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                    "params": {"textDocument": {"uri": uri, "text": text}}}),
+            _frame({"jsonrpc": "2.0", "id": 2, "method": "textDocument/hover",
+                    "params": {**document, "position": {"line": 0, "character": 5}}}),
+            _frame({"jsonrpc": "2.0", "id": 3, "method": "textDocument/completion",
+                    "params": {**document, "position": {"line": 1, "character": 35}}}),
+            _frame({"jsonrpc": "2.0", "id": 4, "method": "textDocument/formatting",
+                    "params": {**document, "options": {"tabSize": 2, "insertSpaces": True}}}),
+            _frame({"jsonrpc": "2.0", "id": 5, "method": "textDocument/codeAction",
+                    "params": {**document, "context": {"diagnostics": [{
+                        "code": "legacy_name",
+                        "message": "[legacy_name] 'WR_quit' is a legacy alias; prefer 'WR_quit_all'",
+                        "range": {"start": {"line": 0, "character": 0},
+                                  "end": {"line": 0, "character": 200}},
+                    }]}}}),
+            _frame({"jsonrpc": "2.0", "method": "exit"}),
+        ])
+        self.assertEqual(proc.returncode, 0, msg=f"stderr={stderr_data!r}")
+        results = {message["id"]: message["result"]
+                   for message in _read_messages(stdout_data) if "id" in message}
+        capabilities = results[1]["capabilities"]
+        self.assertTrue(capabilities["hoverProvider"])
+        self.assertTrue(capabilities["documentFormattingProvider"])
+        self.assertIn("WR_quit()", results[2]["contents"]["value"])
+        self.assertEqual([item["label"] for item in results[3]["items"]], ["value", "local"])
+        self.assertEqual(results[4][0]["newText"],
+                         '[\n  ["WR_quit"],\n  ["WR_set_var", {"": 1, "name": "token"}]\n]\n')
+        self.assertEqual(results[5][0]["edit"]["changes"][uri][0]["newText"], '"WR_quit_all"')
 
 
 if __name__ == "__main__":

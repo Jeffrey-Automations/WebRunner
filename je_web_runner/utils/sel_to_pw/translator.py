@@ -10,6 +10,12 @@ review is still required, especially for:
 
 For action JSON the translator rewrites well-known ``WR_*`` commands to
 their ``WR_pw_*`` Playwright equivalents.
+
+:func:`translate_action_list` is the draft form: it covers a few commands and
+passes the rest through. To run one action file on either backend use
+:func:`je_web_runner.utils.sel_to_pw.backend_translate.translate_for_backend`,
+which covers the equivalents table of the backends page, converts arguments,
+and refuses what it cannot translate faithfully.
 """
 from __future__ import annotations
 

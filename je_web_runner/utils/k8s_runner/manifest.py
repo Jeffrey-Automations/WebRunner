@@ -22,15 +22,29 @@ class K8sRunnerError(WebRunnerException):
 
 _RFC1123_RE = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
 
+# The image ``docker/Runner.Containerfile`` builds: Python, the WebRunner package, Chromium and its
+# driver, run as a non-root user. It is the name to tag that build with and the default of
+# ``ShardJobConfig.image``; a cluster that pulls from its own registry passes its own reference.
+RUNNER_IMAGE: str = "ghcr.io/integration-automation/webrunner-runner:latest"
+
+# Marks ``total_shards`` / ``actions_dir`` as not given: they follow ``image`` (which has a default)
+# in the positional order, so they need a default too, and stay required through ``__post_init__``.
+_REQUIRED: Any = object()
+
 
 @dataclass
 class ShardJobConfig:
-    """Inputs for a single batch of shard Jobs."""
+    """
+    Inputs for a single batch of shard Jobs.
+
+    ``name_prefix``, ``total_shards`` and ``actions_dir`` are required; ``image`` defaults to
+    :data:`RUNNER_IMAGE`.
+    """
 
     name_prefix: str
-    image: str
-    total_shards: int
-    actions_dir: str
+    image: str = RUNNER_IMAGE
+    total_shards: int = _REQUIRED
+    actions_dir: str = _REQUIRED
     namespace: str = "default"
     command: Sequence[str] = field(default_factory=lambda: ["python", "-m", "je_web_runner"])
     env: dict[str, str] = field(default_factory=dict)
@@ -43,6 +57,11 @@ class ShardJobConfig:
     completions: int = 1
     labels: dict[str, str] = field(default_factory=dict)
     extra_args: Sequence[str] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        missing = [name for name in ("total_shards", "actions_dir") if getattr(self, name) is _REQUIRED]
+        if missing:
+            raise TypeError(f"ShardJobConfig() missing required argument(s): {', '.join(missing)}")
 
 
 def _validate(config: ShardJobConfig) -> None:

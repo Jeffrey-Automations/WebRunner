@@ -249,9 +249,11 @@ def k8s_runner_render_manifests(config: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Render one Kubernetes ``batch/v1`` Job per shard, each running ``--shard i/N`` of an action directory.
 
-    ``config`` needs ``name_prefix``, ``image``, ``total_shards`` and ``actions_dir``; optional are
-    ``namespace``, ``command``, ``env``, ``resources``, ``backoff_limit``, ``parallelism``, ``completions``,
-    ``labels`` and ``extra_args``. Only renders: nothing is sent to a cluster.
+    ``config`` needs ``name_prefix``, ``total_shards`` and ``actions_dir``; optional are ``image`` (default
+    ``k8s_runner.RUNNER_IMAGE``, a name this project does not publish: build ``docker/Runner.Containerfile``
+    and push it there, or name your own image), ``namespace``, ``command``, ``env``, ``resources``,
+    ``backoff_limit``, ``parallelism``, ``completions``, ``labels`` and ``extra_args``. Only renders: nothing
+    is sent to a cluster.
     """
     from je_web_runner.utils.k8s_runner.manifest import render_job_manifests
     return to_plain(render_job_manifests(_shard_config(config)))

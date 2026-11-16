@@ -15,12 +15,14 @@ from je_web_runner.utils.docs.command_reference import export_command_reference
 from je_web_runner.utils.executor.action_executor import executor
 from je_web_runner.utils.file_process.get_dir_file_list import get_dir_files_as_list
 from je_web_runner.utils.linter.action_linter import lint_action_file
+from je_web_runner.utils.package_manager.entry_point_commands import available_plugins
 from je_web_runner.utils.schema.action_schema import export_schema
 
 COMMAND_PREFIX = "WR_"
 FAILING_SEVERITY = "warning"
 # The argparse destinations of the flags handled here; any of them is enough for the CLI to have work.
-TOOL_FLAGS = ("list_commands", "lint", "init", "format_path", "export_schema", "export_command_reference")
+TOOL_FLAGS = ("list_commands", "list_plugins", "lint", "init", "format_path", "export_schema",
+              "export_command_reference")
 
 
 def _action_files(target: str, flag: str) -> list[str]:
@@ -84,6 +86,9 @@ def run_tools(args: argparse.Namespace) -> None:
     """Run the tool flags that were given."""
     if args.list_commands:
         list_commands()
+    if args.list_plugins:
+        for name in available_plugins():
+            print(name)
     if args.lint:
         lint_target(args.lint)
     if args.format_path:

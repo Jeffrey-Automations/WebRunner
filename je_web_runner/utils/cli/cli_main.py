@@ -35,7 +35,8 @@ from je_web_runner.utils.test_record.test_record_class import test_record_instan
 
 
 # The argparse destinations of the tool flags (``utils/cli/tooling.py`` handles them).
-_TOOL_FLAGS = ("list_commands", "lint", "init", "format_path", "export_schema", "export_command_reference")
+_TOOL_FLAGS = ("list_commands", "list_plugins", "lint", "init", "format_path", "export_schema",
+               "export_command_reference")
 
 
 def _project_config(argv: Sequence[str] | None) -> ProjectConfig:
@@ -422,7 +423,20 @@ def _dispatch(args: argparse.Namespace) -> None:
         return
     settings = _run_settings(args)
     apply_run_settings(settings)
+    if args.step:
+        _start_stepping(args)
     _run_tools(args)
+    _validate_and_execute(args, settings)
+    if args.report:
+        _generate_reports(args.report, _report_formats(args.report_format))
+    if args.merge_reports:
+        _merge_reports(args.merge_reports)
+    if args.migrate:
+        _do_migrate(args.migrate, dry_run=args.migrate_dry_run)
+
+
+def _validate_and_execute(args: argparse.Namespace, settings: RunSettings) -> None:
+    """Validate, then run, what the arguments name: a file, a directory, a JSON string."""
     include_tags = _split_csv(args.tag)
     exclude_tags = _split_csv(args.exclude_tag)
     if args.validate:
@@ -436,12 +450,6 @@ def _dispatch(args: argparse.Namespace) -> None:
         _dispatch_directory(args, include_tags, exclude_tags, settings)
     if args.execute_str:
         execute_action(_parse_execute_str(args.execute_str))
-    if args.report:
-        _generate_reports(args.report, _report_formats(args.report_format))
-    if args.merge_reports:
-        _merge_reports(args.merge_reports)
-    if args.migrate:
-        _do_migrate(args.migrate, dry_run=args.migrate_dry_run)
 
 
 def _run_settings(args: argparse.Namespace) -> RunSettings:
@@ -449,10 +457,22 @@ def _run_settings(args: argparse.Namespace) -> RunSettings:
     config = getattr(args, "project_config", None) or ProjectConfig()
     settings = build_run_settings(config, args.report, args.fail_fast, args.env, args.env_dir, args.variables)
     # An absolute path, so a worker process reads the same file whatever its working directory.
+    if args.plugins:
+        settings = replace(settings, plugins=tuple(dict.fromkeys((*settings.plugins, *args.plugins))))
+    if args.backend:
+        settings = replace(settings, backend=args.backend)
     if args.locators:
         files = (*settings.locators, *args.locators)
         settings = replace(settings, locators=tuple(str(Path(name).resolve()) for name in files))
     return replace(settings, dataset=str(Path(args.dataset).resolve())) if args.dataset else settings
+
+
+def _start_stepping(args: argparse.Namespace) -> None:
+    """``--step``: pause this process's executor before each action; refused for the pools."""
+    from je_web_runner.utils.flow.debugger import Stepper
+    if args.parallel > 1 or args.parallel_mode == "async":
+        raise WebRunnerExecuteException("--step runs one file at a time: drop --parallel / --parallel-mode async")
+    executor.debugger = Stepper()
 
 
 def _run_tools(args: argparse.Namespace) -> None:

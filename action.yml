@@ -1,0 +1,166 @@
+name: "Run WebRunner action files"
+description: >-
+  Set up Python, install WebRunner (je_web_runner) and run a directory of action JSON files with the
+  browser already on the runner; upload the reports as an artifact when a report base name is given.
+author: "Integration-Automation"
+branding:
+  icon: "play-circle"
+  color: "blue"
+
+inputs:
+  actions-dir:
+    description: "Directory of action JSON files to run (the CLI's --execute_dir), relative to the workspace."
+    required: true
+  python-version:
+    description: >-
+      Python version to set up (3.11 or newer). Leave empty to use the Python already on PATH
+      and skip the setup step.
+    required: false
+    default: "3.12"
+  channel:
+    description: "Package channel: 'stable' installs je_web_runner, 'dev' installs je_web_runner_dev."
+    required: false
+    default: "stable"
+  package-version:
+    description: "Exact package version to install, e.g. 0.0.94. Empty installs the newest of the channel."
+    required: false
+    default: ""
+  report:
+    description: >-
+      Report base name (the CLI's --report), e.g. reports/run. When set, the report files that
+      start with this name are uploaded as an artifact. Empty writes no report.
+    required: false
+    default: ""
+  report-format:
+    description: >-
+      Comma-separated report formats (the CLI's --report-format): json, html, xml, junit, allure,
+      interactive. Empty keeps the CLI default (json, html, xml, junit).
+    required: false
+    default: ""
+  shard:
+    description: "Shard spec INDEX/TOTAL (the CLI's --shard), e.g. 1/4. Empty runs every file."
+    required: false
+    default: ""
+  parallel:
+    description: "Worker count (the CLI's --parallel). Empty runs the files one after another."
+    required: false
+    default: ""
+  parallel-mode:
+    description: "The CLI's --parallel-mode: thread, process or async. Empty keeps the CLI default (thread)."
+    required: false
+    default: ""
+  tag:
+    description: "Comma-separated tags (the CLI's --tag): run only files whose meta.tags has one of them."
+    required: false
+    default: ""
+  exclude-tag:
+    description: "Comma-separated tags (the CLI's --exclude-tag): skip files whose meta.tags has any of them."
+    required: false
+    default: ""
+  fail-fast:
+    description: "'true' passes --fail-fast: stop a file at its first failed action and start no file after it."
+    required: false
+    default: "false"
+  extra-args:
+    description: >-
+      More CLI arguments, split on whitespace (no quoting: a value cannot contain a space),
+      e.g. "--env staging --var BASE_URL=https://staging.example".
+    required: false
+    default: ""
+  artifact-name:
+    description: >-
+      Name of the uploaded report artifact. Empty uses webrunner-reports, or
+      webrunner-reports-shard-INDEX-of-TOTAL when a shard is given, so the jobs of a matrix do not collide.
+    required: false
+    default: ""
+
+outputs:
+  exit-code:
+    description: "Exit code of the WebRunner CLI (0 when every action file passed)."
+    value: ${{ steps.run.outputs.exit-code }}
+  artifact-name:
+    description: "Name the report artifact was uploaded under (empty when no report base was given)."
+    value: ${{ steps.run.outputs.artifact-name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      if: ${{ inputs.python-version != '' }}
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    # Every input reaches the scripts below through env, never through ${{ }} inside the script:
+    # an input is text the caller may have taken from a pull request.
+    - name: Install WebRunner
+      shell: bash
+      env:
+        WR_CHANNEL: ${{ inputs.channel }}
+        WR_PACKAGE_VERSION: ${{ inputs.package-version }}
+      run: |
+        case "$WR_CHANNEL" in
+          stable) package="je_web_runner" ;;
+          dev) package="je_web_runner_dev" ;;
+          *) echo "::error::channel must be 'stable' or 'dev'"; exit 2 ;;
+        esac
+        if [ -n "$WR_PACKAGE_VERSION" ]; then
+          if ! [[ "$WR_PACKAGE_VERSION" =~ ^[0-9][0-9A-Za-z.!+]*$ ]]; then
+            echo "::error::package-version must be an exact version such as 0.0.94"; exit 2
+          fi
+          package="${package}==${WR_PACKAGE_VERSION}"
+        fi
+        python -m pip install --disable-pip-version-check "$package"
+
+    - name: Run WebRunner
+      id: run
+      shell: bash
+      env:
+        WR_ACTIONS_DIR: ${{ inputs.actions-dir }}
+        WR_REPORT: ${{ inputs.report }}
+        WR_REPORT_FORMAT: ${{ inputs.report-format }}
+        WR_SHARD: ${{ inputs.shard }}
+        WR_PARALLEL: ${{ inputs.parallel }}
+        WR_PARALLEL_MODE: ${{ inputs.parallel-mode }}
+        WR_TAG: ${{ inputs.tag }}
+        WR_EXCLUDE_TAG: ${{ inputs.exclude-tag }}
+        WR_FAIL_FAST: ${{ inputs.fail-fast }}
+        WR_EXTRA_ARGS: ${{ inputs.extra-args }}
+        WR_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      run: |
+        args=(--execute_dir "$WR_ACTIONS_DIR")
+        artifact=""
+        if [ -n "$WR_REPORT" ]; then
+          mkdir -p "$(dirname "$WR_REPORT")"
+          args+=(--report "$WR_REPORT")
+          artifact="${WR_ARTIFACT_NAME:-webrunner-reports}"
+        fi
+        if [ -n "$WR_REPORT_FORMAT" ]; then args+=(--report-format "$WR_REPORT_FORMAT"); fi
+        if [ -n "$WR_SHARD" ]; then
+          args+=(--shard "$WR_SHARD")
+          if [ -n "$WR_REPORT" ] && [ -z "$WR_ARTIFACT_NAME" ]; then
+            artifact="webrunner-reports-shard-${WR_SHARD//\//-of-}"
+          fi
+        fi
+        if [ -n "$WR_PARALLEL" ]; then args+=(--parallel "$WR_PARALLEL"); fi
+        if [ -n "$WR_PARALLEL_MODE" ]; then args+=(--parallel-mode "$WR_PARALLEL_MODE"); fi
+        if [ -n "$WR_TAG" ]; then args+=(--tag "$WR_TAG"); fi
+        if [ -n "$WR_EXCLUDE_TAG" ]; then args+=(--exclude-tag "$WR_EXCLUDE_TAG"); fi
+        if [ "$WR_FAIL_FAST" = "true" ]; then args+=(--fail-fast); fi
+        if [ -n "$WR_EXTRA_ARGS" ]; then
+          read -r -a extra <<< "$WR_EXTRA_ARGS"
+          args+=("${extra[@]}")
+        fi
+        echo "artifact-name=$artifact" >> "$GITHUB_OUTPUT"
+        status=0
+        python -m je_web_runner "${args[@]}" || status=$?
+        echo "exit-code=$status" >> "$GITHUB_OUTPUT"
+        exit "$status"
+
+    - name: Upload reports
+      if: ${{ always() && inputs.report != '' && steps.run.outputs.artifact-name != '' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      with:
+        name: ${{ steps.run.outputs.artifact-name }}
+        path: ${{ inputs.report }}*
+        if-no-files-found: warn

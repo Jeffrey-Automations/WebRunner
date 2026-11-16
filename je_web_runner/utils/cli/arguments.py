@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import argparse
 
+from je_web_runner.utils.project_config.config import BACKENDS
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="webrunner")
@@ -53,9 +55,26 @@ def _add_project_args(parser: argparse.ArgumentParser) -> None:
              "reading the row as ${ROW.column}",
     )
     parser.add_argument(
+        "--plugin", action="append", default=None, dest="plugins", metavar="NAME",
+        help="load an installed command plugin (an entry point of the group je_web_runner.commands) "
+             "by name; repeatable",
+    )
+    parser.add_argument("--list-plugins", action="store_true", dest="list_plugins",
+                        help="print the names of the installed command plugins")
+    parser.add_argument(
         "--locators", action="append", default=None, metavar="FILE",
         help="a locator file ({name: {by, value}}) loaded before the run, so action files find "
              "elements by name; repeatable",
+    )
+    parser.add_argument(
+        "--backend", choices=BACKENDS, default=None,
+        help="run every action file on this backend: its commands are translated before they run, and "
+             "a file with a command that has no faithful equivalent there is refused",
+    )
+    parser.add_argument(
+        "--step", action="store_true",
+        help="pause before every action and at every WR_breakpoint: n runs it, c continues, v shows "
+             "the variables, q stops (sequential runs only)",
     )
     parser.add_argument("--lint", type=str, default=None, metavar="PATH",
                         help="lint an action JSON file or directory; a warning exits 1")

@@ -1021,10 +1021,10 @@ WebRunner 隨附一個 [Model Context Protocol](https://modelcontextprotocol.io/
 python -m je_web_runner.mcp_server
 ```
 
-預設工具清單（28 個工具）公開：
+預設工具清單（31 個工具）公開：
 
 即時瀏覽器執行：
-- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 1199 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 1201 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批次執行磁碟上的 JSON 檔案
 - `webrunner_list_commands` —— 探索完整的 `WR_*` 介面面
 
@@ -1084,6 +1084,12 @@ serve_stdio(server=server)
 - 執行工具會拒絕 `WR_add_package_to_executor`、`WR_add_package_to_callback_executor`、`WR_set_allow_arbitrary_script` 與操作或讀取桌面的 `WR_ac_*` 命令（`WR_ac_available`、`WR_ac_list_commands` 以外的全部），巢狀的動作清單也一樣：模型不應能載入 `os`、重新打開操作者關掉的腳本閘門，或透過 AutoControl 碰到桌面。設 `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` 可解除。設了 `WEBRUNNER_MCP_ROOT` 時，`webrunner_run_action_files` 與 `webrunner_compute_trend` 只讀取該目錄內的檔案。
 - 每個工具都有 `title` 與 `annotations`：離線工具與 `webrunner_list_commands` 是 `readOnlyHint: true`，兩個執行工具是 `destructiveHint: true`、`openWorldHint: true`。輸入 schema 說明每個參數並拒絕未知參數；參數不符時回傳 `isError` 結果並指出問題。結果是 JSON 物件時也會以 `structuredContent` 送出，兩個執行工具另外宣告 `outputSchema`。
 
+除了工具之外，伺服器在它支援的每個協定版本都提供 **resources** 與 **prompts**：
+
+- Resources：`webrunner://commands`（命令參考）、`webrunner://schema/action`（動作檔的 JSON schema）、`webrunner://guide/action-language`（動作檔寫法：形態、變數、流程控制、`WR_call_file`、`meta`、資料集、定位器檔），以及範本 `webrunner://commands/{name}`（單一命令的簽章與說明；若 MCP 政策拒絕該命令會註明）。內容在讀取時才產生。
+- Prompts：`write_action_file`（`goal`，選填 `start_url`）、`fix_failing_action_file`（`action_json`、`failure_text`）與 `explain_action_file`（`action_json`）。引數以明確分隔的資料插入，絕不當成指示。
+- 不提供 `resources/subscribe` 與 `completion/complete`。
+
 ## 動作 JSON LSP
 
 一個用於動作 JSON 檔案的標準 Language Server Protocol 實作：
@@ -1092,7 +1098,88 @@ serve_stdio(server=server)
 python -m je_web_runner.action_lsp
 ```
 
-`textDocument/completion` 回傳每個已註冊的 `WR_*` 命令；`textDocument/publishDiagnostics` 在 `didOpen` / `didChange` 時執行動作 linter，把每個發現標在該動作所在的行，並在 `didClose` 時清除。文件可以是動作清單，也可以是 `webdriver_wrapper` 存放動作清單的物件。可與 VS Code 的 *Configure JSON Language Servers* 或 JetBrains LSP 外掛搭配使用。
+也會安裝成主控台指令 `webrunner-lsp`。它提供：
+
+- **補全**依游標位置而定：動作第一個元素補命令名稱，引數物件裡補該命令的參數名稱，`${` 之後補變數名稱。
+- **Hover**：停在命令名稱上會顯示簽章與說明。
+- **診斷**：`didOpen` / `didChange` 時執行動作 linter，每個發現標在它所指的動作或引數那一行（包含巢狀動作），並以規則名稱作為 `code`；`didClose` 時清除。
+- **Quick fix**：只有一個新別名的舊式命令名稱可一鍵替換。
+- **Format Document**：清單形式的動作檔可格式化成標準排版。
+
+不論主控台使用何種編碼，訊息一律以 UTF-8 位元組分框。文件可以是動作清單，也可以是 `webdriver_wrapper` 存放動作清單的物件。可與 VS Code 的 *Configure JSON Language Servers* 或 JetBrains LSP 外掛搭配使用。
+
+## 在 CI、pytest 與外掛中使用
+
+### pytest plugin
+
+安裝 WebRunner 時會註冊一個 pytest plugin，把動作檔變成測試。專案沒有明確啟用之前，它什麼都不做：
+
+```toml
+[tool.pytest.ini_options]
+webrunner_action_paths = ["actions"]
+```
+
+或執行 `pytest --webrunner-actions actions`。之後這些路徑底下的每個動作文件就是一個測試（`actions/login.json::login`）：
+
+- 檔案透過執行器執行，所以 `meta`（setup、teardown、vars、dataset、retries、fail_fast）會生效，`WR_call_file` 也從該檔案解析。每個測試有自己的變數。
+- 有動作失敗時測試失敗；報告會列出失敗的動作與錯誤。
+- `meta.skip` 會以該原因跳過測試。`meta.tags` 會成為 marker（`-m smoke`；字母、數字與 `_` 以外的字元會變成 `_`），每個動作檔另有 `webrunner` 這個 marker。
+- `--webrunner-fail-fast` 讓每個檔案在第一個失敗的動作停下。
+- 資料集、定位器檔與其他不是動作文件的 JSON 會被忽略。只供 `WR_call_file` 呼叫的檔案如果放在已啟用的路徑下也會成為測試：請把這類檔案放在別處，或給它 `meta.skip`。
+
+沒有啟用時，plugin 不收集任何東西，也不會匯入 WebRunner，所以不會拖慢其他專案的 pytest。
+
+### GitHub Action
+
+儲存庫根目錄是一個 composite action，會安裝 WebRunner 並執行一個目錄的動作檔：
+
+```yaml
+- uses: actions/checkout@<commit sha>
+- uses: Integration-Automation/WebRunner@<commit sha>
+  with:
+    actions-dir: actions
+    report: reports/run          # optional; uploads reports/run* as an artifact
+    report-format: json,junit    # optional
+    shard: 1/4                   # optional
+    parallel: 2                  # optional
+    parallel-mode: process       # optional
+    tag: smoke                   # optional
+    fail-fast: "true"            # optional
+    channel: dev                 # optional: je_web_runner_dev instead of je_web_runner
+    extra-args: --env staging --var base=https://staging.example
+```
+
+輸出為 `exit-code` 與 `artifact-name`。它可在 Linux 與 Windows runner 上執行，使用 runner 既有的瀏覽器；動作檔以無頭模式啟動（`["WR_set_driver", {"webdriver_name": "chrome", "options": ["--headless=new"]}]`）。`examples/ci/webrunner-shards.yml` 示範分片矩陣，最後一個 job 用 `--merge-reports` 合併各分片的報告。
+
+### Runner 映像檔
+
+`docker/Runner.Containerfile` 會建出含 Chromium、其 driver 與 `webrunner` 進入點的映像檔：
+
+```bash
+docker build -f docker/Runner.Containerfile -t webrunner-runner docker
+docker run --rm --shm-size=1g -v "$PWD:/work" webrunner-runner -d actions --report reports/run
+```
+
+- 容器以 uid 65532 在 `/work` 執行；把動作檔掛載到那裡並確保可寫入（Linux 上必要時加 `--user "$(id -u):$(id -g)"`）。
+- 在映像檔中，啟動瀏覽器時要用 `"install_driver": false` 與選項 `--headless=new`、`--no-sandbox`、`--disable-dev-shm-usage`。
+- `--build-arg WEBRUNNER_PACKAGE=je_web_runner==<版本>`（或 `je_web_runner_dev`）選擇套件；`--build-context wheels=dist --build-arg WEBRUNNER_PACKAGE=/wheels/<wheel>` 安裝本機的 wheel。需要 BuildKit。
+- 本專案沒有發佈這個映像檔。`k8s_runner.RUNNER_IMAGE`（`ghcr.io/integration-automation/webrunner-runner:latest`，`ShardJobConfig` 的預設映像）只是一個名稱：請自行建置並以該名稱推送，或傳入自己的 `image`。這個映像檔並未在本儲存庫的檢查中實際建置或執行過。
+
+### 命令外掛
+
+已安裝的套件可以透過 entry point 群組 `je_web_runner.commands` 新增 `WR_*` 命令：
+
+```toml
+# the plugin's pyproject.toml
+[project.entry-points."je_web_runner.commands"]
+my_checks = "my_package.webrunner_commands:COMMANDS"   # {"WR_my_check": function, ...}
+```
+
+不會因為安裝了就被載入。由操作者指名要載入的外掛：`--plugin my_checks`（可重複）、專案設定檔的 `plugins = ["my_checks"]`，或從 Python 呼叫 `load_command_plugins(["my_checks"])`；`--list-plugins` 會列出已安裝的外掛。命令名稱已被占用、或不是 `WR_*` 開頭的外掛會被拒絕，而且沒有任何動作命令能載入外掛。
+
+### 逐步執行檔案
+
+`--step` 會在每個頂層動作之前、以及每個 `WR_breakpoint` 暫停：`n`（或 Enter）執行該動作，`c` 繼續到下一個中斷點，`v` 顯示變數，`q` 停止並把其餘動作記為未執行。區塊內的動作會隨區塊一起執行。沒有 `--step` 時 `WR_breakpoint` 什麼都不做，所以留在檔案裡的中斷點不會卡住無人看管的執行。`--step` 只適用於循序執行。
 
 ## 更多能力
 
@@ -1150,6 +1237,7 @@ python -m je_web_runner.action_lsp
 - **工作區引導器** —— `bootstrapper.init_workspace("my-tests")` 放置 `actions/sample.json`、`.webrunner/ledger.json`、固定驅動範本、JSON schema、pre-commit 掛鉤，以及一個起步的 GitHub Actions 工作流程。
 - **驅動固定器** —— `driver_pin.install_for_browser(".webrunner/drivers.json", "firefox")` 讀取一個 JSON pin 檔案（`name` / `version` / `url` / `archive_format` / `binary_inside`），下載 + 解壓一次，然後從快取提供。繞過 webdriver-manager 在 CI 中命中的 GitHub API 速率限制。
 - **Selenium → Playwright 翻譯器** —— `sel_to_pw.translate_python_source(text)` 將 `driver.find_element(By.ID, "x")` 重寫為 `page.locator("#x")` 之類；`translate_action_list(actions)` 將 `WR_*` 動作 JSON 重寫為其 `WR_pw_*` 等價物（丟棄 `WR_implicitly_wait`，因為 Playwright 會自動等待）。
+- **一份動作檔，兩種後端** —— `--backend playwright`（或 `selenium`；專案設定檔的 `backend = "playwright"`；Python 的 `executor.set_backend(...)`）會在執行前翻譯每個動作檔，包含它用 `WR_call_file` 呼叫的檔案、區塊內的動作以及 `meta.setup` / `meta.teardown`。翻譯是嚴格的：引數會轉換（秒轉毫秒、`by` + 值轉成 selector、`WR_execute_script` 的內容會包裝讓 `arguments[i]` 仍可用），不操作任一瀏覽器的命令原樣通過，而含有沒有忠實對應命令的檔案（視窗最大化、alert、`WR_implicitly_wait`、Appium、遠端 Grid……）會整份被拒絕，並列出每個這樣的命令、位置與原因；不會默默丟掉任何東西。同一套翻譯也是 Python 的 `sel_to_pw.translate_for_backend(actions, backend)`、命令 `WR_sel_to_pw_translate_for_backend` 與 MCP 工具 `webrunner_translate_backend`。兩點須知：`WR_new_driver` 的選項沒有 `--headless` 時會翻成有視窗的 Playwright 瀏覽器；翻譯後的原始 selector 查找會把定位器存在保留名稱 `sel_to_pw.selector` 之下。
 
 ### 測試撰寫
 
@@ -1861,6 +1949,8 @@ recorder_save_recording(
 
 錄製器注入一個靜態 JS 監聽器（無 CDP、無 eval），因此它在 Chrome / Firefox / Edge 上同樣有效。**敏感欄位預設被遮罩** —— `type=password`、名稱相符 `password / card_number / cvv / ssn / secret / token / api_key / otp / passcode` 的欄位，以及 13–19 位數字值，會被替換為 `***MASKED***`。
 
+它會錄下點擊、輸入的值、`<select>` 的選擇、核取方塊與單選鈕的變更、具名按鍵（Enter、Escape、Tab、方向鍵……），以及開始錄製時的頁面與之後不是由點擊或 Enter 造成的網址變更。輸出使用現行的命令名稱（`WR_save_test_object`、`WR_find_recorded_element`、`WR_element_click`、`WR_element_input`、`WR_element_select_by_value`、`WR_element_check`、`WR_press_keys`、`WR_to_url`），`recorder_save_recording(..., backend="playwright")` 則改寫出 `WR_pw_*` 命令；`WR_pw_recorder_save` 預設就是如此。網址裡的密碼、敏感的查詢參數，以及具名按鍵以外的輸入字元也會被遮罩。事件緩衝區存在頁面裡：導覽到新文件之後，請先取回事件再重新啟動錄製器。
+
 ## CI / 整合
 
 ```python
@@ -1876,7 +1966,7 @@ from je_web_runner.utils.ci_annotations.github_annotations import (
 
 `docker/docker-compose.yml` 提供一個 Selenium Grid 4 堆疊（hub + Chrome + Firefox 節點）；`docker/.env.example` 公開版本固定和並行設定。
 
-[`docs/ide/`](../docs/ide/) 下的 IDE 設定範例將 VS Code 和 JetBrains 接線到由 `WR_export_action_schema` 產出的動作 JSON schema。
+[`docs/ide/`](../docs/ide/) 下的 IDE 設定範例將 VS Code 和 JetBrains 接線到由 `WR_export_action_schema` 產出的動作 JSON schema；[`docs/ide/action-lsp.md`](../docs/ide/action-lsp.md) 說明如何把動作 JSON 語言伺服器接到編輯器。
 
 ## 桌面控制（AutoControl）
 
@@ -1990,6 +2080,9 @@ python -m je_web_runner -d ./actions --var base=https://staging.example --var re
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # 供 ${ENV.KEY} 使用的 .env.staging
 python -m je_web_runner -d ./actions --dataset users.csv     # 每個檔案對每一列執行一次，以 ${ROW.column} 讀取
 python -m je_web_runner -d ./actions --fail-fast             # 檔案與目錄都在第一個失敗處停止
+python -m je_web_runner -d ./actions --backend playwright    # 用 Playwright 執行以 Selenium 命令寫的檔案（或反過來）
+python -m je_web_runner -e ./actions/login.json --step       # 每個動作前暫停：n 執行、c 繼續、v 看變數、q 停止
+python -m je_web_runner -d ./actions --plugin my_checks      # 載入已安裝外掛的命令；--list-plugins 列出名稱
 python -m je_web_runner --lint ./actions                     # 有 warning 時以 1 結束
 python -m je_web_runner --list-commands
 python -m je_web_runner -d ./actions --report run --report-format junit,json   # 只產生這些；另有 allure、interactive
@@ -2021,6 +2114,8 @@ user = "alice"
 ```
 
 `vars` 會成為變數（同名時 `--var` 優先）；`tag` 與 `exclude_tag` 是清單。未知的鍵或型別錯誤的值會在任何動作執行之前中止。在 `--parallel-mode process` 之下，每個工作行程都會拿到相同的變數、`.env` 檔、fail-fast 與重試設定。
+
+另有三個主控台指令用來啟動各自有模組的伺服器：`webrunner-mcp`（`python -m je_web_runner.mcp_server`）、`webrunner-lsp`（`python -m je_web_runner.action_lsp`）與 `webrunner-issue-worker`（`python -m je_web_runner.issue_worker`）。
 
 安裝套件時也會裝上兩個主控台指令 `webrunner` 與 `web_runner`，旗標、輸出與結束碼都和 `python -m je_web_runner` 相同（`webrunner -e actions.json`、`pipx run --spec je_web_runner webrunner -d ./actions`）。
 

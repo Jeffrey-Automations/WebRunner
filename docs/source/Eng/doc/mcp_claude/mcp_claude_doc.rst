@@ -169,9 +169,9 @@ subsequent ``webrunner_run_actions`` calls reuse it until you issue
 Tool catalog
 ============
 
-The server registers 28 tools out of the box. Use
+The server registers 31 tools out of the box. Use
 ``webrunner_list_commands`` for the *full* runtime command list (every
-``WR_*`` registered in the action executor, 1199 of them).
+``WR_*`` registered in the action executor, 1201 of them).
 
 Authoring & lint
 ----------------
@@ -363,6 +363,29 @@ Troubleshooting
 
 See also
 ========
+
+Resources and prompts
+---------------------
+
+Besides tools the server offers resources and prompts in every protocol version it speaks,
+and names them in the capabilities of ``initialize`` and ``server/discover``.
+
+* Resources: ``webrunner://commands`` (the Markdown command reference),
+  ``webrunner://schema/action`` (the JSON schema of action files),
+  ``webrunner://guide/action-language`` (a guide to writing action files) and the template
+  ``webrunner://commands/{name}`` (one command's signature and docstring, with a note when
+  the MCP policy refuses it). Content is built when it is read.
+* Prompts: ``write_action_file`` (``goal``, optional ``start_url``),
+  ``fix_failing_action_file`` (``action_json``, ``failure_text``) and
+  ``explain_action_file`` (``action_json``). Each argument is inserted as a data block
+  delimited by a per-request random token, so an argument cannot end its own block or add
+  instructions.
+* An unknown resource URI is error ``-32002`` in the handshake versions and ``-32602`` in
+  ``2026-07-28``. ``resources/subscribe`` and ``completion/complete`` are not served.
+* Two more offline tools: ``webrunner_validate_action`` (structure of a list or a
+  ``{meta, webdriver_wrapper}`` document) and ``webrunner_lint_action_file`` (lints a file
+  on disk; ``WEBRUNNER_MCP_ROOT`` fences it like the other file tools).
+* ``webrunner-mcp`` is installed as a console script for ``python -m je_web_runner.mcp_server``.
 
 * :doc:`../integrations/integrations_doc` — Recorder, CI, JIRA / Slack
   notifiers, and the overview of MCP and the action JSON LSP.

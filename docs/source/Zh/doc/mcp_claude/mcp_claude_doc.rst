@@ -154,10 +154,10 @@ Claude Code(終端機客戶端)以專案為單位,從 repo 根目錄的
 工具清單
 ========
 
-server 預設註冊 28 個工具，包含主機設定固定的 issue 排單、狀態與唯讀
+server 預設註冊 31 個工具，包含主機設定固定的 issue 排單、狀態與唯讀
 ``webrunner_issue_metrics``。指標接受 since_hours／issue，不啟動 worker、
 不寫平台，也不接受輸出路徑。完整 runtime 指令清單(executor 中所有
-``WR_*``,共 1199 個)請呼叫 ``webrunner_list_commands``。
+``WR_*``,共 1201 個)請呼叫 ``webrunner_list_commands``。
 
 撰寫與 lint
 -----------
@@ -317,6 +317,28 @@ MCP 客戶端是依讀到的文字行動的模型,所以執行工具會拒絕能
 
 延伸閱讀
 ========
+
+Resources 與 prompts
+--------------------
+
+除了工具之外，伺服器在它支援的每個協定版本都提供 resources 與 prompts，並在
+``initialize`` 與 ``server/discover`` 的 capabilities 中列出。
+
+* Resources：``webrunner://commands``\ （Markdown 指令參考）、
+  ``webrunner://schema/action``\ （動作檔的 JSON schema）、
+  ``webrunner://guide/action-language``\ （動作檔寫法指南），以及範本
+  ``webrunner://commands/{name}``\ （單一指令的簽章與說明；若 MCP 政策拒絕該指令會註明）。
+  內容在讀取時才產生。
+* Prompts：``write_action_file``\ （``goal``，選填 ``start_url``）、
+  ``fix_failing_action_file``\ （``action_json``、``failure_text``）與
+  ``explain_action_file``\ （``action_json``）。每個引數都以每次請求隨機產生的標記分隔成
+  資料區塊插入，引數無法自行結束區塊或加入指示。
+* 未知的 resource URI 在握手式版本回錯誤 ``-32002``，在 ``2026-07-28`` 回 ``-32602``。
+  不提供 ``resources/subscribe`` 與 ``completion/complete``。
+* 新增兩個離線工具：``webrunner_validate_action``\ （清單或
+  ``{meta, webdriver_wrapper}`` 文件的結構）與 ``webrunner_lint_action_file``\ （檢查磁碟上的
+  檔案；與其他檔案工具一樣受 ``WEBRUNNER_MCP_ROOT`` 限制）。
+* ``webrunner-mcp`` 會安裝成主控台指令，等同 ``python -m je_web_runner.mcp_server``。
 
 * :doc:`../integrations/integrations_doc` — Recorder、CI、JIRA / Slack
   通知、以及 MCP 與 action JSON LSP 的概觀。

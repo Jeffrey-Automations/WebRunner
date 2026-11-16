@@ -145,6 +145,38 @@ unknown key or a value of the wrong type raises ``ProjectConfigError`` before
 anything runs. A ``pyproject.toml`` without the table, or one that cannot be
 parsed, is not a configuration and is ignored.
 
+Choosing the backend
+--------------------
+
+``--backend playwright`` (or ``selenium``; ``backend`` in the project configuration) translates every
+action file into that backend's commands before it runs: the file's actions, the actions inside
+blocks, ``meta.setup`` / ``meta.teardown`` and the files reached through ``WR_call_file``. Commands
+that drive neither browser pass through. A file holding a command that has no faithful equivalent
+is refused as a whole, before any of its actions runs, and the message lists each such command
+with its place and the reason; with ``-d`` the other files still run and the exit code is 1.
+See :doc:`../backends/backends_doc` for what translates.
+
+Stepping
+--------
+
+``--step`` installs a stepper that pauses before every top-level action of a list and at
+every ``WR_breakpoint``. At a pause: ``n`` (or Enter) runs the action and pauses before the
+next, ``c`` continues until a ``WR_breakpoint``, ``v`` shows the variables (values cut at 100
+characters), ``q`` stops and records the remaining actions as not run. Actions inside a
+block run with their block. When the console is closed the run continues without pausing.
+Without ``--step``, ``WR_breakpoint`` does nothing and returns ``false``. ``--step`` is
+refused together with ``--parallel`` above 1 or ``--parallel-mode async``.
+
+Command Plugins
+---------------
+
+``--plugin NAME`` (repeatable) loads an installed command plugin: an entry point of the
+group ``je_web_runner.commands`` whose value is a dict of ``WR_*`` name to function, or a
+function returning one. ``plugins = [...]`` in the project configuration does the same, and
+``--list-plugins`` prints the installed names. Nothing is loaded because it is installed,
+no action command can load a plugin, and a plugin that repeats an existing command name is
+refused. The commands are loaded in every worker of ``--parallel-mode process`` too.
+
 Tools
 -----
 

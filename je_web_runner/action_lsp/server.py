@@ -1,42 +1,48 @@
 """
-Action JSON LSP server：基於 LSP 3.17 protocol，提供 ``WR_*`` 補全與 lint 診斷。
+Action JSON LSP server：基於 LSP 3.17 protocol，提供 ``WR_*`` 補全、hover、格式化、快速修正與 lint 診斷。
 Minimal LSP server speaking JSON-RPC 2.0 over stdio with the standard
 ``Content-Length`` headers. Supports:
 
 - ``initialize`` / ``initialized`` / ``shutdown`` / ``exit``
 - ``textDocument/didOpen`` / ``didChange`` / ``didClose``
-- ``textDocument/completion`` — suggests every registered ``WR_*`` command
+- ``textDocument/completion`` — by cursor position: command names in the first element of an action,
+  parameter names on a key of its keyword arguments, variable names after ``${`` in a string value; a
+  request without a position gets every registered ``WR_*`` command
+- ``textDocument/hover`` — the signature and docstring of the command under the cursor
+- ``textDocument/formatting`` — the document in the action formatter's canonical form
+- ``textDocument/codeAction`` — a quick fix that replaces a legacy command name
 - ``textDocument/publishDiagnostics`` — pushes lint findings on document
-  open / change, each on the line of its action, and clears them on close
+  open / change, each on the line of what it is about, and clears them on close
 
 A document is a list of actions or an object whose ``webdriver_wrapper`` holds one, as the executor accepts.
 Notifications the server does not know are ignored; unknown requests get ``-32601``.
 
-The action linter and command list are pulled from existing modules so
-the LSP stays a thin presentation layer.
+The action linter, the formatter and the command list are pulled from existing modules so
+the LSP stays a thin presentation layer; each feature lives in its own module of this package.
 """
 from __future__ import annotations
 
-import json
-import re
 import sys
 from dataclasses import dataclass, field
-from typing import Any, TextIO
+from typing import Any, Callable, TextIO
 
-from je_web_runner.action_lsp._positions import action_lines
-from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.action_lsp._completion import (
+    COMMAND_DETAIL,
+    CompletionSource,
+    completion_items,
+    document_variables,
+)
+from je_web_runner.action_lsp._diagnostics import lint_text, result_diagnostics
+from je_web_runner.action_lsp._edits import QUICK_FIX, formatting_edits, legacy_name_fixes
+from je_web_runner.action_lsp._framing import ActionLspError
+from je_web_runner.action_lsp._framing import read_message as _read_message
+from je_web_runner.action_lsp._framing import write_message as _write_message
+from je_web_runner.action_lsp._hover import hover
+from je_web_runner.action_lsp._text import request_offset
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
 _COMMAND_PREFIX = "WR_"
-_ACTION_LOCATION = re.compile(r"action\[(\d+)]")
-_ROOT_MESSAGE = 'Action document must be a JSON array, or an object with a "webdriver_wrapper" array.'
-# LSP DiagnosticSeverity: 1 error, 2 warning, 3 information.
-_SEVERITIES = {"error": 1, "warning": 2, "info": 3}
-
-
-class ActionLspError(WebRunnerException):
-    """Raised when a request can't be parsed or handled."""
 
 
 @dataclass
@@ -44,64 +50,100 @@ class _Document:
     uri: str
     text: str
     version: int = 0
+    # The last text of the document that was valid JSON, parsed: a half-typed document still has variables.
+    data: Any = None
 
 
 @dataclass
 class ActionLspServer:
+    """The state of one language-server session: the open documents and the command list."""
     documents: dict[str, _Document] = field(default_factory=dict)
     initialized: bool = False
     _command_names: list[str] | None = field(default=None, init=False, repr=False)
+    _commands: dict[str, Any] | None = field(default=None, init=False, repr=False)
 
-    def command_names(self) -> list[str]:
-        if self._command_names is None:
+    def commands(self) -> dict[str, Any]:
+        """The registered ``WR_*`` commands by name."""
+        if self._commands is None:
             try:
                 from je_web_runner.utils.executor.action_executor import executor
-                names = sorted(executor.event_dict.keys())
+                registered = dict(executor.event_dict)
             except Exception as error:  # pylint: disable=broad-except
                 web_runner_logger.warning(f"action_lsp executor unavailable: {error!r}")
-                names = []
+                registered = {}
             # The executor also holds the allowlisted builtins (``print`` …); an action file is about WR_*.
-            self._command_names = [n for n in names if isinstance(n, str) and n.startswith(_COMMAND_PREFIX)]
+            self._commands = {name: command for name, command in registered.items()
+                              if isinstance(name, str) and name.startswith(_COMMAND_PREFIX)}
+        return self._commands
+
+    def command_names(self) -> list[str]:
+        """The names of the registered ``WR_*`` commands, sorted."""
+        if self._command_names is None:
+            self._command_names = sorted(self.commands())
         return self._command_names
 
     # --- Top-level dispatch ----------------------------------------------
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
+        """Answer one JSON-RPC message: a response, a notification to send, or None."""
         method = message.get("method")
         request_id = message.get("id")
         params = message.get("params") or {}
-        if method == "initialize":
-            return self._respond(request_id, self._initialize())
-        if method == "initialized":
-            self.initialized = True
-            return None
-        if method == "shutdown":
-            return self._respond(request_id, None)
-        if method == "exit":
-            return None
-        if method == "textDocument/didOpen":
-            return self._on_did_open(params)
-        if method == "textDocument/didChange":
-            return self._on_did_change(params)
-        if method == "textDocument/didClose":
-            return self._on_did_close(params)
-        if method == "textDocument/completion":
-            return self._respond(request_id, self._completion(params))
+        notification = self._notifications().get(method)
+        if notification is not None:
+            return notification(params)
+        request = self._requests().get(method)
+        if request is not None:
+            return self._respond(request_id, request(params))
         if request_id is None:
             # A notification (``didSave``, ``$/cancelRequest`` …) must not be answered.
             return None
         return self._error(request_id, -32601, f"unknown method {method!r}")
 
+    def _notifications(self) -> dict[Any, Callable[[dict[str, Any]], dict[str, Any] | None]]:
+        return {
+            "initialized": self._on_initialized,
+            "exit": self._on_exit,
+            "textDocument/didOpen": self._on_did_open,
+            "textDocument/didChange": self._on_did_change,
+            "textDocument/didClose": self._on_did_close,
+        }
+
+    def _requests(self) -> dict[Any, Callable[[dict[str, Any]], Any]]:
+        return {
+            "initialize": self._initialize,
+            "shutdown": self._shutdown,
+            "textDocument/completion": self._completion,
+            "textDocument/hover": self._hover,
+            "textDocument/formatting": self._formatting,
+            "textDocument/codeAction": self._code_action,
+        }
+
     # --- Handlers --------------------------------------------------------
 
-    def _initialize(self) -> dict[str, Any]:
+    @staticmethod
+    def _initialize(_params: dict[str, Any]) -> dict[str, Any]:
         return {
             "capabilities": {
                 "textDocumentSync": 1,  # full sync
-                "completionProvider": {"triggerCharacters": ['"', "_"]},
+                "completionProvider": {"triggerCharacters": ['"', "_", "{"]},
+                "hoverProvider": True,
+                "documentFormattingProvider": True,
+                "codeActionProvider": {"codeActionKinds": [QUICK_FIX]},
             },
-            "serverInfo": {"name": "webrunner-action-lsp", "version": "0.1.0"},
+            "serverInfo": {"name": "webrunner-action-lsp", "version": "0.2.0"},
         }
+
+    def _on_initialized(self, _params: dict[str, Any]) -> None:
+        self.initialized = True
+
+    @staticmethod
+    def _on_exit(_params: dict[str, Any]) -> None:
+        return None
+
+    @staticmethod
+    def _shutdown(_params: dict[str, Any]) -> None:
+        return None
 
     def _on_did_open(self, params: dict[str, Any]) -> dict[str, Any]:
         document = params.get("textDocument") or {}
@@ -129,20 +171,45 @@ class ActionLspServer:
         self.documents.pop(uri, None)
         return self._diagnostics_notification(uri, "")
 
-    def _completion(self, _params: dict[str, Any]) -> dict[str, Any]:
-        # ``_params`` is part of the LSP request shape but the suggestion
-        # list is identical for every cursor position, so the textDocument
-        # / position payload is intentionally ignored.
-        items = [
-            {
-                "label": name,
-                "kind": 14,  # CompletionItemKind.Keyword
-                "detail": "WebRunner action command",
-                "insertText": name,
-            }
-            for name in self.command_names()
-        ]
+    def _document(self, params: dict[str, Any]) -> _Document:
+        """The open document a request is about; an empty one when it is not open."""
+        uri = str((params.get("textDocument") or {}).get("uri", ""))
+        return self.documents.get(uri) or _Document(uri=uri, text="")
+
+    def _completion(self, params: dict[str, Any]) -> dict[str, Any]:
+        document = self._document(params)
+        offset = request_offset(document.text, params)
+        if offset is None:
+            # No cursor to go by: every command, as before completion looked at the position.
+            items = [
+                {
+                    "label": name,
+                    "kind": 14,  # CompletionItemKind.Keyword
+                    "detail": COMMAND_DETAIL,
+                    "insertText": name,
+                }
+                for name in self.command_names()
+            ]
+        else:
+            source = CompletionSource(names=self.command_names(), commands=self.commands(),
+                                      variables=document_variables(document.data))
+            items = completion_items(document.text, offset, source)
         return {"isIncomplete": False, "items": items}
+
+    def _hover(self, params: dict[str, Any]) -> dict[str, Any] | None:
+        document = self._document(params)
+        offset = request_offset(document.text, params)
+        return None if offset is None else hover(document.text, offset, self.commands())
+
+    def _formatting(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        return formatting_edits(self._document(params).text)
+
+    def _code_action(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        document = self._document(params)
+        diagnostics = (params.get("context") or {}).get("diagnostics")
+        if not isinstance(diagnostics, list):
+            return []
+        return legacy_name_fixes(document.text, document.uri, diagnostics)
 
     # --- Diagnostics -----------------------------------------------------
 
@@ -152,28 +219,15 @@ class ActionLspServer:
             "method": "textDocument/publishDiagnostics",
             "params": {
                 "uri": uri,
-                "diagnostics": self._lint_diagnostics(text),
+                "diagnostics": self._lint_diagnostics(text, uri),
             },
         }
 
-    def _lint_diagnostics(self, text: str) -> list[dict[str, Any]]:
-        if not text.strip():
-            return []
-        try:
-            actions = json.loads(text)
-        except ValueError as error:
-            return [_diagnostic(error_message=f"JSON parse error: {error}",
-                                line=0, severity=1)]
-        dict_root = isinstance(actions, dict)
-        action_list = actions.get("webdriver_wrapper") if dict_root else actions
-        if not isinstance(action_list, list):
-            return [_diagnostic(_ROOT_MESSAGE, line=0, severity=1)]
-        try:
-            from je_web_runner.utils.linter.action_linter import lint_action
-        except Exception:  # pylint: disable=broad-except
-            return []
-        lines = action_lines(text, dict_root)
-        return [_finding_diagnostic(finding, lines) for finding in lint_action(actions)]
+    def _lint_diagnostics(self, text: str, uri: str | None = None) -> list[dict[str, Any]]:
+        result = lint_text(text)
+        if result.data is not None and uri in self.documents:
+            self.documents[uri].data = result.data
+        return result_diagnostics(result)
 
     # --- Helpers ---------------------------------------------------------
 
@@ -187,69 +241,6 @@ class ActionLspServer:
             "jsonrpc": "2.0", "id": request_id,
             "error": {"code": code, "message": message},
         }
-
-
-def _finding_diagnostic(finding: dict[str, Any], lines: list[int]) -> dict[str, Any]:
-    """One linter finding as a diagnostic on the line of its action (line 0 for a document-level one)."""
-    match = _ACTION_LOCATION.match(str(finding.get("location", "")))
-    index = int(match.group(1)) if match else -1
-    line = lines[index] if 0 <= index < len(lines) else 0
-    return _diagnostic(
-        error_message=f"[{finding.get('rule', 'lint')}] {finding.get('message', '')}",
-        line=line,
-        severity=_SEVERITIES.get(str(finding.get("severity")), 3),
-    )
-
-
-def _diagnostic(error_message: str, line: int, severity: int) -> dict[str, Any]:
-    return {
-        "range": {
-            "start": {"line": max(0, line), "character": 0},
-            "end": {"line": max(0, line), "character": 200},
-        },
-        "severity": severity,
-        "source": "webrunner-action-lsp",
-        "message": error_message,
-    }
-
-
-# --- LSP framing -----------------------------------------------------------
-
-_HEADER_TERMINATOR = "\r\n\r\n"
-
-
-def _read_message(stdin: TextIO) -> dict[str, Any] | None:
-    headers: dict[str, str] = {}
-    while True:
-        line = stdin.readline()
-        if line == "":
-            return None
-        line = line.rstrip("\r\n")
-        if not line:
-            break
-        if ":" in line:
-            name, _, value = line.partition(":")
-            headers[name.strip().lower()] = value.strip()
-    length_str = headers.get("content-length")
-    if length_str is None:
-        return None
-    try:
-        length = int(length_str)
-    except ValueError as error:
-        raise ActionLspError(f"invalid Content-Length: {error}") from error
-    body = stdin.read(length)
-    if not body:
-        return None
-    try:
-        return json.loads(body)
-    except ValueError as error:
-        raise ActionLspError(f"body is not JSON: {error}") from error
-
-
-def _write_message(stdout: TextIO, message: dict[str, Any]) -> None:
-    body = json.dumps(message, ensure_ascii=False)
-    stdout.write(f"Content-Length: {len(body.encode('utf-8'))}\r\n\r\n{body}")
-    stdout.flush()
 
 
 def serve_stdio(

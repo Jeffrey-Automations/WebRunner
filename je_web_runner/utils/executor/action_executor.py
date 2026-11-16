@@ -40,6 +40,7 @@ from je_web_runner.utils.exception.exceptions import (
 from je_web_runner.utils.executor._event_table import build_event_dict
 from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
 from je_web_runner.utils.flow.dataset import load_rows, per_row_actions
+from je_web_runner.utils.flow.debugger import Stepper
 from je_web_runner.utils.flow.document import (
     dataset_source,
     fail_fast_setting,
@@ -196,9 +197,14 @@ class Executor(ActionExecutor):
         # 第一個失敗後是否跳過清單其餘動作（預設否）
         # Whether the actions after a failed one are skipped (off by default); see set_fail_fast.
         self.fail_fast = FailFast()
+        # 逐步執行用的除錯器（CLI 的 --step）；None 代表沒有
+        # The stepper that pauses the run for the operator (the CLI's --step); None for none.
+        self.debugger: Stepper | None = None
         # 沒有 meta.dataset 的檔案所用的資料集（CLI 的 --dataset）；None 代表沒有
         # The dataset of files without a meta.dataset of their own (the CLI's --dataset); None for none.
         self.default_dataset: Any = None
+        # 要把動作翻譯成哪個後端的命令 / The backend whose commands every list is translated into; None: as written.
+        self.backend: str | None = None
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
@@ -263,6 +269,21 @@ class Executor(ActionExecutor):
             return action
         return [action[0], *self.variables.expand(action[1:])]
 
+    def set_backend(self, backend: str | None) -> None:
+        """
+        設定要執行的後端
+        Run every list on ``backend`` (``"selenium"`` or ``"playwright"``): its actions, the files it
+        calls and its ``meta.setup`` / ``meta.teardown`` are translated into that backend's commands
+        before they run, and a list holding a command with no faithful equivalent is refused with
+        every such command named. ``None`` (the default) runs lists as written.
+
+        :raises SelToPwError: when ``backend`` is not one of the two names.
+        """
+        if backend is not None:
+            from je_web_runner.utils.sel_to_pw.backend_translate import translate_for_backend
+            translate_for_backend([], backend)
+        self.backend = backend
+
     def set_fail_fast(self, enabled: bool = True) -> None:
         """
         設定第一個失敗後是否跳過清單其餘動作
@@ -300,8 +321,11 @@ class Executor(ActionExecutor):
         """
         執行單一動作（含重試與 span），失敗時拋出
         Run one action under the retry policy and the action span; what every action of a list passes.
-        With fail-fast on, an action of a list after a failed one raises instead of running.
+        With fail-fast on, an action of a list after a failed one raises instead of running. With a
+        debugger set, the run pauses before a top-level action while the operator is stepping.
         """
+        if self.debugger is not None:
+            self.debugger.before(action, self.variables, nested=self.fail_fast.nested)
         with self.fail_fast.step():
             return self._execute_with_retry(action)
 
@@ -375,7 +399,7 @@ class Executor(ActionExecutor):
         # action JSON could ship a command name like ``../../etc/passwd`` and
         # cause a path traversal write (SonarCloud S2083).
         safe_name = "".join(ch for ch in raw_name if ch.isalnum() or ch in "-_")[:64] or "unknown"
-        base_dir = Path(self.failure_screenshot_dir).resolve()
+        base_dir = Path(self.failure_screenshot_dir or "").resolve()  # callers checked it is set
         target = (base_dir / f"{timestamp}_{safe_name}{suffix}").resolve()
         # Belt-and-braces: confirm the resolved path stays inside the
         # configured directory before writing.
@@ -511,8 +535,10 @@ class Executor(ActionExecutor):
         # 如果傳入的是 dict，則嘗試取出 "webdriver_wrapper" 的動作清單；結果必須是 list
         # A dict must carry its actions under "webdriver_wrapper"; the result must be a list
         # (a string would otherwise be iterated character by character).
+        actions: Any = action_list
         if type(action_list) is dict:
-            action_list = action_list.get("webdriver_wrapper", None)
+            actions = action_list.get("webdriver_wrapper", None)
+        action_list = actions
         if not isinstance(action_list, list):
             web_runner_logger.error(
                 f"execute_action, action_list: {action_list}, "
@@ -531,7 +557,13 @@ class Executor(ActionExecutor):
         ``scoped`` keeps the default variables and the row in the innermost frame (a called file).
 
         :raises FlowError: when one of those ``meta`` keys has the wrong shape.
+        :raises BackendTranslationError: when :meth:`set_backend` is in force and an action has no
+            equivalent on that backend.
         """
+        if self.backend is not None:
+            from je_web_runner.utils.sel_to_pw.backend_translate import translate_for_backend
+            self.action_list_of(action_list)
+            action_list = translate_for_backend(action_list, self.backend)
         actions = self.action_list_of(action_list)
         meta = read_meta(action_list)
         # A called file (scoped) takes a dataset only from its own meta, not from the run's --dataset.

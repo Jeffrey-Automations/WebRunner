@@ -1,6 +1,6 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (1199 commands).
+Auto-generated from the executor's event_dict (1201 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
@@ -91,6 +91,7 @@ Auto-generated from the executor's event_dict (1199 commands).
 | `WR_block_urls` | `(patterns: 'list[str]') -> 'None'` | 透過 CDP ``Network.setBlockedURLs`` 阻擋符合任一 pattern 的請求。 |
 | `WR_bootstrapper_init_workspace` | `(directory: 'str', overwrite: 'bool' = False) -> 'dict[str, str]'` | Create a starter workspace in ``directory``; returns each file as ``created`` or ``skipped``. |
 | `WR_bootstrapper_starter_files` | `() -> 'list[dict[str, str]]'` | List the files a new WebRunner workspace starts with (relative path and content). |
+| `WR_breakpoint` | `(message: 'str' = '') -> 'bool'` | 在逐步執行時暫停 |
 | `WR_bring_to_front` | `() -> 'None'` | 將瀏覽器視窗叫到最上層 (透過 CDP ``Page.bringToFront``)。 |
 | `WR_bug_repro_stability_assert_deterministic` | `(outcomes: 'list[Any]') -> 'Any'` | Fail unless every recorded attempt failed (the bug reproduces every time). |
 | `WR_bug_repro_stability_assert_min_repro_pct` | `(outcomes: 'list[Any]', minimum: 'float') -> 'Any'` | Fail when fewer than ``minimum`` percent of the recorded attempts failed. |
@@ -783,7 +784,7 @@ Auto-generated from the executor's event_dict (1199 commands).
 | `WR_pw_print_page` | `(file_path: 'str') -> 'str'` |  |
 | `WR_pw_quit` | `() -> 'None'` |  |
 | `WR_pw_recorder_pull_events` | `()` |  |
-| `WR_pw_recorder_save` | `(output_path, raw_events_path=None)` |  |
+| `WR_pw_recorder_save` | `(output_path, raw_events_path=None, backend='playwright')` |  |
 | `WR_pw_recorder_start` | `()` |  |
 | `WR_pw_recorder_stop` | `()` |  |
 | `WR_pw_refresh` | `() -> 'None'` |  |
@@ -866,7 +867,7 @@ Auto-generated from the executor's event_dict (1199 commands).
 | `WR_read_depends_on` | `(path: 'str') -> 'list[str]'` | 讀取單一檔案的 ``meta.depends_on`` 清單（以 basename 表示）。 |
 | `WR_read_metadata` | `(path: 'str') -> 'dict[str, Any]'` | 讀取 action 檔的 ``meta`` 區塊；若檔案不是 dict 或沒有 meta，回傳空 dict |
 | `WR_recorder_pull_events` | `()` |  |
-| `WR_recorder_save` | `(output_path, raw_events_path=None)` |  |
+| `WR_recorder_save` | `(output_path, raw_events_path=None, backend='selenium')` |  |
 | `WR_recorder_start` | `()` |  |
 | `WR_recorder_stop` | `()` |  |
 | `WR_refresh` | `() -> 'None'` | 重新整理頁面 / Refresh current page |
@@ -918,6 +919,7 @@ Auto-generated from the executor's event_dict (1199 commands).
 | `WR_scroll_to_top` | `() -> 'None'` | 捲動到頁面最上方 / Scroll to the top of the page |
 | `WR_sel_to_pw_supported` | `() -> 'dict[str, list[str]]'` | List what the Selenium to Playwright translator covers: action commands and Python patterns. |
 | `WR_sel_to_pw_translate_actions` | `(actions: 'list[Any]') -> 'list[list[Any]]'` | Rewrite the Selenium commands of an action list to their ``WR_pw_*`` Playwright commands. |
+| `WR_sel_to_pw_translate_for_backend` | `(actions: 'list[Any] | dict[str, Any]', backend: 'str' = 'playwright') -> 'Any'` | Translate an action list or document to the commands of ``backend`` (``"playwright"`` from ``WR_*``, |
 | `WR_sel_to_pw_translate_python` | `(source: 'str') -> 'list[dict[str, Any]]'` | Translate Selenium Python source line by line; returns each changed line with its Playwright draft. |
 | `WR_send_keys` | `(keys_to_send) -> 'None'` | 發送鍵盤按鍵 (按下並釋放) |
 | `WR_send_keys_to_element` | `(element_name: 'str', keys_to_send) -> 'None'` | 使用 TestObject 名稱找到元素並發送鍵盤按鍵 |
@@ -1115,8 +1117,8 @@ Auto-generated from the executor's event_dict (1199 commands).
 | `WR_visual_ai_assert_similar` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Fail when two image files look less alike than ``threshold`` (arguments as ``WR_visual_ai_compare``). |
 | `WR_visual_ai_compare` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Score how alike two image files look (three perceptual hashes and a structural score, 0-1). |
 | `WR_visual_ai_hash` | `(image_path: 'str', kind: 'str' = 'dhash', crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, str]'` | Compute a perceptual hash of an image file. |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001FA5F0EBD80>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001FA5F0EBD80>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001540EA1D9E0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001540EA1D9E0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_visual_review_accept` | `(baseline_dir: 'str', current_dir: 'str', name: 'str') -> 'str'` | Accept a changed screenshot: copy ``current_dir/name`` over the baseline; returns the baseline path. |
 | `WR_visual_review_assert_no_diffs` | `(baseline_dir: 'str', current_dir: 'str') -> 'int'` | Fail when a screenshot differs from, or is missing on either side of, its baseline; returns the count. |
 | `WR_visual_review_list` | `(baseline_dir: 'str', current_dir: 'str') -> 'list[dict[str, str]]'` | Pair the PNG files of a baseline and a current directory by name and say how each pair stands. |

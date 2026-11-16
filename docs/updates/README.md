@@ -58,6 +58,13 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-36 | 2026-11-16 | Offer MCP resources, prompts and three authoring tools | #feature #mcp #done | [2026-11](2026-11.md) |
+| U-20261116-35 | 2026-11-16 | Add a composite GitHub Action, a runner container file and a default runner image name | #feature #ci #k8s | [2026-11](2026-11.md) |
+| U-20261116-34 | 2026-11-16 | Add a pytest plugin, command plugins and console scripts for the servers | #feature #pytest #plugins #packaging | [2026-11](2026-11.md) |
+| U-20261116-33 | 2026-11-16 | Run one action file on either backend with --backend | #feature #cli #backends #done | [2026-11](2026-11.md) |
+| U-20261116-32 | 2026-11-16 | Add --step and WR_breakpoint | #feature #cli #flow | [2026-11](2026-11.md) |
+| U-20261116-31 | 2026-11-16 | Record navigation, keys and selects; emit commands that replay | #feature #recorder #fix | [2026-11](2026-11.md) |
+| U-20261116-30 | 2026-11-16 | Give the action JSON language server hover, cursor-aware completion, formatting and byte framing | #feature #lsp #fix | [2026-11](2026-11.md) |
 | U-20261116-29 | 2026-11-16 | Fix the Playwright clock unit and where type_text types | #fix #playwright | [2026-11](2026-11.md) |
 | U-20261116-28 | 2026-11-16 | Clear the type and lint debt of the utils subpackages | #quality #typing #lint | [2026-11](2026-11.md) |
 | U-20261116-27 | 2026-11-16 | Clear the type and lint debt of the Selenium and Playwright wrappers | #quality #typing #webdriver | [2026-11](2026-11.md) |
@@ -208,7 +215,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 33 |
+| [2026-11.md](2026-11.md) | 2026-11 | 40 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

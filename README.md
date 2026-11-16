@@ -1037,10 +1037,10 @@ WebRunner ships a [Model Context Protocol](https://modelcontextprotocol.io/) ser
 python -m je_web_runner.mcp_server
 ```
 
-The default tool list (28 tools) exposes:
+The default tool list (31 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 1199 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 1201 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 
@@ -1048,6 +1048,7 @@ Additional tools:
 
 Action JSON authoring & linting:
 - `webrunner_lint_action`, `webrunner_score_action_locators`, `webrunner_locator_strength`
+- `webrunner_validate_action` (structure of a list or a `{meta, webdriver_wrapper}` document), `webrunner_lint_action_file` (lints a file on disk, so documents with `meta` are covered; fenced by `WEBRUNNER_MCP_ROOT`)
 - `webrunner_format_actions`, `webrunner_parse_markdown`, `webrunner_render_template`
 - `webrunner_translate_actions_to_playwright`, `webrunner_translate_python_to_playwright`
 
@@ -1091,7 +1092,7 @@ serve_stdio(server=server)
 
 The server speaks both MCP eras, decided per request:
 
-- `2026-07-28` (stateless): a request whose `params._meta` names `io.modelcontextprotocol/protocolVersion` (and carries `io.modelcontextprotocol/clientCapabilities`) is served on its own, with no `initialize`. Methods: `server/discover` (supported versions, capabilities, `instructions`), `tools/list`, `tools/call`. Results carry `resultType`, the server's identity in `_meta`, and `ttlMs` / `cacheScope` where cacheable; another version in `_meta` gets error `-32022` listing the supported ones.
+- `2026-07-28` (stateless): a request whose `params._meta` names `io.modelcontextprotocol/protocolVersion` (and carries `io.modelcontextprotocol/clientCapabilities`) is served on its own, with no `initialize`. Methods: `server/discover` (supported versions, capabilities, `instructions`), `tools/list`, `tools/call`, `resources/list`, `resources/templates/list`, `resources/read`, `prompts/list`, `prompts/get`. Results carry `resultType`, the server's identity in `_meta`, and `ttlMs` / `cacheScope` where cacheable; another version in `_meta` gets error `-32022` listing the supported ones.
 - `2025-11-25`, `2025-06-18`, `2025-03-26` and `2024-11-05` (handshake): `initialize` answers with the client's version when it is one of these, otherwise with `2025-11-25`, and also returns the package version and short `instructions` for the model. Methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`.
 
 - stdio is UTF-8 with `\n` line ends whatever the console code page. Anything else the process writes to stdout (`print`, child processes) goes to stderr, so only protocol messages reach the client.
@@ -1099,6 +1100,12 @@ The server speaks both MCP eras, decided per request:
 - An unknown tool or non-object `arguments` is a JSON-RPC `-32602` error. Notifications are never answered, and batch requests are rejected with `-32600`.
 - The run tools refuse `WR_add_package_to_executor`, `WR_add_package_to_callback_executor`, `WR_set_allow_arbitrary_script` and the `WR_ac_*` commands that drive or read the desktop (all but `WR_ac_available` and `WR_ac_list_commands`), including inside nested action lists: a model must not load `os`, re-open a script gate the operator closed, or reach the desktop through AutoControl. `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` lifts this. When `WEBRUNNER_MCP_ROOT` is set, `webrunner_run_action_files` and `webrunner_compute_trend` only read files inside that directory.
 - Every tool has a `title` and `annotations`: the offline tools and `webrunner_list_commands` are `readOnlyHint: true`, the two run tools `destructiveHint: true` and `openWorldHint: true`. Input schemas describe each argument and reject unknown ones; arguments that do not match come back as an `isError` result naming the problem. A result that is a JSON object is also sent as `structuredContent`, and the two run tools declare an `outputSchema`.
+
+Besides tools the server offers **resources** and **prompts**, in every protocol version it speaks:
+
+- Resources: `webrunner://commands` (the command reference), `webrunner://schema/action` (the JSON schema of action files), `webrunner://guide/action-language` (how to write action files: shapes, variables, control flow, `WR_call_file`, `meta`, datasets, locator files) and the template `webrunner://commands/{name}` (one command's signature and docstring, with a note when the MCP policy refuses it). Content is built when it is read.
+- Prompts: `write_action_file` (`goal`, optional `start_url`), `fix_failing_action_file` (`action_json`, `failure_text`) and `explain_action_file` (`action_json`). Arguments are inserted as delimited data, never as instructions.
+- `resources/subscribe` and `completion/complete` are not served.
 
 ## Action JSON LSP
 
@@ -1108,7 +1115,88 @@ A standard Language Server Protocol implementation for action JSON files:
 python -m je_web_runner.action_lsp
 ```
 
-`textDocument/completion` returns every registered `WR_*` command; `textDocument/publishDiagnostics` runs the action linter on `didOpen` / `didChange`, puts each finding on the line of its action and clears them on `didClose`. A document is a list of actions or an object whose `webdriver_wrapper` holds one. Pair with VS Code's *Configure JSON Language Servers* or the JetBrains LSP plugin.
+Also installed as the console script `webrunner-lsp`. It offers:
+
+- **Completion** that depends on the cursor: command names in the first element of an action, the command's parameter names in its arguments object, variable names after `${`.
+- **Hover** on a command name: its signature and docstring.
+- **Diagnostics** from the action linter on `didOpen` / `didChange`, each on the line of the action or argument it is about (nested actions included), with the rule as its `code`; cleared on `didClose`.
+- **Quick fix** for a legacy command name that has one modern alias.
+- **Format Document** for list-form action files (the formatter's canonical layout).
+
+Messages are framed in UTF-8 bytes whatever the console's encoding is. A document is a list of actions or an object whose `webdriver_wrapper` holds one. Pair with VS Code's *Configure JSON Language Servers* or the JetBrains LSP plugin.
+
+## Running in CI, with pytest, and with plugins
+
+### pytest plugin
+
+Installing WebRunner registers a pytest plugin that turns action files into tests. It does nothing until a project opts in:
+
+```toml
+[tool.pytest.ini_options]
+webrunner_action_paths = ["actions"]
+```
+
+or `pytest --webrunner-actions actions`. Then every action document below those paths is one test (`actions/login.json::login`):
+
+- The file runs through the executor, so `meta` (setup, teardown, vars, dataset, retries, fail_fast) applies and `WR_call_file` resolves from the file. Each test has its own variables.
+- The test fails when an action failed; the report lists the failed actions and their errors.
+- `meta.skip` skips the test with that reason. `meta.tags` become markers (`-m smoke`; characters other than letters, digits and `_` become `_`), and every action file has the marker `webrunner`.
+- `--webrunner-fail-fast` stops each file at its first failed action.
+- Datasets, locator files and other JSON that is not an action document are ignored. A file that exists only to be called with `WR_call_file` is a test too if it sits under an opted-in path: keep such files elsewhere or give them `meta.skip`.
+
+Without the opt-in the plugin collects nothing and does not import WebRunner, so it costs other projects' pytest runs nothing.
+
+### GitHub Action
+
+The repository root is a composite action that installs WebRunner and runs a directory of action files:
+
+```yaml
+- uses: actions/checkout@<commit sha>
+- uses: Integration-Automation/WebRunner@<commit sha>
+  with:
+    actions-dir: actions
+    report: reports/run          # optional; uploads reports/run* as an artifact
+    report-format: json,junit    # optional
+    shard: 1/4                   # optional
+    parallel: 2                  # optional
+    parallel-mode: process       # optional
+    tag: smoke                   # optional
+    fail-fast: "true"            # optional
+    channel: dev                 # optional: je_web_runner_dev instead of je_web_runner
+    extra-args: --env staging --var base=https://staging.example
+```
+
+Outputs are `exit-code` and `artifact-name`. It runs on Linux and Windows runners with the browser the runner already has; action files start it headless (`["WR_set_driver", {"webdriver_name": "chrome", "options": ["--headless=new"]}]`). `examples/ci/webrunner-shards.yml` shows a sharded matrix whose last job merges the shard reports with `--merge-reports`.
+
+### Runner image
+
+`docker/Runner.Containerfile` builds an image with Chromium, its driver and the `webrunner` entry point:
+
+```bash
+docker build -f docker/Runner.Containerfile -t webrunner-runner docker
+docker run --rm --shm-size=1g -v "$PWD:/work" webrunner-runner -d actions --report reports/run
+```
+
+- The container runs as uid 65532 in `/work`; mount your action files there and make it writable (on Linux add `--user "$(id -u):$(id -g)"` if needed).
+- In the image, start the browser with `"install_driver": false` and the options `--headless=new`, `--no-sandbox`, `--disable-dev-shm-usage`.
+- `--build-arg WEBRUNNER_PACKAGE=je_web_runner==<version>` (or `je_web_runner_dev`) picks the package; `--build-context wheels=dist --build-arg WEBRUNNER_PACKAGE=/wheels/<wheel>` installs a local wheel. BuildKit is required.
+- The project does not publish this image. `k8s_runner.RUNNER_IMAGE` (`ghcr.io/integration-automation/webrunner-runner:latest`, the default image of `ShardJobConfig`) is only a name: build and push the image under it, or pass your own `image`. The image has not been built or run as part of this repository's checks.
+
+### Command plugins
+
+An installed distribution can add `WR_*` commands through the entry-point group `je_web_runner.commands`:
+
+```toml
+# the plugin's pyproject.toml
+[project.entry-points."je_web_runner.commands"]
+my_checks = "my_package.webrunner_commands:COMMANDS"   # {"WR_my_check": function, ...}
+```
+
+Nothing is loaded because it is installed. The operator names the plugins: `--plugin my_checks` (repeatable), `plugins = ["my_checks"]` in the project configuration, or `load_command_plugins(["my_checks"])` from Python; `--list-plugins` prints what is installed. A plugin whose command name is already taken, or is not `WR_*`, is refused, and no action command can load a plugin.
+
+### Stepping through a file
+
+`--step` pauses before every top-level action and at every `WR_breakpoint`: `n` (or Enter) runs the action, `c` continues to the next breakpoint, `v` shows the variables, `q` stops and records the rest as not run. Actions inside a block run with their block. Without `--step` a `WR_breakpoint` does nothing, so one left in a file cannot hang an unattended run. `--step` is for sequential runs only.
 
 ## More Capabilities
 
@@ -1167,6 +1255,7 @@ Smaller modules, grouped by what they help with. The larger areas have their own
 - **Workspace bootstrapper** — `bootstrapper.init_workspace("my-tests")` drops `actions/sample.json`, `.webrunner/ledger.json`, pinned-driver template, JSON schema, pre-commit hook, and a starter GitHub Actions workflow.
 - **Driver pinner** — `driver_pin.install_for_browser(".webrunner/drivers.json", "firefox")` reads a JSON pin file (`name` / `version` / `url` / `archive_format` / `binary_inside`), downloads + extracts once, then serves from cache. Bypasses the GitHub API rate limit that webdriver-manager hits in CI.
 - **Selenium → Playwright translator** — `sel_to_pw.translate_python_source(text)` rewrites `driver.find_element(By.ID, "x")` → `page.locator("#x")` and similar; `translate_action_list(actions)` rewrites `WR_*` action JSON to its `WR_pw_*` equivalent (drops `WR_implicitly_wait` since Playwright auto-waits).
+- **One action file, either backend** — `--backend playwright` (or `selenium`; `backend = "playwright"` in the project configuration; `executor.set_backend(...)` from Python) translates every action file before it runs, including the files it calls with `WR_call_file`, the actions inside blocks and `meta.setup` / `meta.teardown`. The translation is strict: arguments are converted (seconds to milliseconds, `by` + value to a selector, `WR_execute_script` bodies wrapped so `arguments[i]` still works), commands that drive neither browser pass through, and a file holding a command with no faithful equivalent (window maximize, alerts, `WR_implicitly_wait`, Appium, a remote Grid …) is refused as a whole with every such command, its place and the reason listed; nothing is dropped silently. The same translation is `sel_to_pw.translate_for_backend(actions, backend)` in Python, the command `WR_sel_to_pw_translate_for_backend` and the MCP tool `webrunner_translate_backend`. Two things to know: `WR_new_driver` becomes a headed Playwright browser unless `--headless` is among its options, and a translated raw-selector lookup stores its locator under the reserved name `sel_to_pw.selector`.
 
 ### Test authoring
 
@@ -1884,6 +1973,8 @@ recorder_save_recording(
 
 The recorder injects a static JS listener (no CDP, no eval), so it works on Chrome / Firefox / Edge alike. **Sensitive fields are masked by default** — `type=password`, names matching `password / card_number / cvv / ssn / secret / token / api_key / otp / passcode`, and 13–19-digit numeric values are replaced with `***MASKED***`.
 
+It records clicks, typed values, `<select>` choices, checkbox and radio changes, presses of named keys (Enter, Escape, Tab, arrows …) and the page it started on plus later address changes that a click or Enter did not cause. The output uses the current command names (`WR_save_test_object`, `WR_find_recorded_element`, `WR_element_click`, `WR_element_input`, `WR_element_select_by_value`, `WR_element_check`, `WR_press_keys`, `WR_to_url`), and `recorder_save_recording(..., backend="playwright")` writes `WR_pw_*` commands instead; `WR_pw_recorder_save` does that by default. Passwords in URLs, sensitive query parameters and typed characters other than named keys are masked too. The buffer lives in the page: after a navigation to a new document, pull the events and start the recorder again.
+
 ## CI / Integrations
 
 ```python
@@ -1899,7 +1990,7 @@ For GitHub Actions inline annotations, run `emit_from_junit_xml("run_junit.xml")
 
 `docker/docker-compose.yml` ships a Selenium Grid 4 stack (hub + Chrome + Firefox nodes); `docker/.env.example` exposes the version pin and concurrency settings.
 
-The IDE config examples under [`docs/ide/`](docs/ide/) wire VS Code and JetBrains to the action JSON schema produced by `WR_export_action_schema`.
+The IDE config examples under [`docs/ide/`](docs/ide/) wire VS Code and JetBrains to the action JSON schema produced by `WR_export_action_schema`; [`docs/ide/action-lsp.md`](docs/ide/action-lsp.md) shows how to attach the action JSON language server to an editor.
 
 ## Desktop control (AutoControl)
 
@@ -2013,6 +2104,9 @@ python -m je_web_runner -d ./actions --var base=https://staging.example --var re
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # .env.staging for ${ENV.KEY}
 python -m je_web_runner -d ./actions --dataset users.csv     # every file runs once per row, reading ${ROW.column}
 python -m je_web_runner -d ./actions --fail-fast             # stop a file, and the directory, at the first failure
+python -m je_web_runner -d ./actions --backend playwright    # run Selenium-command files on Playwright (or the reverse)
+python -m je_web_runner -e ./actions/login.json --step       # pause before each action: n run it, c continue, v variables, q stop
+python -m je_web_runner -d ./actions --plugin my_checks      # commands from an installed plugin; --list-plugins shows the names
 python -m je_web_runner --lint ./actions                     # a warning exits 1
 python -m je_web_runner --list-commands
 python -m je_web_runner -d ./actions --report run --report-format junit,json   # only these; also allure, interactive
@@ -2044,6 +2138,8 @@ user = "alice"
 ```
 
 `vars` become variables (`--var` wins for the same name); `tag` and `exclude_tag` are lists. An unknown key or a value of the wrong type stops the run before anything executes. In `--parallel-mode process` every worker gets the same variables, `.env` file, fail-fast and retry settings.
+
+Three more console scripts start the servers that have their own module: `webrunner-mcp` (`python -m je_web_runner.mcp_server`), `webrunner-lsp` (`python -m je_web_runner.action_lsp`) and `webrunner-issue-worker` (`python -m je_web_runner.issue_worker`).
 
 Installing the package also installs two console scripts, `webrunner` and `web_runner`, with the same flags, output and exit codes as `python -m je_web_runner` (`webrunner -e actions.json`, `pipx run --spec je_web_runner webrunner -d ./actions`).
 

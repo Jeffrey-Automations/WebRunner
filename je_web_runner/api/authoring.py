@@ -25,6 +25,12 @@ from je_web_runner.utils.md_authoring.markdown_to_actions import (
     supported_bullet_patterns,
     transpile_file,
 )
+from je_web_runner.utils.sel_to_pw.backend_translate import (
+    BackendTranslationError,
+    TranslationProblem,
+    how_translated,
+    translate_for_backend,
+)
 from je_web_runner.utils.sel_to_pw.translator import (
     SelToPwError,
     Translation,
@@ -45,4 +51,5 @@ __all__ = [
     "SelToPwError", "Translation",
     "supported_action_commands", "supported_python_patterns",
     "translate_action_list", "translate_python_source",
+    "BackendTranslationError", "TranslationProblem", "how_translated", "translate_for_backend",
 ]

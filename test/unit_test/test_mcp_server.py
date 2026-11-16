@@ -230,6 +230,9 @@ class TestDefaultTools(unittest.TestCase):
             "webrunner_cluster_failures",
             "webrunner_a11y_diff",
             "webrunner_score_action_locators",
+            "webrunner_validate_action",
+            "webrunner_lint_action_file",
+            "webrunner_translate_backend",
         })
 
     def test_browser_tools_registered_in_default_server(self):

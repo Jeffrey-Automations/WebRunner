@@ -74,7 +74,8 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
      - ``WR_find_element_by`` / ``WR_find_elements_by``\ （``by``：``css
        selector``、``xpath``、``id`` …）
      - ``WR_pw_find_element`` / ``WR_pw_find_elements``
-     - Selenium 的會把找到的元素設為目前元素。
+     - Selenium 的會把找到的元素設為目前元素。Playwright 的只回傳找到的元素
+       （沒找到時回傳 ``None``），不會設為目前元素。
    * - 勾選、懸停、元素文字
      - ``WR_element_check``、``WR_element_uncheck``、``WR_element_hover``、
        ``WR_element_inner_text``、``WR_element_inner_html``、
@@ -109,11 +110,13 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
    * - 輸入
      - ``WR_element_input``
      - ``WR_pw_element_type_text``、``WR_pw_element_fill``
-     - ``WR_element_input`` 與 ``type_text`` 是附加；``fill`` 會取代原本的值。
+     - ``WR_element_input`` 與 ``type_text`` 會接在欄位既有文字之後輸入；``fill``
+       會取代原本的值。
    * - 選擇選項
      - ``WR_element_select_by_value`` / ``_by_index`` / ``_by_visible_text``
      - ``WR_pw_select_option``、``WR_pw_element_select_option``
-     - Playwright 收值、``{"index": n}`` 或 ``{"label": text}``。
+     - ``WR_pw_element_select_option`` 只收值。``WR_pw_select_option`` 收 selector
+       與值，另可用關鍵字 ``index`` / ``label`` 指定。
    * - 等待
      - ``WR_implicitly_wait``、``WR_wait_for_element``\ （``present`` /
        ``visible`` / ``clickable`` / ``hidden``）、``WR_wait_for_url``、

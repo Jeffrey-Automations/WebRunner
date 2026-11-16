@@ -51,6 +51,10 @@ Bootstrapper / driver pinner
 Selenium → Playwright 翻譯
 ==========================
 
+* ``sel_to_pw.translate_for_backend(actions, backend)`` — ``--backend`` 背後的嚴格翻譯器：清單或整份
+  文件、雙向皆可，會轉換引數並走訪區塊與 ``meta``。遇到沒有忠實對應的指令會丟出
+  ``BackendTranslationError``\ （``.problems``：位置、指令、原因）並列出全部。
+  ``how_translated(command, backend)`` 可查單一指令的處理方式。
 * ``sel_to_pw.translate_python_source`` — 常見 Selenium 寫法靜態翻譯成
   Playwright 等價（``find_element(By.ID, "x")`` → ``page.locator("#x")``）
 * ``sel_to_pw.translate_action_list`` — ``WR_*`` action JSON 轉

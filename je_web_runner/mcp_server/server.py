@@ -11,12 +11,17 @@ Transport: ndjson over stdio (one JSON object per line). Run via::
 Both protocol eras are served, decided per request:
 
 * handshake era (2024-11-05 to 2025-11-25): ``initialize``,
-  ``notifications/initialized``, ``tools/list``, ``tools/call`` and ``ping``.
+  ``notifications/initialized``, ``ping`` and the feature methods below.
   ``initialize`` answers with the client's protocol version when it is one of
   :data:`SUPPORTED_PROTOCOL_VERSIONS`, otherwise with the newest.
 * 2026-07-28 (stateless): a request whose ``params._meta`` names a protocol
-  version is served on its own, without ``initialize``: ``server/discover``,
-  ``tools/list`` and ``tools/call`` (see :mod:`._stateless`).
+  version is served on its own, without ``initialize``: ``server/discover``
+  and the feature methods (see :mod:`._stateless`).
+
+Feature methods, the same in every revision: ``tools/list``, ``tools/call``;
+``resources/list``, ``resources/templates/list``, ``resources/read`` when the server
+has resources; ``prompts/list``, ``prompts/get`` when it has prompts. A feature the
+server does not have is neither advertised as a capability nor answered.
 """
 from __future__ import annotations
 
@@ -44,15 +49,26 @@ from je_web_runner.mcp_server._types import (
 )
 from je_web_runner.mcp_server._validation import validate_arguments
 from je_web_runner.mcp_server.offline_tools import build_default_tools
+from je_web_runner.mcp_server.prompts import Prompt, build_default_prompts, get_prompt
+from je_web_runner.mcp_server.resources import (
+    RESOURCE_NOT_FOUND,
+    Resource,
+    ResourceTemplate,
+    build_default_resource_templates,
+    build_default_resources,
+    read_resource,
+)
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 __all__ = [
     "SUPPORTED_PROTOCOL_VERSIONS", "McpInvalidParams", "McpProtocolError", "McpServer", "McpServerError",
-    "Tool", "ToolResult", "build_default_tools", "make_default_server", "negotiate_protocol_version",
-    "serve_stdio", "server_version",
+    "Prompt", "Resource", "ResourceTemplate", "Tool", "ToolResult", "build_default_tools",
+    "make_default_server", "negotiate_protocol_version", "serve_stdio", "server_version",
 ]
 
-
+_Handler = Callable[[dict[str, Any]], Any]
+#: Answers a read of an unknown URI in 2026-07-28, where the older revisions say "resource not found".
+_INVALID_PARAMS = -32602
 
 
 @dataclass
@@ -61,11 +77,34 @@ class McpServer:
 
     tools: dict[str, Tool] = field(default_factory=dict)
     initialized: bool = False
+    resources: dict[str, Resource] = field(default_factory=dict)
+    resource_templates: list[ResourceTemplate] = field(default_factory=list)
+    prompts: dict[str, Prompt] = field(default_factory=dict)
+    #: The revision the handshake agreed on; the newest until a client sends ``initialize``.
+    protocol_version: str = SUPPORTED_PROTOCOL_VERSIONS[0]
 
     def register(self, tool: Tool) -> None:
         if tool.name in self.tools:
             raise McpServerError(f"tool {tool.name!r} already registered")
         self.tools[tool.name] = tool
+
+    def register_resource(self, resource: Resource) -> None:
+        """Offer ``resource`` under its URI."""
+        if resource.uri in self.resources:
+            raise McpServerError(f"resource {resource.uri!r} already registered")
+        self.resources[resource.uri] = resource
+
+    def register_resource_template(self, template: ResourceTemplate) -> None:
+        """Offer the resources of ``template``."""
+        if any(known.uri_template == template.uri_template for known in self.resource_templates):
+            raise McpServerError(f"resource template {template.uri_template!r} already registered")
+        self.resource_templates.append(template)
+
+    def register_prompt(self, prompt: Prompt) -> None:
+        """Offer ``prompt`` under its name."""
+        if prompt.name in self.prompts:
+            raise McpServerError(f"prompt {prompt.name!r} already registered")
+        self.prompts[prompt.name] = prompt
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
         """
@@ -105,25 +144,63 @@ class McpServer:
                 raise McpInvalidParams(f"{DISCOVER_METHOD} needs the 2026-07-28 _meta fields")
             return self._run_handshake_era(method, params)
         if method == DISCOVER_METHOD:
-            result = discover_result(INSTRUCTIONS)
-        elif method in ("tools/list", "tools/call"):
-            result = self._run_handshake_era(method, params)
-        else:
+            return shape_result(
+                method, discover_result(INSTRUCTIONS, self._capabilities(stateless=True)), server_info(version))
+        handler = self._feature_handlers(version, _INVALID_PARAMS).get(method)
+        if handler is None:
             raise McpProtocolError(-32601, f"unknown method {method!r} in {version}")
-        return shape_result(method, result, server_info(version))
+        return shape_result(method, handler(params), server_info(version))
 
     def _run_handshake_era(self, method: str, params: dict[str, Any]) -> Any:
-        handlers: dict[str, Callable[[dict[str, Any]], Any]] = {
+        handlers: dict[str, _Handler] = {
             "initialize": self._initialize,
-            "tools/list": lambda _params: self._tools_list(),
-            "tools/call": self._tools_call,
             "ping": lambda _params: {},
             "notifications/initialized": self._on_initialized,
+            **self._feature_handlers(self.protocol_version, RESOURCE_NOT_FOUND),
         }
         handler = handlers.get(method)
         if handler is None:
             raise McpProtocolError(-32601, f"unknown method {method!r}")
         return handler(params)
+
+    def _feature_handlers(self, version: str, not_found_code: int) -> dict[str, _Handler]:
+        """
+        The methods of what this server offers, as the revision ``version`` shapes them.
+        ``not_found_code`` answers a read of a URI nothing has.
+        """
+        handlers: dict[str, _Handler] = {
+            "tools/list": lambda _params: self._tools_list(),
+            "tools/call": self._tools_call,
+        }
+        if self._has_resources():
+            handlers["resources/list"] = lambda _params: {
+                "resources": [resource.describe(version) for resource in self.resources.values()]}
+            handlers["resources/templates/list"] = lambda _params: {
+                "resourceTemplates": [template.describe(version) for template in self.resource_templates]}
+            handlers["resources/read"] = lambda params: read_resource(
+                params.get("uri"), self.resources, self.resource_templates, not_found_code)
+        if self.prompts:
+            handlers["prompts/list"] = lambda _params: {
+                "prompts": [prompt.describe(version) for prompt in self.prompts.values()]}
+            handlers["prompts/get"] = lambda params: get_prompt(self.prompts, params)
+        return handlers
+
+    def _has_resources(self) -> bool:
+        return bool(self.resources or self.resource_templates)
+
+    def _capabilities(self, stateless: bool) -> dict[str, Any]:
+        """
+        What the server offers. The handshake revisions say that no list changes and nothing
+        can be subscribed to; 2026-07-28 moved both to ``subscriptions/listen``, which this
+        server does not serve, so its capability objects are empty.
+        """
+        static: dict[str, Any] = {} if stateless else {"listChanged": False}
+        capabilities: dict[str, Any] = {"tools": dict(static)}
+        if self._has_resources():
+            capabilities["resources"] = dict(static) if stateless else {"subscribe": False, **static}
+        if self.prompts:
+            capabilities["prompts"] = dict(static)
+        return capabilities
 
     def _on_initialized(self, _params: dict[str, Any]) -> None:
         self.initialized = True
@@ -132,9 +209,10 @@ class McpServer:
         client_version = params.get("protocolVersion")
         version = negotiate_protocol_version(client_version)
         web_runner_logger.info(f"mcp initialize: client {client_version!r}, answered {version!r}")
+        self.protocol_version = version
         return {
             "protocolVersion": version,
-            "capabilities": {"tools": {"listChanged": False}},
+            "capabilities": self._capabilities(stateless=False),
             "serverInfo": server_info(version),
             "instructions": INSTRUCTIONS,
         }
@@ -201,6 +279,12 @@ def make_default_server() -> McpServer:
         server.register(tool)
     for tool in build_browser_tools():
         server.register(tool)
+    for resource in build_default_resources():
+        server.register_resource(resource)
+    for template in build_default_resource_templates():
+        server.register_resource_template(template)
+    for prompt in build_default_prompts():
+        server.register_prompt(prompt)
     return server
 
 

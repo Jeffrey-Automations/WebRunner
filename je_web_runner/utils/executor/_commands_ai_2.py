@@ -533,6 +533,17 @@ def sel_to_pw_translate_actions(actions: list[Any]) -> list[list[Any]]:
     return translate_action_list(actions)
 
 
+def sel_to_pw_translate_for_backend(actions: list[Any] | dict[str, Any], backend: str = "playwright") -> Any:
+    """
+    Translate an action list or document to the commands of ``backend`` (``"playwright"`` from ``WR_*``,
+    ``"selenium"`` from ``WR_pw_*``) and return it in the same shape. Unlike
+    ``WR_sel_to_pw_translate_actions`` it converts arguments, walks blocks and ``meta``, and fails naming
+    every command that has no faithful equivalent instead of passing it through.
+    """
+    from je_web_runner.utils.sel_to_pw.backend_translate import translate_for_backend
+    return translate_for_backend(actions, backend)
+
+
 def sel_to_pw_translate_python(source: str) -> list[dict[str, Any]]:
     """Translate Selenium Python source line by line; returns each changed line with its Playwright draft."""
     from je_web_runner.utils.sel_to_pw.translator import translate_python_source
@@ -582,6 +593,7 @@ AI_2_COMMANDS: dict[str, Callable[..., Any]] = {
     "WR_md_authoring_transpile_file": md_authoring_transpile_file,
     "WR_md_authoring_patterns": md_authoring_patterns,
     "WR_sel_to_pw_translate_actions": sel_to_pw_translate_actions,
+    "WR_sel_to_pw_translate_for_backend": sel_to_pw_translate_for_backend,
     "WR_sel_to_pw_translate_python": sel_to_pw_translate_python,
     "WR_sel_to_pw_supported": sel_to_pw_supported,
 }

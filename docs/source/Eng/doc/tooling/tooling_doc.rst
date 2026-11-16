@@ -74,6 +74,11 @@ Workspace bootstrapper / driver pinner
 Selenium → Playwright translator
 ================================
 
+* ``sel_to_pw.translate_for_backend(actions, backend)`` — the strict translator behind ``--backend``:
+  a list or a whole document, in either direction, with arguments converted and blocks and ``meta``
+  walked. It raises ``BackendTranslationError`` (``.problems``: location, command, reason) naming every
+  command with no faithful equivalent. ``how_translated(command, backend)`` says what happens to one
+  command.
 * ``sel_to_pw.translate_python_source(text)`` — rewrites common
   ``driver.find_element(By.X, ...).send_keys(...)``-style lines into
   ``page.locator(...).fill(...)`` equivalents; returns

@@ -356,7 +356,7 @@ then the other feature subpackages.
 | `docs` | 自動產生 ``WR_*`` 命令參考（Markdown）。 |
 | `live_dashboard` | Aggregated local dashboard: runs, flake scores, quarantine and locator health in one web UI. |
 | `pom_generator` | Page Object Model 骨架產生器：解析 HTML，輸出可調整的 Python POM 類別。 |
-| `recorder` | 透過注入 JS 監聽器的瀏覽器操作錄製器，將使用者點擊與輸入反向轉成 WR_* action JSON。 |
+| `recorder` | 透過注入 JS 監聽器的瀏覽器操作錄製器，將使用者的操作反向轉成 WR_* action JSON。 |
 | `replay_studio` | Replay studio：把 record list + 失敗截圖串成單一 HTML 時間軸。 |
 | `schema` | Action JSON Schema 匯出：給 IDE 做語法高亮 / 自動補完。 |
 | `session_to_test` | 把 rrweb / 通用 session event 串流轉成 WR action JSON。 |

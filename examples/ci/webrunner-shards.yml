@@ -1,0 +1,72 @@
+# Example: run a directory of WebRunner action files in three shards, then merge the shard reports.
+#
+# Copy this file to .github/workflows/ of your project and adjust `actions-dir`.
+# - The action is referenced as Integration-Automation/WebRunner@main so the example reads easily.
+#   In a real workflow replace `main` with the full commit SHA of the release you use, like the
+#   other actions below.
+# - ubuntu-latest already has Chrome. The action files start it themselves, headless:
+#     ["WR_set_driver", {"webdriver_name": "chrome", "options": ["--headless=new"]}]
+name: WebRunner shards
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: Shard ${{ matrix.shard }} of 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Uploads reports/shard-<n>* as the artifact webrunner-reports-shard-<n>-of-3.
+      - name: Run the action files of this shard
+        uses: Integration-Automation/WebRunner@main
+        with:
+          actions-dir: actions
+          shard: ${{ matrix.shard }}/3
+          report: reports/shard-${{ matrix.shard }}
+          report-format: json,junit
+
+  merge:
+    name: Merge the shard reports
+    needs: run
+    # Also after a failed shard: its report is the one worth reading.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install WebRunner
+        run: python -m pip install je_web_runner
+
+      # Every shard artifact holds the files named after its own report base, so they fit side by side.
+      - name: Download the shard reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: webrunner-reports-shard-*
+          path: reports
+          merge-multiple: true
+
+      - name: Merge into reports/merged_*.json and reports/merged_junit.xml
+        run: webrunner --merge-reports reports/merged reports/shard-1 reports/shard-2 reports/shard-3
+
+      - name: Upload the merged report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: webrunner-reports-merged
+          path: reports/merged*

@@ -16,6 +16,8 @@ built-in default; without a file nothing changes.
     parallel_mode = "process"
     exclude_tag = ["sub-flow"]
     locators = ["locators.json"]   # logical names for elements, loaded before the run
+    plugins = ["my_checks"]        # installed command plugins to load (entry-point names)
+    backend = "playwright"        # translate every action file to this backend (or "selenium")
 
     [vars]
     base = "${ENV.BASE_URL}"
@@ -33,6 +35,7 @@ from je_web_runner.utils.exception.exceptions import WebRunnerException
 CONFIG_FILE = "webrunner.toml"
 PYPROJECT_FILE = "pyproject.toml"
 PARALLEL_MODES = ("thread", "process", "async")
+BACKENDS = ("selenium", "playwright")
 MAX_RETRIES = 100
 
 
@@ -70,6 +73,8 @@ _KEYS: dict[str, tuple[Callable[[Any], bool], str]] = {
     "parallel": (_whole(1, 256), "an integer from 1 to 256"),
     "parallel_mode": (lambda value: value in PARALLEL_MODES, "one of " + ", ".join(PARALLEL_MODES)),
     "locators": (_text_list, "a list of locator files"),
+    "plugins": (_text_list, "a list of command plugin names"),
+    "backend": (lambda value: value in BACKENDS, "one of " + ", ".join(BACKENDS)),
     "tag": (_text_list, "a list of tags"),
     "exclude_tag": (_text_list, "a list of tags"),
 }
@@ -92,6 +97,8 @@ class ProjectConfig:
     parallel: int | None = None
     parallel_mode: str | None = None
     locators: list[str] = field(default_factory=list)
+    plugins: list[str] = field(default_factory=list)
+    backend: str | None = None
     tag: list[str] = field(default_factory=list)
     exclude_tag: list[str] = field(default_factory=list)
 

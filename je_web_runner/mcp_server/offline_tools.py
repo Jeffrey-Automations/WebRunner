@@ -8,7 +8,10 @@ from __future__ import annotations
 from typing import Any
 
 from je_web_runner.mcp_server._policy import checked_path
+from je_web_runner.mcp_server._schema import arg as _arg
+from je_web_runner.mcp_server._schema import args_schema as _args
 from je_web_runner.mcp_server._types import READ_ONLY, McpServerError, Tool
+from je_web_runner.mcp_server.authoring_tools import build_authoring_tools
 
 # Reused error messages — extracted so SonarCloud S1192 stays quiet and
 # downstream tooling can grep for them.
@@ -229,24 +232,6 @@ def _tool_score_action_locators(arguments: dict[str, Any]) -> Any:
     if not isinstance(actions, list):
         raise McpServerError(_ERR_ACTIONS_LIST)
     return list(score_action_locators(actions))
-
-
-def _args(required: tuple[str, ...], **properties: dict[str, Any]) -> dict[str, Any]:
-    """A closed ``object`` input schema: unknown arguments are rejected."""
-    return {
-        "type": "object",
-        "properties": properties,
-        "required": list(required),
-        "additionalProperties": False,
-    }
-
-
-def _arg(json_type: str | None, description: str, **extra: Any) -> dict[str, Any]:
-    """One described property; ``json_type=None`` accepts any JSON value."""
-    spec: dict[str, Any] = {"description": description, **extra}
-    if json_type:
-        spec["type"] = json_type
-    return spec
 
 
 _ACTIONS = _arg("array", "WebRunner action list: [command_name, params] entries.", items={"type": "array"})
@@ -490,4 +475,4 @@ def build_default_tools() -> list[Tool]:
             handler=_tool_score_action_locators,
             annotations=READ_ONLY,
         ),
-    ]
+    ] + build_authoring_tools()

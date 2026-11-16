@@ -47,6 +47,11 @@ class FailFast:
         """The run of this context, or an inactive one when no list is running here."""
         return self._current.get() or _Run()
 
+    @property
+    def nested(self) -> bool:
+        """Whether an action is running now, so the next one to start is inside it (a block)."""
+        return self._state().depth > 0
+
     @contextlib.contextmanager
     def run(self, enabled: bool | None = None) -> Iterator[None]:
         """

@@ -1,6 +1,7 @@
 import unittest
 
 from je_web_runner.utils.k8s_runner import (
+    RUNNER_IMAGE,
     K8sRunnerError,
     ShardJobConfig,
     render_job_manifests,
@@ -47,6 +48,26 @@ class TestRenderJobManifests(unittest.TestCase):
         first = render_job_manifests(config)[0]
         env_list = first["spec"]["template"]["spec"]["containers"][0]["env"]
         self.assertEqual(env_list, [{"name": "FOO", "value": "bar"}])
+
+    def test_image_defaults_to_the_runner_image(self):
+        config = ShardJobConfig(name_prefix="x", total_shards=1, actions_dir="/a")
+        container = render_job_manifests(config)[0]["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["image"], RUNNER_IMAGE)
+        self.assertRegex(RUNNER_IMAGE, r"^[a-z0-9./-]+:[\w.-]+$")
+
+    def test_positional_order_is_unchanged(self):
+        config = ShardJobConfig("x", "img", 2, "/a")
+        self.assertEqual((config.image, config.total_shards, config.actions_dir), ("img", 2, "/a"))
+
+    def test_shards_and_actions_dir_stay_required(self):
+        with self.assertRaises(TypeError):
+            ShardJobConfig(name_prefix="x")
+        with self.assertRaises(TypeError):
+            ShardJobConfig(name_prefix="x", total_shards=1)
+
+    def test_empty_image_still_raises(self):
+        with self.assertRaises(K8sRunnerError):
+            render_job_manifests(ShardJobConfig(name_prefix="x", image="", total_shards=1, actions_dir="/a"))
 
     def test_invalid_name_prefix_raises(self):
         shard_job_config = ShardJobConfig(

@@ -8,8 +8,9 @@ client's capabilities in ``params._meta``, every result says it is complete
 and capabilities. A dual-era server decides per request: one whose ``_meta`` names a
 protocol version is served statelessly; ``initialize`` and every request without that
 key are served the way the older revisions define. Ported from AutoControlGUI's
-``utils/mcp_server/_stateless.py``, without the parts this tools-only server has no
-use for (subscriptions, resources, prompts, confirmation round trips).
+``utils/mcp_server/_stateless.py``, without the parts this server has no use for
+(subscriptions, confirmation round trips). Resources and prompts are served in this
+revision too; ``resources/subscribe`` and ``resources/unsubscribe`` no longer exist in it.
 """
 from __future__ import annotations
 
@@ -25,9 +26,19 @@ META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 #: ``UnsupportedProtocolVersionError``; its ``data`` lists the supported versions.
 UNSUPPORTED_PROTOCOL_VERSION = -32022
 DISCOVER_METHOD = "server/discover"
-#: ``ttlMs`` of the cacheable results: the tool list is fixed once the server runs.
-_CACHE_TTL_MS = {DISCOVER_METHOD: 3_600_000, "tools/list": 3_600_000}
-_CAPABILITIES = {"tools": {}}
+_LIST_TTL_MS = 3_600_000
+#: ``ttlMs`` of the cacheable results (the revision's six cacheable methods). The lists are
+#: fixed once the server runs; a resource's text is rebuilt on every read from the commands
+#: registered then, so a client keeps it for five minutes only.
+_CACHE_TTL_MS = {
+    DISCOVER_METHOD: _LIST_TTL_MS,
+    "tools/list": _LIST_TTL_MS,
+    "resources/list": _LIST_TTL_MS,
+    "resources/templates/list": _LIST_TTL_MS,
+    "prompts/list": _LIST_TTL_MS,
+    "resources/read": 300_000,
+}
+_CAPABILITIES: dict[str, Any] = {"tools": {}}
 
 
 def all_supported_versions() -> list[str]:
@@ -56,11 +67,14 @@ def stateless_version(params: dict[str, Any]) -> str | None:
     return version
 
 
-def discover_result(instructions: str) -> dict[str, Any]:
-    """The body of a ``server/discover`` result, before :func:`shape_result`."""
+def discover_result(instructions: str, capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    The body of a ``server/discover`` result, before :func:`shape_result`. ``capabilities``
+    is what the server offers; left out, tools only.
+    """
     return {
         "supportedVersions": all_supported_versions(),
-        "capabilities": _CAPABILITIES,
+        "capabilities": _CAPABILITIES if capabilities is None else capabilities,
         "instructions": instructions,
     }
 

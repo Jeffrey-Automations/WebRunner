@@ -158,7 +158,7 @@ def _async_only(name: str, command: Callable[..., Any]) -> Callable[..., Any]:
             f"{name} runs only in the async executor: python -m je_web_runner -d DIR --parallel-mode async, "
             "or je_web_runner.utils.async_executor.AsyncExecutor")
     parameters = list(inspect.signature(command).parameters.values())[1:]  # the executor passes the session
-    refuse.__signature__ = inspect.signature(command).replace(parameters=parameters)
+    setattr(refuse, "__signature__", inspect.signature(command).replace(parameters=parameters))
     refuse.__doc__ = f"{(command.__doc__ or '').strip()}\n\nAsync executor only (``--parallel-mode async``)."
     refuse.__name__ = command.__name__
     return refuse
@@ -253,8 +253,9 @@ COMMANDS: dict[str, Any] = {
         "WR_save_cookies": webdriver_wrapper_instance.save_cookies,
         "WR_load_cookies": webdriver_wrapper_instance.load_cookies,
         "WR_clear_origin_storage": webdriver_wrapper_instance.clear_origin_storage,
-        "WR_add_script_to_evaluate_on_new_document":
-            webdriver_wrapper_instance.add_script_to_evaluate_on_new_document,
+        "WR_add_script_to_evaluate_on_new_document": (
+            webdriver_wrapper_instance.add_script_to_evaluate_on_new_document
+        ),
         "WR_set_user_agent": webdriver_wrapper_instance.set_user_agent,
         "WR_set_extra_http_headers": webdriver_wrapper_instance.set_extra_http_headers,
         "WR_set_geolocation": webdriver_wrapper_instance.set_geolocation,
@@ -624,8 +625,8 @@ COMMANDS: dict[str, Any] = {
         "WR_recorder_start": lambda: _recorder_start(webdriver_wrapper_instance),
         "WR_recorder_stop": lambda: _recorder_stop(webdriver_wrapper_instance),
         "WR_recorder_pull_events": lambda: _recorder_pull_events(webdriver_wrapper_instance),
-        "WR_recorder_save": lambda output_path, raw_events_path=None: _recorder_save_recording(
-            webdriver_wrapper_instance, output_path, raw_events_path
+        "WR_recorder_save": lambda output_path, raw_events_path=None, backend="selenium": (
+            _recorder_save_recording(webdriver_wrapper_instance, output_path, raw_events_path, backend)
         ),
 
         **PLAYWRIGHT_COMMANDS,
