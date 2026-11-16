@@ -1,7 +1,14 @@
 """
 產生 JUnit 格式 XML 測試報告，便於 GitHub Actions / Jenkins 等 CI 系統消費。
 Generate JUnit-format XML test reports for CI consumption (GitHub Actions, Jenkins, etc.).
+
+Records made while an action file was running (their ``file`` key) form one ``<testsuite>`` per file,
+named after the file, with times taken from the records' timestamps: a step's time is the time since
+the step before it in the same file, a suite's time its last timestamp minus its first. Records made
+outside any file stay in one suite called ``webrunner`` with time 0, as before.
 """
+import os
+from datetime import datetime
 from threading import Lock
 # Element/SubElement/tostring are XML builders, not parsers; defusedxml does not provide builders.
 from xml.etree.ElementTree import Element, SubElement, tostring  # nosec B405 # nosemgrep: use-defused-xml
@@ -22,7 +29,41 @@ def _record_is_failure(record: dict) -> bool:
     return record.get("program_exception", _NO_EXCEPTION_MARKER) != _NO_EXCEPTION_MARKER
 
 
-def _build_testcase(suite: Element, record: dict, index: int) -> None:
+def _timestamp(record: dict) -> datetime | None:
+    """When the record was made, or None when its ``time`` cannot be read."""
+    try:
+        return datetime.fromisoformat(str(record.get("time")))
+    except ValueError:
+        return None
+
+
+def _seconds_between(earlier: dict | None, later: dict) -> str:
+    """Seconds from ``earlier`` to ``later`` as JUnit text; ``0`` when either time is unknown."""
+    start = _timestamp(earlier) if earlier is not None else None
+    end = _timestamp(later)
+    if start is None or end is None:
+        return "0"
+    return f"{max((end - start).total_seconds(), 0.0):.3f}"
+
+
+def _suite_name(file_path: str) -> str:
+    """The file relative to the working directory when it is below it, else as recorded."""
+    try:
+        relative = os.path.relpath(file_path)
+    except ValueError:  # another drive on Windows
+        return file_path
+    return file_path if relative.startswith("..") else relative.replace(os.sep, "/")
+
+
+def _records_by_file(records: list) -> dict:
+    """``{file or None: [records]}`` in the order each file first appears."""
+    groups: dict = {}
+    for record in records:
+        groups.setdefault(record.get("file"), []).append(record)
+    return groups
+
+
+def _build_testcase(suite: Element, record: dict, index: int, seconds: str = "0") -> None:
     """Append a single <testcase> child to the given <testsuite>."""
     function_name = str(record.get("function_name", "unknown"))
     testcase = SubElement(
@@ -31,7 +72,7 @@ def _build_testcase(suite: Element, record: dict, index: int) -> None:
         {
             "name": f"{function_name}_{index}",
             "classname": f"webrunner.{function_name}",
-            "time": "0",
+            "time": seconds,
         },
     )
     if _record_is_failure(record):
@@ -73,11 +114,34 @@ def generate_junit_xml() -> str:
         "errors": "0",
         "time": "0",
     }
-    suites = Element("testsuites", attrs)
-    suite = SubElement(suites, "testsuite", attrs)
-    for index, record in enumerate(records, start=1):
-        _build_testcase(suite, record, index)
+    groups = _records_by_file(records)
+    if list(groups) == [None]:
+        suites = Element("testsuites", attrs)
+        suite = SubElement(suites, "testsuite", attrs)
+        for index, record in enumerate(records, start=1):
+            _build_testcase(suite, record, index)
+        return str(tostring(suites, encoding="utf-8"), encoding="utf-8")
 
+    suites = Element("testsuites", attrs)
+    total_seconds = 0.0
+    for file_path, group in groups.items():
+        suite_seconds = _seconds_between(group[0], group[-1]) if file_path is not None else "0"
+        total_seconds += float(suite_seconds)
+        suite = SubElement(suites, "testsuite", {
+            "name": "webrunner" if file_path is None else _suite_name(file_path),
+            "tests": str(len(group)),
+            "failures": str(sum(1 for record in group if _record_is_failure(record))),
+            "errors": "0",
+            "time": suite_seconds,
+        })
+        if file_path is not None:
+            suite.set("file", file_path)
+        previous = None
+        for index, record in enumerate(group, start=1):
+            timed = file_path is not None and previous is not None
+            _build_testcase(suite, record, index, _seconds_between(previous, record) if timed else "0")
+            previous = record
+    suites.set("time", f"{total_seconds:.3f}")
     return str(tostring(suites, encoding="utf-8"), encoding="utf-8")
 
 

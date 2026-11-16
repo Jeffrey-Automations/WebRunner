@@ -72,6 +72,24 @@ def track_records() -> Iterator[list[dict]]:
         _tracked().pop()
 
 
+@contextlib.contextmanager
+def record_file(path: str) -> Iterator[None]:
+    """
+    標記區塊內的紀錄屬於哪個動作檔
+    Mark the records this thread adds during the ``with`` block as belonging to the action file
+    ``path`` (their ``file`` key), so a report can group them. A block inside another keeps the
+    outer file: the file a run started from, not one it called.
+    """
+    outermost = getattr(_tracking, "file", None) is None
+    if outermost:
+        _tracking.file = path
+    try:
+        yield
+    finally:
+        if outermost:
+            _tracking.file = None
+
+
 def mark_handled(records: list[dict]) -> int:
     """
     把已被處理的失敗標成非失敗
@@ -115,6 +133,9 @@ def record_action_to_list(function_name: str,
         "time": str(datetime.datetime.now()),
         "program_exception": describe_error(program_exception)
     }
+    running_file = getattr(_tracking, "file", None)
+    if running_file is not None:
+        record["file"] = running_file
     test_record_instance.test_record_list.append(record)
     for scope in _tracked():
         scope.append(record)

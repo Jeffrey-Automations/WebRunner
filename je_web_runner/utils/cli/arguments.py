@@ -103,6 +103,17 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         help="after execution, generate JSON / HTML / XML / JUnit reports with this base name",
     )
+    parser.add_argument(
+        "--report-format", type=str, default=None, dest="report_format", metavar="LIST",
+        help="comma-separated reports for --report: json, html, xml, junit (these four by default), "
+             "allure (into BASE_allure/), interactive (BASE_interactive.html)",
+    )
+    parser.add_argument(
+        "--merge-reports", type=str, nargs="+", default=None, dest="merge_reports",
+        metavar=("OUT", "BASE"),
+        help="merge the JSON and JUnit reports of the BASE names (as given to --report, e.g. one per "
+             "shard) into OUT",
+    )
 
 
 def _add_dir_args(parser: argparse.ArgumentParser) -> None:

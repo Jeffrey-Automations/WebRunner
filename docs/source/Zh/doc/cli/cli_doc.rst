@@ -138,6 +138,18 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
 所以這個旗標會在執行前開啟紀錄，``--parallel-mode process`` 的工作行程也一樣；
 動作檔不需要自己呼叫 ``WR_set_record_enable``。
 
+``--report-format LIST`` 選擇要寫出哪些報告：``json``、``html``、``xml``、``junit``\ （沒有
+這個旗標時就是這四種）、``allure``\ （結果檔寫在 ``BASE_allure/``）與 ``interactive``
+（``BASE_interactive.html``）。
+
+JUnit 報告中每個動作檔是一個 ``<testsuite>``，以檔案命名。步驟的 ``time`` 是距離同一檔案
+前一個步驟的時間，suite 的 ``time`` 是最後一步減第一步，兩者都取自紀錄的時間戳。在任何檔案
+之外記錄的步驟（``--execute_str``）歸在名為 ``webrunner``、時間為 0 的 suite。
+
+``--merge-reports OUT BASE [BASE ...]`` 把指定基底名稱（例如每個 ``--shard`` 一個）的
+``_success.json``、``_failure.json`` 與 ``_junit.xml`` 合併成 ``OUT`` 底下同樣的三個檔案。
+JSON 條目依輸入順序重新編號；重複的 JUnit suite 名稱會加上該輸入的名稱。
+
 在 TestPioneer 之下執行
 -----------------------
 

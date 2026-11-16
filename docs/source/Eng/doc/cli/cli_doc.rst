@@ -164,6 +164,20 @@ Reports
 test records, so the flag turns recording on before anything runs, in the workers of
 ``--parallel-mode process`` too; an action file does not need ``WR_set_record_enable``.
 
+``--report-format LIST`` chooses which reports are written: ``json``, ``html``, ``xml``,
+``junit`` (these four when the flag is absent), ``allure`` (result files in
+``BASE_allure/``) and ``interactive`` (``BASE_interactive.html``).
+
+The JUnit report has one ``<testsuite>`` per action file, named after the file. A step's
+``time`` is the time since the step before it in the same file and a suite's ``time`` its
+last step minus its first, both from the records' timestamps. Steps recorded outside any
+file (``--execute_str``) are one suite called ``webrunner`` with time 0.
+
+``--merge-reports OUT BASE [BASE ...]`` merges the ``_success.json``, ``_failure.json`` and
+``_junit.xml`` reports of the given base names, for example one per ``--shard``, into the
+same three files under ``OUT``. JSON entries are renumbered in input order; a JUnit suite
+name that repeats gets the input's name appended.
+
 Running Under TestPioneer
 -------------------------
 

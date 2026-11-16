@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from je_web_runner.utils.flow.variables import FlowError
+from je_web_runner.utils.test_record.test_record_class import record_file
 
 MAX_CALL_DEPTH = 20
 
@@ -43,7 +44,8 @@ class FileStack:
         resolved = Path(path).resolve()
         self._stack.append(resolved)
         try:
-            yield resolved
+            with record_file(str(resolved)):  # the reports group the records by this file
+                yield resolved
         finally:
             self._stack.pop()
 

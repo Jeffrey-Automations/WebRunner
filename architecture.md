@@ -84,7 +84,7 @@ A failing action is logged and recorded (with an optional auto-screenshot path),
 python -m je_web_runner -d DIR [--tag/--exclude-tag] [--rerun-failed LEDGER] [--shard I/N]
   → cli_main._select_files → dependency graph (meta.depends_on) → sequential | thread pool | process pool
   → flow A per file → utils/run_ledger/ledger.record_run (optional)
-  → --report: JSON + HTML + XML + JUnit reports built from test_record_instance
+  → --report: JSON + HTML + XML + JUnit reports built from test_record_instance (--report-format picks among them, allure and interactive); each record carries the action file it was made in, so JUnit has one suite per file; --merge-reports joins the reports of several runs
 ```
 
 **C. External drivers** (TCP `socket_server`, MCP `browser_tools`, AutoControlGUI bridge, TestPioneer) all call

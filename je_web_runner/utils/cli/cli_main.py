@@ -356,7 +356,23 @@ def _run_dir(
         run_batch(files)
 
 
-def _generate_reports(base_name: str) -> None:
+_DEFAULT_REPORT_FORMATS = ("json", "html", "xml", "junit")
+_REPORT_FORMATS = (*_DEFAULT_REPORT_FORMATS, "allure", "interactive")
+
+
+def _report_formats(spec: str | None) -> Sequence[str]:
+    """The report formats ``--report-format`` names, in the order the CLI writes them."""
+    chosen = _split_csv(spec)
+    if not chosen:
+        return _DEFAULT_REPORT_FORMATS
+    unknown = sorted(set(chosen) - set(_REPORT_FORMATS))
+    if unknown:
+        raise WebRunnerExecuteException(
+            f"--report-format: unknown format(s) {', '.join(unknown)}; known: {', '.join(_REPORT_FORMATS)}")
+    return [name for name in _REPORT_FORMATS if name in chosen]
+
+
+def _generate_reports(base_name: str, formats: Sequence[str] = _DEFAULT_REPORT_FORMATS) -> None:
     # Imported lazily so the CLI does not pay the cost (or initialize globals)
     # for users who never request a report.
     from je_web_runner.utils.generate_report.generate_html_report import generate_html_report
@@ -364,10 +380,31 @@ def _generate_reports(base_name: str) -> None:
     from je_web_runner.utils.generate_report.generate_junit_xml_report import generate_junit_xml_report
     from je_web_runner.utils.generate_report.generate_xml_report import generate_xml_report
 
-    generate_json_report(base_name)
-    generate_html_report(base_name)
-    generate_xml_report(base_name)
-    generate_junit_xml_report(base_name)
+    if "json" in formats:
+        generate_json_report(base_name)
+    if "html" in formats:
+        generate_html_report(base_name)
+    if "xml" in formats:
+        generate_xml_report(base_name)
+    if "junit" in formats:
+        generate_junit_xml_report(base_name)
+    if "allure" in formats:
+        from je_web_runner.utils.generate_report.generate_allure_report import generate_allure_report
+        generate_allure_report(base_name + "_allure")
+    if "interactive" in formats:
+        from je_web_runner.utils.generate_report.interactive_html_report import (
+            generate_interactive_html_report,
+        )
+        generate_interactive_html_report(base_name + "_interactive")
+
+
+def _merge_reports(names: Sequence[str]) -> None:
+    """``--merge-reports OUT BASE...``: merge the reports of the BASE names into OUT."""
+    from je_web_runner.utils.generate_report.report_merge import merge_reports
+    if len(names) < 2:
+        raise WebRunnerExecuteException("--merge-reports takes OUT and at least one BASE")
+    for path in merge_reports(names[0], list(names[1:])):
+        print(f"merged: {path}")
 
 
 def _validate_dir(directory: str, include_tags=None, exclude_tags=None) -> None:
@@ -400,7 +437,9 @@ def _dispatch(args: argparse.Namespace) -> None:
     if args.execute_str:
         execute_action(_parse_execute_str(args.execute_str))
     if args.report:
-        _generate_reports(args.report)
+        _generate_reports(args.report, _report_formats(args.report_format))
+    if args.merge_reports:
+        _merge_reports(args.merge_reports)
     if args.migrate:
         _do_migrate(args.migrate, dry_run=args.migrate_dry_run)
 
@@ -450,6 +489,7 @@ def _has_any_action(args: argparse.Namespace) -> bool:
         args.validate_dir,
         args.report,
         args.migrate,
+        args.merge_reports,
         *(getattr(args, flag) for flag in _TOOL_FLAGS),
     ])
 
