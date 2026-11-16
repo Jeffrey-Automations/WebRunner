@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.socket_server.background_server import BackgroundServer
 
 
 class MockServiceError(WebRunnerException):
@@ -102,7 +103,7 @@ def _handle_data_line(handler: Any, server: Any, state: dict[str, Any], decoded:
         state["lines"].append(decoded)
 
 
-class MockSmtpServer:
+class MockSmtpServer(BackgroundServer):
     """Capture-only SMTP server. Bind to ``127.0.0.1`` and call :meth:`start`."""
 
     def __init__(self, host: str = "127.0.0.1", port: int = 0) -> None:
@@ -121,20 +122,8 @@ class MockSmtpServer:
             raise MockServiceError("SMTP server already started")
         srv = socketserver.TCPServer((self.host, self.port), _SmtpHandler)
         srv.captured = self.captured  # type: ignore[attr-defined]
-        thread = threading.Thread(target=srv.serve_forever, daemon=True)
-        thread.start()
-        self._server = srv
-        self._thread = thread
-        self.port = srv.server_address[1]
+        self._serve_in_background(srv)
         return self.port
-
-    def stop(self) -> None:
-        """Shut the server down and release its socket; a no-op when it is not running."""
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-            self._thread = None
 
 
 # ----- OAuth token issuer ----------------------------------------------------
@@ -174,7 +163,7 @@ def _make_oauth_handler(server_state: dict[str, Any]) -> Callable:
     return _OAuthRequestHandler
 
 
-class MockOAuthServer:
+class MockOAuthServer(BackgroundServer):
     """Issues a fake bearer token from ``POST /token``."""
 
     def __init__(self, host: str = "127.0.0.1", port: int = 0) -> None:
@@ -194,17 +183,5 @@ class MockOAuthServer:
             raise MockServiceError("OAuth server already started")
         handler = _make_oauth_handler(self._state)
         srv = HTTPServer((self.host, self.port), handler)
-        thread = threading.Thread(target=srv.serve_forever, daemon=True)
-        thread.start()
-        self._server = srv
-        self._thread = thread
-        self.port = srv.server_address[1]
+        self._serve_in_background(srv)
         return f"http://{self.host}:{self.port}"  # NOSONAR — local mock
-
-    def stop(self) -> None:
-        """Shut the server down and release its socket; a no-op when it is not running."""
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-            self._thread = None

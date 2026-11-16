@@ -6,12 +6,12 @@ GTM、Facebook Pixel、Hotjar、Intercom、Stripe、Cloudflare RUM…… 它們�
 """
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Sequence
 from urllib.parse import urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.har_diff.har_input import coerce_har
 
 
 class ThirdPartyBudgetError(WebRunnerException):
@@ -122,7 +122,7 @@ def classify_har(
     """Return one :class:`ThirdPartyRequest` per non-first-party HAR entry."""
     if not isinstance(first_party_hostname, str) or not first_party_hostname:
         raise ThirdPartyBudgetError("first_party_hostname must be non-empty")
-    har_obj = _coerce_har(har)
+    har_obj = coerce_har(har, ThirdPartyBudgetError, "classify_har")
     entries = ((har_obj.get("log") or {}).get("entries")) or []
     if not isinstance(entries, list):
         raise ThirdPartyBudgetError("har log.entries must be a list")
@@ -138,22 +138,6 @@ def classify_har(
 
 def _is_first_party(hostname: str, first_party: str) -> bool:
     return hostname == first_party or hostname.endswith("." + first_party)
-
-
-def _coerce_har(har: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(har, str):
-        try:
-            parsed = json.loads(har)
-        except ValueError as error:
-            raise ThirdPartyBudgetError(f"har not JSON: {error}") from error
-        if not isinstance(parsed, dict):
-            raise ThirdPartyBudgetError("har JSON must be an object")
-        return parsed
-    if isinstance(har, dict):
-        return har
-    raise ThirdPartyBudgetError(
-        f"classify_har expects str/dict, got {type(har).__name__}"
-    )
 
 
 # ---------- budgets ----------------------------------------------------

@@ -8,11 +8,11 @@ from __future__ import annotations
 import html as _html
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.trend_dashboard.trend import bucket_label, render_page
 
 
 class A11yTrendError(WebRunnerException):
@@ -29,15 +29,6 @@ class A11yTrendPoint:
     def total(self) -> int:
         """Sum of the violation counts over every impact level."""
         return sum(self.impacts.values())
-
-
-def _bucket_label(timestamp: Any) -> str:
-    if not isinstance(timestamp, str):
-        return "unknown"
-    try:
-        return datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
-    except ValueError:
-        return timestamp[:10] if len(timestamp) >= 10 else "unknown"
 
 
 def aggregate_history(history: Iterable[dict[str, Any]]) -> list[A11yTrendPoint]:
@@ -57,7 +48,7 @@ def aggregate_history(history: Iterable[dict[str, Any]]) -> list[A11yTrendPoint]
 def _absorb_entry(buckets: dict[str, A11yTrendPoint], index: int, entry: Any) -> None:
     if not isinstance(entry, dict):
         raise A11yTrendError(f"history[{index}] must be an object")
-    label = _bucket_label(entry.get("timestamp"))
+    label = bucket_label(entry.get("timestamp"))
     violations = entry.get("violations") or []
     if not isinstance(violations, list):
         raise A11yTrendError(f"history[{index}].violations must be a list")
@@ -85,23 +76,12 @@ def render_html(points: list[A11yTrendPoint], title: str = "A11y trend") -> str:
         )
         rows.append(f"<tr><td>{_html.escape(point.label)}</td>{cells}<td>{point.total}</td></tr>")
     headers = "".join(f"<th>{_html.escape(key)}</th>" for key in impact_keys)
-    return f"""
-    <html><head><meta charset='utf-8'><title>{_html.escape(title)}</title>
-    <style>
-      body{{font-family:-apple-system,Segoe UI,sans-serif;max-width:920px;margin:2rem auto;}}
-      table{{border-collapse:collapse;width:100%;margin-top:1rem;}}
-      th,td{{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;}}
-      th{{background:#f4f4f4;}}
-    </style></head>
-    <body>
-      <h1>{_html.escape(title)}</h1>
-      {_render_svg(points)}
-      <table>
-        <thead><tr><th>Date</th>{headers}<th>Total</th></tr></thead>
-        <tbody>{''.join(rows) or '<tr><td colspan="999"><em>No data</em></td></tr>'}</tbody>
-      </table>
-    </body></html>
-    """
+    return render_page(
+        title,
+        _render_svg(points),
+        f"<tr><th>Date</th>{headers}<th>Total</th></tr>",
+        "".join(rows) or '<tr><td colspan="999"><em>No data</em></td></tr>',
+    )
 
 
 def _render_svg(points: list[A11yTrendPoint]) -> str:

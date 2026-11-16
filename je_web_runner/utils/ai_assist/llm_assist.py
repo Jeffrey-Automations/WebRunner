@@ -116,6 +116,28 @@ def _extract_json_array(text: str) -> Any:
         raise LLMAssistError(f"LLM JSON array did not parse: {error}") from error
 
 
+def coerce_confidence(value: Any) -> float:
+    """A confidence an LLM returned, as a float clamped to ``[0, 1]``; 0 when it is not a number."""
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if score < 0.0:
+        return 0.0
+    if score > 1.0:
+        return 1.0
+    return score
+
+
+def coerce_str_list(value: Any) -> list[str]:
+    """A list of strings an LLM returned: a list is stringified item by item, a lone string is wrapped."""
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        return [value]
+    return []
+
+
 # ----- self-healing locator hook ------------------------------------------
 
 def llm_self_heal_locator(name: str, html_provider: Callable[[], str]) -> dict[str, str]:

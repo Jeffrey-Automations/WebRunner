@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import Any, Iterable
 from urllib.parse import quote
 
-from requests.auth import HTTPBasicAuth  # type: ignore[import-untyped]
+from requests.auth import HTTPBasicAuth
 from je_web_runner.utils.agent.runner import Redactor
 
 from je_web_runner.utils.issue_worker.http import PlatformClient

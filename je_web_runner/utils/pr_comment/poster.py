@@ -94,11 +94,13 @@ def _request(
             body = response.read().decode("utf-8")
     except (OSError, ValueError) as error:
         raise PrCommentError(f"GitHub call failed: {error!r}") from error
+    # pylint: disable=duplicate-code  # same shape as other JSON readers, but this module's own error and message
     if not body:
         return None
     try:
         return json.loads(body)
     except ValueError as error:
+        # pylint: enable=duplicate-code
         raise PrCommentError(f"GitHub returned non-JSON: {error}") from error
 
 

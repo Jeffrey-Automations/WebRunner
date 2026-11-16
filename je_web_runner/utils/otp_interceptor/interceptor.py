@@ -30,6 +30,7 @@ from typing import Any, Callable, Pattern
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
+from je_web_runner.utils.run_ledger.timestamps import parse_iso_utc
 
 
 class OtpInterceptError(WebRunnerException):
@@ -88,11 +89,13 @@ def _http_get_json(url: str, timeout: float = 10.0) -> Any:
             body = response.read().decode("utf-8")
     except (OSError, ValueError) as error:
         raise OtpInterceptError(f"HTTP GET failed for {url}: {error!r}") from error
+    # pylint: disable=duplicate-code  # same shape as other JSON readers, but this module's own error and message
     if not body:
         return None
     try:
         return json.loads(body)
     except ValueError as error:
+        # pylint: enable=duplicate-code
         raise OtpInterceptError(f"non-JSON response from {url}: {error}") from error
 
 
@@ -409,16 +412,8 @@ def _parse_time(value: Any) -> float:
         return float(value)
     if isinstance(value, str) and value:
         # ISO-8601: 2026-05-24T10:00:00Z or 2026-05-24T10:00:00.000Z
-        from datetime import datetime, timezone
-
-        text = value
-        if text.endswith("Z"):
-            text = text[:-1] + "+00:00"
         try:
-            dt = datetime.fromisoformat(text)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.timestamp()
+            return parse_iso_utc(value).timestamp()
         except ValueError:
             return time.time()
     return time.time()

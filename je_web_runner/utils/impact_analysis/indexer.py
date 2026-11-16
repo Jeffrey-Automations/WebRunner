@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.flow.structure import trailing_keyword_arguments
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
@@ -126,7 +127,7 @@ _KIND_OF_KEY = {"test_object_name": "locators", "element_name": "locators", "url
 
 def _collect(names: dict[str, set[str]], action: list[Any]) -> None:
     names["commands"].add(str(action[0]))
-    for key, value in _extract_kwargs(action).items():
+    for key, value in trailing_keyword_arguments(action).items():
         kind = _KIND_OF_KEY.get(key)
         if kind is not None and isinstance(value, str):
             names[kind].add(value)
@@ -160,14 +161,6 @@ def _save_cache(cache_path: str | Path, base: Path, glob: str, entries: dict[str
     target = Path(cache_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-
-
-def _extract_kwargs(action: list[Any]) -> dict[str, Any]:
-    if len(action) >= 3 and isinstance(action[2], dict):
-        return action[2]
-    if len(action) >= 2 and isinstance(action[1], dict):
-        return action[1]
-    return {}
 
 
 def affected_action_files(

@@ -14,13 +14,13 @@ prevents isolation, with actionable detail rather than just yes/no.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.har_diff.har_input import coerce_har
 
 
 class CoopCoepAuditError(WebRunnerException):
@@ -192,7 +192,7 @@ def scan_har_resources(
         return []
     if not isinstance(page_url, str) or not page_url:
         raise CoopCoepAuditError("page_url must be non-empty string")
-    har_obj = _coerce_har(har)
+    har_obj = coerce_har(har, CoopCoepAuditError, "scan_har_resources")
     entries = ((har_obj.get("log") or {}).get("entries")) or []
     if not isinstance(entries, list):
         raise CoopCoepAuditError("har log.entries must be a list")
@@ -202,22 +202,6 @@ def scan_har_resources(
         )
         if finding is not None
     ]
-
-
-def _coerce_har(har: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(har, str):
-        try:
-            parsed = json.loads(har)
-        except ValueError as error:
-            raise CoopCoepAuditError(f"har not JSON: {error}") from error
-        if not isinstance(parsed, dict):
-            raise CoopCoepAuditError("har JSON must be an object")
-        return parsed
-    if isinstance(har, dict):
-        return har
-    raise CoopCoepAuditError(
-        f"scan_har_resources expects str/dict, got {type(har).__name__}"
-    )
 
 
 # ---------- combined audit --------------------------------------------

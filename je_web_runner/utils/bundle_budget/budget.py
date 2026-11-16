@@ -5,13 +5,13 @@ inside any E2E framework (Selenium / Playwright / WebDriver BiDi).
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Sequence
 from urllib.parse import urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.har_diff.har_input import coerce_har
 
 
 class BundleBudgetError(WebRunnerException):
@@ -105,7 +105,7 @@ def _sizes(entry: dict[str, Any]) -> tuple[int, int]:
 
 def assets_from_har(har: str | dict[str, Any]) -> list[Asset]:
     """Reduce a HAR object to a flat list of :class:`Asset`."""
-    har_obj = _coerce_har(har)
+    har_obj = coerce_har(har, BundleBudgetError, "assets_from_har")
     entries = ((har_obj.get("log") or {}).get("entries")) or []
     if not isinstance(entries, list):
         raise BundleBudgetError("har log.entries must be a list")
@@ -124,22 +124,6 @@ def assets_from_har(har: str | dict[str, Any]) -> list[Asset]:
             content_bytes=body,
         ))
     return out
-
-
-def _coerce_har(har: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(har, str):
-        try:
-            parsed = json.loads(har)
-        except ValueError as error:
-            raise BundleBudgetError(f"har not JSON: {error}") from error
-        if not isinstance(parsed, dict):
-            raise BundleBudgetError("har JSON must be an object")
-        return parsed
-    if isinstance(har, dict):
-        return har
-    raise BundleBudgetError(
-        f"assets_from_har expects str/dict, got {type(har).__name__}"
-    )
 
 
 # ---------- budget ------------------------------------------------------

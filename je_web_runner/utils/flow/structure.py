@@ -43,6 +43,19 @@ def keyword_arguments(action: Any) -> dict[str, Any]:
     return {}
 
 
+def trailing_keyword_arguments(action: list[Any]) -> dict[str, Any]:
+    """
+    The keyword arguments of the list ``action``, as the read-only tools take them: the third slot when it
+    is a dict, else the second, else empty. Unlike :func:`keyword_arguments`, the third slot wins when both
+    are dicts.
+    """
+    if len(action) >= 3 and isinstance(action[2], dict):
+        return action[2]
+    if len(action) >= 2 and isinstance(action[1], dict):
+        return action[1]
+    return {}
+
+
 def _condition_actions(condition: Any, location: str) -> Iterator[tuple[str, Any]]:
     """``(location, action)`` for every ``succeeds`` action inside a condition tree."""
     if not isinstance(condition, dict):

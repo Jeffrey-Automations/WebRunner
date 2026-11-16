@@ -126,6 +126,7 @@ def parse_log(payload: Any) -> StreamingReport:
     return StreamingReport(boundaries=out)
 
 
+# pylint: disable=duplicate-code  # a six-line coercion; view_transitions has its own and the two modules are unrelated
 def _to_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -133,6 +134,7 @@ def _to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+# pylint: enable=duplicate-code
 
 
 # ---------- assertions --------------------------------------------------

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger

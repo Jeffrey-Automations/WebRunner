@@ -98,7 +98,7 @@ def load_spec(spec_path: str | Path) -> dict[str, Any]:
     except ValueError:
         pass
     try:
-        import yaml  # type: ignore[import-not-found,import-untyped]
+        import yaml  # type: ignore[import-not-found]
     except ImportError as error:
         raise OpenAPIGeneratorError(
             f"YAML spec but PyYAML not installed: pip install pyyaml ({path})"

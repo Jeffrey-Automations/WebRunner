@@ -20,12 +20,14 @@ class MemoryPressureError(WebRunnerException):
     """Raised on bad config or CDP integration failure."""
 
 
+# pylint: disable=duplicate-code  # not the Compute Pressure API's scale, though it shares its four names
 class PressureLevel(str, Enum):
     """Memory pressure levels, from ``nominal`` to ``critical``."""
     NOMINAL = "nominal"
     FAIR = "fair"
     SERIOUS = "serious"
     CRITICAL = "critical"
+# pylint: enable=duplicate-code
 
 
 # ---------- emulation profile ------------------------------------------

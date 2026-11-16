@@ -55,6 +55,7 @@ from je_web_runner.utils.flow.failfast import SKIPPED_TEXT, FailFast
 from je_web_runner.utils.flow.subflow import FileStack
 from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
+from je_web_runner.utils.linter.script_commands import ARBITRARY_SCRIPT_COMMANDS
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.package_manager.package_manager_class import package_manager
 from je_web_runner.utils.test_record.test_record_class import mark_handled, track_records
@@ -82,16 +83,7 @@ _NAME_ARGS_AND_KWARGS = 3
 # WR_* commands that hand a JS string straight to the browser. When action
 # JSON comes from an untrusted source the operator should be able to disable
 # them; ``set_allow_arbitrary_script(False)`` flips the gate.
-_ARBITRARY_SCRIPT_COMMANDS = frozenset({
-    "WR_execute_script",
-    "WR_execute_async_script",
-    "WR_pw_evaluate",
-    "WR_cdp",
-    "WR_pw_cdp",
-    "WR_execute_cdp_cmd",
-    "WR_add_script_to_evaluate_on_new_document",
-    "WR_pw_add_init_script",
-})
+_ARBITRARY_SCRIPT_COMMANDS = ARBITRARY_SCRIPT_COMMANDS
 
 
 # What an action that never ran is recorded with; it has no failure to capture artifacts of.

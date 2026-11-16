@@ -151,7 +151,7 @@ def _log_from_dict(record: dict[str, Any]) -> CorrelatedLog:
 
 def _require_requests() -> Any:
     try:
-        import requests  # type: ignore[import-not-found,import-untyped]
+        import requests  # type: ignore[import-not-found]
         return requests
     except ImportError as error:
         raise BackendLogCorrelatorError(

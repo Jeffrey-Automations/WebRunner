@@ -11,7 +11,7 @@ from pathlib import Path
 # Element/SubElement/tostring build XML; parsing goes through defusedxml.
 from xml.etree.ElementTree import Element, tostring  # nosec B405 # nosemgrep: use-defused-xml
 
-from defusedxml.ElementTree import parse as parse_xml  # type: ignore[import-untyped]
+from defusedxml.ElementTree import parse as parse_xml
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.generate_report.report_path import report_path
@@ -58,6 +58,8 @@ def _suites_of(path: Path) -> list[Element]:
         root = parse_xml(str(path)).getroot()
     except Exception as error:  # defusedxml raises its own types as well as ParseError and OSError
         raise ReportMergeError(f"cannot read report {path}: {error}") from error
+    if root is None:
+        raise ReportMergeError(f"cannot read report {path}: it has no root element")
     return [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
 
 

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.run_ledger.timestamps import parse_iso_utc
 
 
 class QuarantineAgeReportError(WebRunnerException):
@@ -69,16 +70,10 @@ class AgeReport:
 def _parse_iso(value: str) -> datetime:
     if not isinstance(value, str) or not value:
         raise QuarantineAgeReportError("timestamp must be a non-empty string")
-    text = value.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
     try:
-        dt = datetime.fromisoformat(text)
+        return parse_iso_utc(value.strip())
     except ValueError as error:
         raise QuarantineAgeReportError(f"bad timestamp {value!r}: {error}") from error
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
 
 
 def _tier_for(age_days: float) -> EscalationTier:

@@ -22,7 +22,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
 
-from je_web_runner.utils.ai_assist.llm_assist import LLMAssistError, _invoke
+from je_web_runner.utils.ai_assist.llm_assist import (
+    LLMAssistError,
+    _invoke,
+    coerce_confidence,
+    coerce_str_list,
+)
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.failure_bundle.bundle import extract_bundle
 from je_web_runner.utils.failure_cluster.clustering import normalise_error
@@ -191,26 +196,6 @@ def _parse_triage_payload(text: str) -> dict[str, Any]:
     return payload
 
 
-def _coerce_str_list(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [str(item) for item in value]
-    if isinstance(value, str):
-        return [value]
-    return []
-
-
-def _coerce_confidence(value: Any) -> float:
-    try:
-        score = float(value)
-    except (TypeError, ValueError):
-        return 0.0
-    if score < 0.0:
-        return 0.0
-    if score > 1.0:
-        return 1.0
-    return score
-
-
 def _coerce_category(value: Any) -> str:
     text = str(value or "").strip().lower()
     return text if text in _ALLOWED_CATEGORIES else "unknown"
@@ -244,10 +229,10 @@ def triage_failure(signals: TriageSignals) -> TriageReport:
     report = TriageReport(
         likely_cause=str(payload.get("likely_cause") or "").strip(),
         category=_coerce_category(payload.get("category")),
-        evidence=_coerce_str_list(payload.get("evidence")),
-        next_steps=_coerce_str_list(payload.get("next_steps")),
+        evidence=coerce_str_list(payload.get("evidence")),
+        next_steps=coerce_str_list(payload.get("next_steps")),
         suggested_fix=str(payload.get("suggested_fix") or "").strip(),
-        confidence=_coerce_confidence(payload.get("confidence")),
+        confidence=coerce_confidence(payload.get("confidence")),
         test_name=signals.test_name,
         error_signature=signals.error_signature,
     )
@@ -305,9 +290,11 @@ def render_markdown(report: TriageReport, *, heading_level: int = 2) -> str:
 
 def save_report(report: TriageReport, output_path: str | Path) -> Path:
     """Persist a report as JSON next to its bundle for later inspection."""
+    # pylint: disable=duplicate-code  # four lines writing a report as JSON; locator_health writes its own type
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fp:
         json.dump(report.to_dict(), fp, ensure_ascii=False, indent=2)
+    # pylint: enable=duplicate-code
     web_runner_logger.info(f"save_report: wrote {path}")
     return path

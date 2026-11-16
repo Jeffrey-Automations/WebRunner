@@ -28,6 +28,7 @@ from typing import Any, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
+from je_web_runner.utils.run_ledger.timestamps import parse_iso_utc
 
 
 class TestSchedulerError(WebRunnerException):
@@ -331,16 +332,8 @@ def build_candidates_from_ledger(  # NOSONAR S3776 — cohesive logic; planned r
 def _parse_iso_epoch(value: Any) -> float:
     if not isinstance(value, str) or not value:
         return 0.0
-    from datetime import datetime, timezone
-
-    text = value
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
     try:
-        dt = datetime.fromisoformat(text)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.timestamp()
+        return parse_iso_utc(value).timestamp()
     except ValueError:
         return 0.0
 

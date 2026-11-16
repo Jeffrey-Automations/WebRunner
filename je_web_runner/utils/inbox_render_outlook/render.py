@@ -23,11 +23,13 @@ class InboxRenderOutlookError(WebRunnerException):
     """Raised on assertion failure or malformed input."""
 
 
+# pylint: disable=duplicate-code  # each audit owns its severity scale; the ones that match today stay separate types
 class Severity(str, Enum):
     """How serious a render finding is: ``info``, ``warn`` or ``error``."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
+# pylint: enable=duplicate-code
 
 
 @dataclass

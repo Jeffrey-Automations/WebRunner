@@ -24,6 +24,7 @@ from typing import Any, Sequence
 
 from je_web_runner.utils.ai_assist.llm_assist import LLMAssistError, _invoke
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.flow.structure import trailing_keyword_arguments
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
@@ -103,7 +104,7 @@ def collect_steps(
             continue
         if skip_noise and any(command.startswith(p) for p in _NOISE_PREFIXES):
             continue
-        kwargs = _extract_kwargs(action)
+        kwargs = trailing_keyword_arguments(action)
         step = WalkthroughStep(
             index=idx,
             action_command=command,
@@ -114,14 +115,6 @@ def collect_steps(
             _attach_screenshot(step, screenshot)
         steps.append(step)
     return steps
-
-
-def _extract_kwargs(action: list[Any]) -> dict[str, Any]:
-    if len(action) >= 3 and isinstance(action[2], dict):
-        return action[2]
-    if len(action) >= 2 and isinstance(action[1], dict):
-        return action[1]
-    return {}
 
 
 def _attach_screenshot(

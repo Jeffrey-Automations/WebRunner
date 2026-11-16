@@ -17,7 +17,8 @@ class MigrationError(WebRunnerException):
     """Raised when a file cannot be read or written."""
 
 
-_LEGACY_TO_NEW: dict[str, str] = {
+# Legacy command name -> the name to use instead; the linter reports the same names.
+LEGACY_TO_NEW: dict[str, str] = {
     "WR_get_webdriver_manager": "WR_new_driver",
     "WR_quit": "WR_quit_all",
     "WR_single_quit": "WR_quit_current",
@@ -37,7 +38,7 @@ def _migrate_action_list(action_list: list[Any]) -> tuple[list[Any], list[dict[s
     changes: list[dict[str, Any]] = []
     for index, action in enumerate(action_list):
         if isinstance(action, list) and action and isinstance(action[0], str):
-            new_name = _LEGACY_TO_NEW.get(action[0])
+            new_name = LEGACY_TO_NEW.get(action[0])
             if new_name is not None:
                 changes.append({
                     "index": index,

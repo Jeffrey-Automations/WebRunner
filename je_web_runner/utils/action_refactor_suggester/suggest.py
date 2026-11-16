@@ -25,11 +25,13 @@ class ActionRefactorSuggesterError(WebRunnerException):
     """Raised on malformed action input."""
 
 
+# pylint: disable=duplicate-code  # each audit owns its severity scale; the ones that match today stay separate types
 class Severity(str, Enum):
     """How serious a refactor suggestion is."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
+# pylint: enable=duplicate-code
 
 
 @dataclass

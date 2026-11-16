@@ -4,8 +4,8 @@ XML parsing, pretty-printing and writing to file.
 # ElementTree class used only as a writer wrapper around an already-defused root.
 from xml.etree.ElementTree import ElementTree as _ETree  # nosec B405 # nosemgrep: use-defused-xml
 
-from defusedxml import ElementTree as DefusedElementTree  # type: ignore[import-untyped]
-from defusedxml.minidom import parseString as defused_parse_string  # type: ignore[import-untyped]
+from defusedxml import ElementTree as DefusedElementTree
+from defusedxml.minidom import parseString as defused_parse_string
 
 from je_web_runner.utils.exception.exception_tags import cant_read_xml_error
 from je_web_runner.utils.exception.exception_tags import xml_type_error

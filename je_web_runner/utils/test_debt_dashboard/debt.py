@@ -140,12 +140,14 @@ def parse_codeowners(text: str) -> CodeownersIndex:
     """Parse a CODEOWNERS file body into an :class:`CodeownersIndex`."""
     rules: list[tuple] = []
     for raw in text.splitlines():
+        # pylint: disable=duplicate-code  # CODEOWNERS line loop; test_blame_owner builds another rule type
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
         parts = line.split()
         if len(parts) < 2:
             continue
+        # pylint: enable=duplicate-code
         pattern = parts[0]
         owners = " ".join(parts[1:])
         rules.append((pattern, owners))

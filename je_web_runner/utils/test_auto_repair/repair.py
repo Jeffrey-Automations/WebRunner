@@ -25,7 +25,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-from je_web_runner.utils.ai_assist.llm_assist import LLMAssistError, _invoke
+from je_web_runner.utils.ai_assist.llm_assist import (
+    LLMAssistError,
+    _invoke,
+    coerce_confidence,
+    coerce_str_list,
+)
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.failure_triage.triage import (
     TriageSignals,
@@ -140,18 +145,6 @@ def _parse_payload(text: str) -> dict[str, Any]:
     return payload
 
 
-def _coerce_confidence(value: Any) -> float:
-    try:
-        score = float(value)
-    except (TypeError, ValueError):
-        return 0.0
-    if score < 0.0:
-        return 0.0
-    if score > 1.0:
-        return 1.0
-    return score
-
-
 def _coerce_change_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
@@ -160,14 +153,6 @@ def _coerce_change_list(value: Any) -> list[dict[str, Any]]:
         if isinstance(entry, dict):
             out.append(entry)
     return out
-
-
-def _coerce_str_list(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [str(item) for item in value]
-    if isinstance(value, str):
-        return [value]
-    return []
 
 
 def propose_repair(
@@ -208,10 +193,10 @@ def propose_repair(
         )
     plan = RepairPlan(
         summary=str(payload.get("summary") or "").strip(),
-        confidence=_coerce_confidence(payload.get("confidence")),
+        confidence=coerce_confidence(payload.get("confidence")),
         repaired_actions=repaired,
         changes=_coerce_change_list(payload.get("changes")),
-        risks=_coerce_str_list(payload.get("risks")),
+        risks=coerce_str_list(payload.get("risks")),
     )
     web_runner_logger.info(
         f"propose_repair: test={signals.test_name!r} confidence={plan.confidence:.2f} "

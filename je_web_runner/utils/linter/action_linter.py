@@ -15,6 +15,8 @@ from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.linter.flow_rules import every_action, flow_findings
+from je_web_runner.utils.linter.migration import LEGACY_TO_NEW
+from je_web_runner.utils.linter.script_commands import ARBITRARY_SCRIPT_COMMANDS
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
@@ -22,32 +24,17 @@ class ActionLinterError(WebRunnerException):
     """Raised when the input cannot be read or parsed."""
 
 
-# Map legacy → suggested replacement (mirrors the aliases added in fix #3-#11).
+# Map legacy → suggested replacement: the names the migration rewrites (aliases added in fix #3-#11),
+# plus the one that has no single replacement and is therefore only reported.
 _LEGACY_NAMES: dict[str, str] = {
-    "WR_get_webdriver_manager": "WR_new_driver",
-    "WR_quit": "WR_quit_all",
-    "WR_single_quit": "WR_quit_current",
-    "WR_explict_wait": "WR_explicit_wait",
-    "WR_SaveTestObject": "WR_save_test_object",
-    "WR_CleanTestObject": "WR_clear_test_objects",
-    "WR_find_element": "WR_find_recorded_element",
-    "WR_find_elements": "WR_find_recorded_elements",
-    "WR_input_to_element": "WR_element_input",
-    "WR_click_element": "WR_element_click",
-    "WR_element_check_current_web_element": "WR_element_assert",
+    **LEGACY_TO_NEW,
     "WR_element_get_select": (
         "WR_element_select_by_value / WR_element_select_by_index "
         "/ WR_element_select_by_visible_text"
     ),
 }
 
-_DANGEROUS_SCRIPT_COMMANDS = frozenset({
-    "WR_execute_script",
-    "WR_execute_async_script",
-    "WR_pw_evaluate",
-    "WR_cdp",
-    "WR_pw_cdp",
-})
+_DANGEROUS_SCRIPT_COMMANDS = ARBITRARY_SCRIPT_COMMANDS
 
 _HARDCODED_URL_RE = re.compile(r"https?://[^\s${}]+")
 

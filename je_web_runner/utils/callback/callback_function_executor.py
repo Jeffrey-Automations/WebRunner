@@ -3,18 +3,52 @@
 import typing
 from sys import stderr
 
-from je_web_runner.manager.webrunner_manager import web_runner
 from je_web_runner.utils.exception.exception_tags import get_bad_trigger_function, get_bad_trigger_method
 from je_web_runner.utils.exception.exceptions import CallbackExecutorException
+from je_web_runner.utils.executor._event_table import COMMANDS
 from je_web_runner.utils.executor._playwright_commands import PLAYWRIGHT_COMMANDS
 from je_web_runner.utils.executor.action_executor import execute_action, execute_files
-from je_web_runner.utils.generate_report.generate_html_report import generate_html, generate_html_report
-from je_web_runner.utils.generate_report.generate_json_report import generate_json, generate_json_report
-from je_web_runner.utils.generate_report.generate_xml_report import generate_xml, generate_xml_report
-from je_web_runner.utils.package_manager.package_manager_class import package_manager
-from je_web_runner.utils.test_object.test_object_record.test_object_record_class import test_object_record
-from je_web_runner.utils.test_record.test_record_class import test_record_instance
-from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
+
+# The commands of the executor's table that a callback can be chained to. The callables come from
+# the table, so the two cannot drift apart.
+_TRIGGER_NAMES: tuple[str, ...] = (
+    # webdriver manager
+    "WR_get_webdriver_manager", "WR_change_index_of_webdriver", "WR_quit",
+    # test object
+    "WR_SaveTestObject", "WR_CleanTestObject",
+    # webdriver wrapper
+    "WR_set_driver", "WR_set_webdriver_options_capability", "WR_find_element", "WR_find_elements",
+    "WR_implicitly_wait", "WR_explict_wait", "WR_to_url", "WR_forward", "WR_back", "WR_refresh", "WR_switch",
+    "WR_set_script_timeout", "WR_set_page_load_timeout", "WR_get_cookies", "WR_get_cookie", "WR_add_cookie",
+    "WR_delete_cookie", "WR_delete_all_cookies", "WR_execute", "WR_execute_script", "WR_execute_async_script",
+    "WR_move_to_element", "WR_move_to_element_with_offset", "WR_drag_and_drop", "WR_drag_and_drop_offset",
+    "WR_perform", "WR_reset_actions", "WR_left_click", "WR_left_click_and_hold", "WR_right_click",
+    "WR_left_double_click", "WR_release", "WR_press_key", "WR_release_key", "WR_move_by_offset", "WR_pause",
+    "WR_send_keys", "WR_send_keys_to_element", "WR_scroll", "WR_check_current_webdriver", "WR_maximize_window",
+    "WR_fullscreen_window", "WR_minimize_window", "WR_set_window_size", "WR_set_window_position",
+    "WR_get_window_position", "WR_get_window_rect", "WR_set_window_rect", "WR_get_screenshot_as_png",
+    "WR_get_screenshot_as_base64", "WR_get_log", "WR_single_quit",
+    # web element
+    "WR_element_submit", "WR_element_clear", "WR_element_get_property", "WR_element_get_dom_attribute",
+    "WR_element_get_attribute", "WR_element_is_selected", "WR_element_is_enabled", "WR_input_to_element",
+    "WR_click_element", "WR_element_is_displayed", "WR_element_value_of_css_property", "WR_element_screenshot",
+    "WR_element_change_web_element", "WR_element_check_current_web_element", "WR_element_get_select",
+    # init test record
+    "WR_set_record_enable",
+    # generate report
+    "WR_generate_html", "WR_generate_html_report", "WR_generate_json", "WR_generate_json_report", "WR_generate_xml",
+    "WR_generate_xml_report",
+    # execute
+    "WR_execute_action", "WR_execute_files",
+    # Add package
+    "WR_add_package_to_executor", "WR_add_package_to_callback_executor",
+    # ----- naming aliases (mirror action_executor) ----------------
+    "WR_new_driver", "WR_quit_all", "WR_quit_current", "WR_explicit_wait", "WR_save_test_object",
+    "WR_clear_test_objects", "WR_find_recorded_element", "WR_find_recorded_elements", "WR_element_input",
+    "WR_element_click", "WR_element_assert",
+    # usable Select wrappers
+    "WR_element_select_by_value", "WR_element_select_by_index", "WR_element_select_by_visible_text",
+)
 
 
 class CallbackFunctionExecutor:
@@ -23,127 +57,11 @@ class CallbackFunctionExecutor:
     def __init__(self):
         # 事件字典：將字串名稱對應到實際可執行的函式
         # Event dictionary: map string keys to actual callable functions
-        self.event_dict: dict = {
-            # webdriver manager
-            "WR_get_webdriver_manager": web_runner.new_driver,
-            "WR_change_index_of_webdriver": web_runner.change_webdriver,
-            "WR_quit": web_runner.quit,
-
-            # test object
-            "WR_SaveTestObject": test_object_record.save_test_object,
-            "WR_CleanTestObject": test_object_record.clean_record,
-
-            # webdriver wrapper
-            "WR_set_driver": webdriver_wrapper_instance.set_driver,
-            "WR_set_webdriver_options_capability": webdriver_wrapper_instance.set_webdriver_options_capability,
-            "WR_find_element": webdriver_wrapper_instance.find_element_with_test_object_record,
-            "WR_find_elements": webdriver_wrapper_instance.find_elements_with_test_object_record,
-            "WR_implicitly_wait": webdriver_wrapper_instance.implicitly_wait,
-            "WR_explict_wait": webdriver_wrapper_instance.explict_wait,
-            "WR_to_url": webdriver_wrapper_instance.to_url,
-            "WR_forward": webdriver_wrapper_instance.forward,
-            "WR_back": webdriver_wrapper_instance.back,
-            "WR_refresh": webdriver_wrapper_instance.refresh,
-            "WR_switch": webdriver_wrapper_instance.switch,
-            "WR_set_script_timeout": webdriver_wrapper_instance.set_script_timeout,
-            "WR_set_page_load_timeout": webdriver_wrapper_instance.set_page_load_timeout,
-            "WR_get_cookies": webdriver_wrapper_instance.get_cookies,
-            "WR_get_cookie": webdriver_wrapper_instance.get_cookie,
-            "WR_add_cookie": webdriver_wrapper_instance.add_cookie,
-            "WR_delete_cookie": webdriver_wrapper_instance.delete_cookie,
-            "WR_delete_all_cookies": webdriver_wrapper_instance.delete_all_cookies,
-            "WR_execute": webdriver_wrapper_instance.execute,
-            "WR_execute_script": webdriver_wrapper_instance.execute_script,
-            "WR_execute_async_script": webdriver_wrapper_instance.execute_async_script,
-            "WR_move_to_element": webdriver_wrapper_instance.move_to_element_with_test_object,
-            "WR_move_to_element_with_offset": webdriver_wrapper_instance.move_to_element_with_offset_and_test_object,
-            "WR_drag_and_drop": webdriver_wrapper_instance.drag_and_drop_with_test_object,
-            "WR_drag_and_drop_offset": webdriver_wrapper_instance.drag_and_drop_offset_with_test_object,
-            "WR_perform": webdriver_wrapper_instance.perform,
-            "WR_reset_actions": webdriver_wrapper_instance.reset_actions,
-            "WR_left_click": webdriver_wrapper_instance.left_click_with_test_object,
-            "WR_left_click_and_hold": webdriver_wrapper_instance.left_click_and_hold_with_test_object,
-            "WR_right_click": webdriver_wrapper_instance.right_click_with_test_object,
-            "WR_left_double_click": webdriver_wrapper_instance.left_double_click_with_test_object,
-            "WR_release": webdriver_wrapper_instance.release_with_test_object,
-            "WR_press_key": webdriver_wrapper_instance.press_key_with_test_object,
-            "WR_release_key": webdriver_wrapper_instance.release_key_with_test_object,
-            "WR_move_by_offset": webdriver_wrapper_instance.move_by_offset,
-            "WR_pause": webdriver_wrapper_instance.pause,
-            "WR_send_keys": webdriver_wrapper_instance.send_keys,
-            "WR_send_keys_to_element": webdriver_wrapper_instance.send_keys_to_element_with_test_object,
-            "WR_scroll": webdriver_wrapper_instance.scroll,
-            "WR_check_current_webdriver": webdriver_wrapper_instance.check_current_webdriver,
-            "WR_maximize_window": webdriver_wrapper_instance.maximize_window,
-            "WR_fullscreen_window": webdriver_wrapper_instance.fullscreen_window,
-            "WR_minimize_window": webdriver_wrapper_instance.minimize_window,
-            "WR_set_window_size": webdriver_wrapper_instance.set_window_size,
-            "WR_set_window_position": webdriver_wrapper_instance.set_window_position,
-            "WR_get_window_position": webdriver_wrapper_instance.get_window_position,
-            "WR_get_window_rect": webdriver_wrapper_instance.get_window_rect,
-            "WR_set_window_rect": webdriver_wrapper_instance.set_window_rect,
-            "WR_get_screenshot_as_png": webdriver_wrapper_instance.get_screenshot_as_png,
-            "WR_get_screenshot_as_base64": webdriver_wrapper_instance.get_screenshot_as_base64,
-            "WR_get_log": webdriver_wrapper_instance.get_log,
-            "WR_single_quit": webdriver_wrapper_instance.quit,
-
-            # web element
-            "WR_element_submit": web_runner.webdriver_element.submit,
-            "WR_element_clear": web_runner.webdriver_element.clear,
-            "WR_element_get_property": web_runner.webdriver_element.get_property,
-            "WR_element_get_dom_attribute": web_runner.webdriver_element.get_dom_attribute,
-            "WR_element_get_attribute": web_runner.webdriver_element.get_attribute,
-            "WR_element_is_selected": web_runner.webdriver_element.is_selected,
-            "WR_element_is_enabled": web_runner.webdriver_element.is_enabled,
-            "WR_input_to_element": web_runner.webdriver_element.input_to_element,
-            "WR_click_element": web_runner.webdriver_element.click_element,
-            "WR_element_is_displayed": web_runner.webdriver_element.is_displayed,
-            "WR_element_value_of_css_property": web_runner.webdriver_element.value_of_css_property,
-            "WR_element_screenshot": web_runner.webdriver_element.screenshot,
-            "WR_element_change_web_element": web_runner.webdriver_element.change_web_element,
-            "WR_element_check_current_web_element": web_runner.webdriver_element.check_current_web_element,
-            "WR_element_get_select": web_runner.webdriver_element.get_select,
-
-            # init test record
-            "WR_set_record_enable": test_record_instance.set_record_enable,
-
-            # generate report
-            "WR_generate_html": generate_html,
-            "WR_generate_html_report": generate_html_report,
-            "WR_generate_json": generate_json,
-            "WR_generate_json_report": generate_json_report,
-            "WR_generate_xml": generate_xml,
-            "WR_generate_xml_report": generate_xml_report,
-
-            # execute
-            "WR_execute_action": execute_action,
-            "WR_execute_files": execute_files,
-
-            # Add package
-            "WR_add_package_to_executor": package_manager.add_package_to_executor,
-            "WR_add_package_to_callback_executor": package_manager.add_package_to_callback_executor,
-
-            # ----- naming aliases (mirror action_executor) ----------------
-            "WR_new_driver": web_runner.new_driver,
-            "WR_quit_all": web_runner.quit,
-            "WR_quit_current": webdriver_wrapper_instance.quit,
-            "WR_explicit_wait": webdriver_wrapper_instance.explict_wait,
-            "WR_save_test_object": test_object_record.save_test_object,
-            "WR_clear_test_objects": test_object_record.clean_record,
-            "WR_find_recorded_element": webdriver_wrapper_instance.find_element_with_test_object_record,
-            "WR_find_recorded_elements": webdriver_wrapper_instance.find_elements_with_test_object_record,
-            "WR_element_input": web_runner.webdriver_element.input_to_element,
-            "WR_element_click": web_runner.webdriver_element.click_element,
-            "WR_element_assert": web_runner.webdriver_element.check_current_web_element,
-
-            # usable Select wrappers
-            "WR_element_select_by_value": web_runner.webdriver_element.select_by_value,
-            "WR_element_select_by_index": web_runner.webdriver_element.select_by_index,
-            "WR_element_select_by_visible_text": web_runner.webdriver_element.select_by_visible_text,
-
-            # every Playwright command, as the action executor has them
-            **PLAYWRIGHT_COMMANDS,
-        }
+        table = {name: COMMANDS[name] for name in _TRIGGER_NAMES}
+        # the table binds these two to the executor that owns it; a callback runs the global one
+        table.update(WR_execute_action=execute_action, WR_execute_files=execute_files)
+        # every Playwright command, as the action executor has them
+        self.event_dict: dict = {**table, **PLAYWRIGHT_COMMANDS}
 
     def callback_function(
             self,

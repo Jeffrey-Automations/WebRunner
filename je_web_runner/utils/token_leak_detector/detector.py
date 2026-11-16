@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Iterable, Pattern, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.har_diff.har_input import coerce_har
 
 
 class TokenLeakError(WebRunnerException):
@@ -213,7 +214,7 @@ def scan_har(
     patterns: Sequence[TokenPattern] = DEFAULT_PATTERNS,
 ) -> list[TokenFinding]:
     """Scan request/response bodies in a HAR object/string."""
-    har_obj = _coerce_har(har)
+    har_obj = coerce_har(har, TokenLeakError, "scan_har", not_json="har is not valid JSON")
     entries = ((har_obj.get("log") or {}).get("entries")) or []
     out: list[TokenFinding] = []
     for entry in entries:
@@ -228,20 +229,6 @@ def scan_har(
                 text, source=f"har.{direction}", location=url, patterns=patterns,
             ))
     return out
-
-
-def _coerce_har(har: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(har, str):
-        try:
-            parsed = json.loads(har)
-        except ValueError as error:
-            raise TokenLeakError(f"har is not valid JSON: {error}") from error
-        if not isinstance(parsed, dict):
-            raise TokenLeakError("har JSON must be an object")
-        return parsed
-    if isinstance(har, dict):
-        return har
-    raise TokenLeakError(f"scan_har expects str/dict, got {type(har).__name__}")
 
 
 def scan_log_lines(

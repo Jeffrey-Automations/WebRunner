@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.flow.structure import trailing_keyword_arguments
 
 
 class LocatorStrengthError(WebRunnerException):
@@ -134,7 +135,7 @@ def score_action_locators(actions: Iterable[Any]) -> list[dict[str, Any]]:
     for index, action in enumerate(actions):
         if not isinstance(action, list) or not action:
             continue
-        kwargs = _extract_kwargs(action)
+        kwargs = trailing_keyword_arguments(action)
         strategy = kwargs.get("object_type") or kwargs.get("strategy")
         value = kwargs.get("test_object_name") or kwargs.get("value")
         if strategy is None or value is None:
@@ -152,14 +153,6 @@ def score_action_locators(actions: Iterable[Any]) -> list[dict[str, Any]]:
             "reasons": score.reasons,
         })
     return findings
-
-
-def _extract_kwargs(action: list[Any]) -> dict[str, Any]:
-    if len(action) >= 3 and isinstance(action[2], dict):
-        return action[2]
-    if len(action) >= 2 and isinstance(action[1], dict):
-        return action[1]
-    return {}
 
 
 def weakest(findings: Iterable[dict[str, Any]], threshold: int = 50) -> list[dict[str, Any]]:

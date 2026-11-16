@@ -24,11 +24,13 @@ class CookieChipsAuditError(WebRunnerException):
     """Raised when input is malformed."""
 
 
+# pylint: disable=duplicate-code  # each audit owns its severity scale; the ones that match today stay separate types
 class Severity(str, Enum):
     """How serious a CHIPS finding is."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
+# pylint: enable=duplicate-code
 
 
 @dataclass

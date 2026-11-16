@@ -14,7 +14,6 @@ Classification follows MDN's split:
 """
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -22,6 +21,7 @@ from typing import Any, Iterable, Sequence
 from urllib.parse import urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.har_diff.har_input import coerce_har
 
 
 class MixedContentAuditError(WebRunnerException):
@@ -109,7 +109,7 @@ def scan_har(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     an https page. When ``page_url`` is None, we assume the first entry's
     page URL is the document.
     """
-    har_obj = _coerce_har(har)
+    har_obj = coerce_har(har, MixedContentAuditError, "scan_har")
     entries = ((har_obj.get("log") or {}).get("entries")) or []
     if not isinstance(entries, list):
         raise MixedContentAuditError("har log.entries must be a list")
@@ -141,22 +141,6 @@ def scan_har(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
             source_url=document_url,
         ))
     return findings
-
-
-def _coerce_har(har: str | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(har, str):
-        try:
-            parsed = json.loads(har)
-        except ValueError as error:
-            raise MixedContentAuditError(f"har not JSON: {error}") from error
-        if not isinstance(parsed, dict):
-            raise MixedContentAuditError("har JSON must be an object")
-        return parsed
-    if isinstance(har, dict):
-        return har
-    raise MixedContentAuditError(
-        f"scan_har expects str/dict, got {type(har).__name__}"
-    )
 
 
 def _first_page_url(har: dict[str, Any]) -> str | None:

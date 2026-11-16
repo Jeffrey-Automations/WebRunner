@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
-from requests.auth import HTTPBasicAuth  # type: ignore[import-untyped]
+import requests
+from requests.auth import HTTPBasicAuth
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger

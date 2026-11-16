@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
+from je_web_runner.utils.socket_server.background_server import BackgroundServer
 
 
 class VisualReviewError(WebRunnerException):
@@ -139,7 +140,7 @@ def render_index(baseline_dir: str, current_dir: str) -> str:
     )
 
 
-class VisualReviewServer:
+class VisualReviewServer(BackgroundServer):
     """HTTP server that powers the review UI."""
 
     def __init__(
@@ -166,23 +167,11 @@ class VisualReviewServer:
             raise VisualReviewError("review server already started")
         handler = _make_handler(self)
         srv = HTTPServer((self.host, self.port), handler)
-        thread = threading.Thread(target=srv.serve_forever, daemon=True)
-        thread.start()
-        self._server = srv
-        self._thread = thread
-        self.port = srv.server_address[1]
+        self._serve_in_background(srv)
         web_runner_logger.info(
             f"visual_review listening on {self.host}:{self.port}"
         )
         return f"http://{self.host}:{self.port}"  # NOSONAR — local UI
-
-    def stop(self) -> None:
-        """Shut the HTTP server down and close its socket; does nothing when it is not running."""
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-            self._thread = None
 
 
 _TEXT_PLAIN = "text/plain"

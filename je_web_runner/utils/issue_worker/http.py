@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from je_web_runner.utils.issue_worker.types import ProviderError, api_url
 

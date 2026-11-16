@@ -280,7 +280,7 @@ def read_excel_rows(
     if not p.is_file():
         raise DownloadVerifyError(f"Excel file not found: {p}")
     try:
-        from openpyxl import load_workbook  # type: ignore[import-not-found,import-untyped]
+        from openpyxl import load_workbook  # type: ignore[import-not-found]
     except ImportError as error:
         raise DownloadVerifyError(
             "Excel extraction requires openpyxl. Install: pip install openpyxl"

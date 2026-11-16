@@ -5,7 +5,7 @@ Build the success and failure XML test reports from the JSON report structure.
 
 from threading import Lock
 
-from defusedxml.minidom import parseString  # type: ignore[import-untyped]
+from defusedxml.minidom import parseString
 
 from je_web_runner.utils.generate_report.generate_json_report import generate_json
 from je_web_runner.utils.generate_report.report_path import report_path

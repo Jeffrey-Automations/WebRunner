@@ -73,7 +73,7 @@ def compute_trend_from_runs(runs: list[Any]) -> dict[str, Any]:
         if not isinstance(entry, dict):
             continue
         timestamp = entry.get("time")
-        day = _bucket_label(timestamp)
+        day = bucket_label(timestamp)
         bucket = buckets.setdefault(day, _Bucket(label=day))
         if entry.get("passed"):
             bucket.passed += 1
@@ -108,7 +108,8 @@ def compute_trend_from_runs(runs: list[Any]) -> dict[str, Any]:
     }
 
 
-def _bucket_label(timestamp: str | None) -> str:
+def bucket_label(timestamp: Any) -> str:
+    """The ``YYYY-MM-DD`` day of an ISO timestamp; ``unknown`` when it has none."""
     if not isinstance(timestamp, str):
         return "unknown"
     try:
@@ -130,8 +131,21 @@ def render_html(trend: dict[str, Any], title: str = "WebRunner trend") -> str:
             f"<td>{entry['pass_rate'] * 100:.1f}%</td>"
             f"<td>{entry['avg_duration_seconds']:.2f}s</td></tr>"
         )
-    svg = _render_pass_rate_svg(daily)
-    body = f"""
+    head = """<tr><th>Date</th><th>Total</th><th>Passed</th><th>Failed</th>
+        <th>Pass rate</th><th>Avg duration</th></tr>"""
+    return render_page(title, _render_pass_rate_svg(daily), head, "".join(rows))
+
+
+def render_page(title: str, chart: str, table_head: str, table_body: str) -> str:
+    """
+    The self-contained HTML page of a trend: a heading, a chart, and one table.
+
+    :param title: page title and heading; escaped here
+    :param chart: HTML of the chart, inserted as it is
+    :param table_head: HTML inside ``<thead>``, inserted as it is
+    :param table_body: HTML inside ``<tbody>``, inserted as it is
+    """
+    return f"""
     <html><head><meta charset='utf-8'><title>{_html.escape(title)}</title>
     <style>
       body{{font-family:-apple-system,Segoe UI,sans-serif;max-width:920px;margin:2rem auto;}}
@@ -141,15 +155,13 @@ def render_html(trend: dict[str, Any], title: str = "WebRunner trend") -> str:
     </style></head>
     <body>
       <h1>{_html.escape(title)}</h1>
-      {svg}
+      {chart}
       <table>
-        <thead><tr><th>Date</th><th>Total</th><th>Passed</th><th>Failed</th>
-        <th>Pass rate</th><th>Avg duration</th></tr></thead>
-        <tbody>{''.join(rows)}</tbody>
+        <thead>{table_head}</thead>
+        <tbody>{table_body}</tbody>
       </table>
     </body></html>
     """
-    return body
 
 
 def _render_pass_rate_svg(daily: list[dict[str, Any]]) -> str:
