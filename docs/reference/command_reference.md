@@ -37,7 +37,7 @@ Auto-generated from the executor's event_dict (1203 commands).
 | `WR_api_mock_attach` | `() -> 'bool'` | Serve the registered mock routes (also ones registered later) on the current Playwright page. |
 | `WR_api_mock_calls` | `() -> 'list[list[str]]'` | List the ``[method, url]`` pairs the mock router was asked for, in order. |
 | `WR_api_mock_match` | `(method: 'str', url: 'str') -> 'dict[str, Any] | None'` | Ask the mock router what it answers to ``method`` ``url``: ``{"status", "headers", "body"}`` or ``null`` |
-| `WR_api_mock_register` | `(method: 'str', url_pattern: 'str', body: 'Any' = '', status: 'int' = 200, times: 'int | None' = None) -> 'dict[str, Any]'` | Register a mocked HTTP route for the Playwright page. |
+| `WR_api_mock_register` | `(method: 'str', url_pattern: 'str', body: 'Any' = '', status: 'int' = 200, times: 'int | None' = None, headers: 'dict[str, str] | None' = None, content_type: 'str | None' = None) -> 'dict[str, Any]'` | Register a mocked HTTP route for the Playwright page. |
 | `WR_api_mock_reset` | `() -> 'bool'` | Remove every registered mock route and forget the recorded calls. |
 | `WR_api_version_compat_assert_matrix` | `(rows: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Fail when any client/server combination of the matrix did not pass; returns the summary. |
 | `WR_api_version_compat_assert_request` | `(endpoint: 'str', request_fields: 'list[dict[str, Any]]', server_required_fields: 'list[str]') -> 'bool'` | Fail when the new server requires a request field the old client never sends. |
@@ -539,7 +539,7 @@ Auto-generated from the executor's event_dict (1203 commands).
 | `WR_memory_pressure_emulate_apply` | `(profile: 'Any') -> 'list[dict[str, Any]]'` | Put the current Chromium browser under a low-resource profile (see ``WR_memory_pressure_emulate_payloads``). |
 | `WR_memory_pressure_emulate_payloads` | `(profile: 'Any') -> 'list[dict[str, Any]]'` | List the CDP commands that put a browser under a low-resource profile. |
 | `WR_memory_pressure_emulate_profiles` | `() -> 'list[dict[str, Any]]'` | List the built-in low-resource profiles (``low_end_phone``, ``critical_pressure``, ``single_core``). |
-| `WR_memory_pressure_emulate_restore` | `() -> 'bool'` | Take the current Chromium browser back to normal CPU, core count and memory pressure. |
+| `WR_memory_pressure_emulate_restore` | `() -> 'bool'` | Take the current Chromium browser back to normal CPU speed and to the core count it reported before |
 | `WR_migrate_action` | `(data: 'Any') -> 'tuple[Any, list[dict[str, Any]]]'` | 將 action 結構內所有舊命令名改寫為新名 |
 | `WR_migrate_action_file` | `(path: 'str', dry_run: 'bool' = True) -> 'dict[str, Any]'` | Read ``path``, rewrite legacy names, optionally write back when |
 | `WR_migrate_directory` | `(directory: 'str', dry_run: 'bool' = True) -> 'list[dict[str, Any]]'` | 遍歷目錄內所有 ``.json`` 檔做遷移 |
@@ -1003,9 +1003,9 @@ Auto-generated from the executor's event_dict (1203 commands).
 | `WR_storage_buckets_harvest` | `() -> 'dict[str, Any]'` | Snapshot the current page's storage buckets: ``{"supported": bool, "buckets": [{name, idb_databases, ...}]}``. |
 | `WR_story_to_actions_build_prompt` | `(story: 'str', start_url: 'str | None' = None, figma_hints: 'list[dict[str, Any]] | None' = None, style_notes: 'list[str] | None' = None) -> 'str'` | Render the prompt that asks a language model to turn a user story into an action list. |
 | `WR_story_to_actions_parse_reply` | `(reply: 'str', start_url: 'str | None' = None) -> 'list[dict[str, Any]]'` | Parse and validate the action list a model replied with (a JSON array, optionally in a code fence). |
-| `WR_story_to_actions_validate` | `(actions: 'list[dict[str, Any]]') -> 'int'` | Fail when a ``{"WR_command": [arguments]}`` list uses a command or arguments a story may not produce. |
+| `WR_story_to_actions_validate` | `(actions: 'list[dict[str, Any]]') -> 'int'` | Fail when a list of ``["WR_command", {arguments}]`` uses a command or arguments a story may not produce. |
 | `WR_storybook_discover` | `(source: 'str | dict[str, Any]', skip_examples: 'bool' = True, title_prefix: 'str | None' = None) -> 'list[dict[str, Any]]'` | List the stories of a Storybook ``index.json`` / ``stories.json`` (a file path or the parsed object). |
-| `WR_storybook_plan_actions` | `(source: 'str | dict[str, Any]', base_url: 'str', run_a11y: 'bool' = True, capture_screenshot: 'bool' = True, title_prefix: 'str | None' = None) -> 'list[list[Any]]'` | Build an action list that opens every story under ``base_url``, audits it and takes a screenshot. |
+| `WR_storybook_plan_actions` | `(source: 'str | dict[str, Any]', base_url: 'str', run_a11y: 'bool' = True, capture_screenshot: 'bool' = True, title_prefix: 'str | None' = None, axe_source: 'str | None' = None) -> 'list[list[Any]]'` | Build an action list that opens every story under ``base_url``, audits it and takes a screenshot. |
 | `WR_streaming_chat_assert_content` | `(deltas: 'list[dict[str, Any]]', expected: 'str' = '') -> 'str'` | Fail when the assembled stream has a broken UTF-8 character or lacks ``expected``; returns the text. |
 | `WR_streaming_chat_assert_order` | `(deltas: 'list[dict[str, Any]]') -> 'int'` | Fail when numbered chunks (``seq``) arrived twice or out of order; returns how many were numbered. |
 | `WR_streaming_chat_assert_summary` | `(deltas: 'list[dict[str, Any]]') -> 'dict[str, Any]'` | Summarise a recorded chat stream: the assembled text, time to first token, longest gap. |
@@ -1031,7 +1031,7 @@ Auto-generated from the executor's event_dict (1203 commands).
 | `WR_test_blame_owner_resolve` | `(test_path: 'str', codeowners_text: 'str | None' = None, codeowners_path: 'str | None' = None, blame: 'list[dict[str, Any]] | None' = None, head_author: 'str' = '', default: 'str' = '') -> 'Any'` | Decide who to ping for a failing test: CODEOWNERS, then blame, then the last committer, then a default. |
 | `WR_test_categorizer_categorize` | `(actions: 'list[Any]') -> 'list[str]'` | Tag an action list by what it does: smoke, regression, perf, a11y, security, payment, visual, api. |
 | `WR_test_categorizer_categorize_dir` | `(directory: 'str') -> 'dict[str, Any]'` | Tag every ``*.json`` action file of a directory; returns the ``assignments`` and the tag ``distribution``. |
-| `WR_test_categorizer_categorize_file` | `(path: 'str') -> 'Any'` | Tag the action file at ``path``; returns its ``tags`` and ``action_count``. |
+| `WR_test_categorizer_categorize_file` | `(path: 'str') -> 'Any'` | Tag the action file at ``path`` (a list or an object document); returns its ``tags`` and ``action_count``. |
 | `WR_test_cost_estimator_estimate` | `(ledger_path: 'str | None' = None, runs: 'list[dict[str, Any]] | None' = None, rate_cards: 'list[dict[str, Any]] | None' = None) -> 'Any'` | Estimate billed minutes, cost and CO2 of recorded test runs, per runner and per test. |
 | `WR_test_cost_estimator_markdown` | `(ledger_path: 'str | None' = None, runs: 'list[dict[str, Any]] | None' = None, rate_cards: 'list[dict[str, Any]] | None' = None, top_tests: 'int' = 5) -> 'str'` | Render the cost estimate of recorded test runs as markdown. |
 | `WR_test_debt_dashboard_assert_under_age_limit` | `(root: 'str', max_days: 'float', codeowners_path: 'str | None' = None) -> 'int'` | Fail when deferred test work under a directory is ``max_days`` old or more; returns the item count. |
@@ -1119,8 +1119,8 @@ Auto-generated from the executor's event_dict (1203 commands).
 | `WR_visual_ai_assert_similar` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Fail when two image files look less alike than ``threshold`` (arguments as ``WR_visual_ai_compare``). |
 | `WR_visual_ai_compare` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Score how alike two image files look (three perceptual hashes and a structural score, 0-1). |
 | `WR_visual_ai_hash` | `(image_path: 'str', kind: 'str' = 'dhash', crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, str]'` | Compute a perceptual hash of an image file. |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001A3C550BBA0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001A3C550BBA0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002D89E439440>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002D89E439440>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_visual_review_accept` | `(baseline_dir: 'str', current_dir: 'str', name: 'str') -> 'str'` | Accept a changed screenshot: copy ``current_dir/name`` over the baseline; returns the baseline path. |
 | `WR_visual_review_assert_no_diffs` | `(baseline_dir: 'str', current_dir: 'str') -> 'int'` | Fail when a screenshot differs from, or is missing on either side of, its baseline; returns the count. |
 | `WR_visual_review_list` | `(baseline_dir: 'str', current_dir: 'str') -> 'list[dict[str, str]]'` | Pair the PNG files of a baseline and a current directory by name and say how each pair stands. |

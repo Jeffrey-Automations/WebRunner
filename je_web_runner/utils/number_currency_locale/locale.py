@@ -138,11 +138,15 @@ def assert_currency_symbol(rendered: str, locale: str) -> None:
         )
 
 
+_DAY = r"(?:0?[1-9]|[12]\d|3[01])"
+_MONTH = r"(?:0?[1-9]|1[0-2])"
+# ``us`` is month/day/year and ``fr`` is day/month/year: a first or second number that cannot be a
+# month tells them apart. A date such as 01/02/2024 reads both ways and matches both.
 _DATE_PATTERNS = {
     "iso": re.compile(r"^\d{4}-\d{2}-\d{2}$"),
-    "us": re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4}$"),
+    "us": re.compile(rf"^{_MONTH}/{_DAY}/\d{{2,4}}$"),
     "eu": re.compile(r"^\d{1,2}\.\d{1,2}\.\d{2,4}$"),
-    "fr": re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4}$"),
+    "fr": re.compile(rf"^{_DAY}/{_MONTH}/\d{{2,4}}$"),
 }
 
 

@@ -14,9 +14,14 @@ Supports two input shapes:
   timestamp}`` dicts. This is the format you'd produce when scraping
   Pendo/Hotjar/custom telemetry.
 
+The output is an action list as the executor runs it: ``["WR_name", {kwargs}]``
+entries naming registered commands. An event on an element becomes two
+actions, ``WR_find_element_by`` and the command that acts on the element found.
+
 The converter is deliberately conservative: events it cannot map cleanly
-become ``WR_comment`` action lines instead of being silently dropped, so
-the engineer reviewing the output sees what was skipped.
+(a scroll, a double click, a submit without a target) become ``WR_note``
+action lines instead of being silently dropped, so the engineer reviewing
+the output sees what was skipped.
 """
 from __future__ import annotations
 
@@ -29,6 +34,8 @@ from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 _CSS_SELECTOR_BY = "css selector"
+
+Action = list[Any]
 
 
 class SessionToTestError(WebRunnerException):
@@ -70,49 +77,69 @@ class ConversionStats:
         self.skipped_events += 1
         self.reasons[reason] = self.reasons.get(reason, 0) + 1
 
+    def note_actions(self, actions: Sequence[Action]) -> None:
+        """Count the actions one event produced; the ``WR_note`` ones also count as comments."""
+        self.actions_emitted += len(actions)
+        self.comment_actions += sum(1 for action in actions if action[0] == "WR_note")
+
 
 @dataclass
 class ConversionResult:
     """Output of :func:`convert_events`: actions plus stats."""
 
-    actions: list[dict[str, Any]]
+    actions: list[Action]
     stats: ConversionStats
+
+
+# ---------- action builders ---------------------------------------------
+
+def _navigate(url: str) -> list[Action]:
+    return [["WR_to_url", {"url": url}]]
+
+
+def _note(text: str) -> list[Action]:
+    return [["WR_note", {"text": text}]]
+
+
+def _on_element(locator: tuple[str, str], *then: Action) -> list[Action]:
+    """Find the element of ``locator`` (it becomes the current element), then run ``then`` on it."""
+    by, selector = locator
+    return [["WR_find_element_by", {"selector": selector, "by": by}], *then]
 
 
 # ---------- entry points ------------------------------------------------
 
-def convert_rrweb_events(events: Sequence[dict[str, Any]]) -> ConversionResult:  # NOSONAR S3776 — cohesive logic
+def _convert_rrweb_event(event: Any, stats: ConversionStats) -> list[Action]:
+    """The actions of one rrweb event; an event that maps to nothing is counted as skipped."""
+    if not isinstance(event, dict):
+        stats.note_skip("non-dict event")
+        return []
+    kind = event.get("type")
+    if kind == _RRWEB_META and isinstance(event.get("data"), dict):
+        url = event["data"].get("href")
+        if isinstance(url, str) and url:
+            return _navigate(url)
+        stats.note_skip("meta without href")
+        return []
+    if kind == _RRWEB_FULL_SNAPSHOT:
+        stats.note_skip("full snapshot (no action)")
+        return []
+    if kind != _RRWEB_INCREMENTAL:
+        stats.note_skip(f"unknown rrweb type {kind!r}")
+        return []
+    return _convert_rrweb_incremental(event, stats)
+
+
+def convert_rrweb_events(events: Sequence[dict[str, Any]]) -> ConversionResult:
     """Convert an rrweb event list into WR action JSON."""
     if not isinstance(events, list):
         raise SessionToTestError("rrweb events must be a list")
     stats = ConversionStats(input_events=len(events))
-    actions: list[dict[str, Any]] = []
-
+    actions: list[Action] = []
     for event in events:
-        if not isinstance(event, dict):
-            stats.note_skip("non-dict event")
-            continue
-        kind = event.get("type")
-        if kind == _RRWEB_META and isinstance(event.get("data"), dict):
-            url = event["data"].get("href")
-            if isinstance(url, str) and url:
-                actions.append({"WR_to_url": [url]})
-                stats.actions_emitted += 1
-            else:
-                stats.note_skip("meta without href")
-            continue
-        if kind == _RRWEB_FULL_SNAPSHOT:
-            stats.note_skip("full snapshot (no action)")
-            continue
-        if kind != _RRWEB_INCREMENTAL:
-            stats.note_skip(f"unknown rrweb type {kind!r}")
-            continue
-
-        emitted = _convert_rrweb_incremental(event, stats)
-        if emitted is not None:
-            actions.append(emitted)
-            stats.actions_emitted += 1
-
+        emitted = _convert_rrweb_event(event, stats)
+        actions.extend(emitted)
+        stats.note_actions(emitted)
     if not actions:
         raise SessionToTestError(
             f"no actions produced from {len(events)} rrweb events; "
@@ -126,15 +153,14 @@ def convert_generic_events(events: Sequence[dict[str, Any]]) -> ConversionResult
     if not isinstance(events, list):
         raise SessionToTestError("generic events must be a list")
     stats = ConversionStats(input_events=len(events))
-    actions: list[dict[str, Any]] = []
+    actions: list[Action] = []
     for event in events:
         if not isinstance(event, dict):
             stats.note_skip("non-dict event")
             continue
         emitted = _convert_generic_event(event, stats)
-        if emitted is not None:
-            actions.append(emitted)
-            stats.actions_emitted += 1
+        actions.extend(emitted)
+        stats.note_actions(emitted)
     if not actions:
         raise SessionToTestError(
             f"no actions produced from {len(events)} generic events"
@@ -178,39 +204,40 @@ def _load_events(payload: str | Path | Sequence[dict[str, Any]]) -> list[dict[st
 
 # ---------- rrweb mappings ----------------------------------------------
 
-def _convert_rrweb_mouse(data: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
-    """Map an rrweb mouse interaction to a click / double-click action; other types are skipped."""
+def _convert_rrweb_mouse(data: dict[str, Any], stats: ConversionStats) -> list[Action]:
+    """Map an rrweb mouse interaction: a click is found and clicked, a double click is noted, others skipped."""
     kind = data.get("type")
     selector = _selector_for_node(data.get("id"))
     if selector is None:
         stats.note_skip("mouse without node id")
-        return None
+        return []
     if kind == _RRWEB_MI_CLICK:
-        return {"WR_click_element": [_CSS_SELECTOR_BY, selector]}
+        return _on_element((_CSS_SELECTOR_BY, selector), ["WR_element_click"])
     if kind == _RRWEB_MI_DOUBLE_CLICK:
-        return {"WR_double_click_element": [_CSS_SELECTOR_BY, selector]}
+        # No registered command double-clicks the element a raw selector found.
+        return _note(f"double click {selector}")
     stats.note_skip(f"mouse type {kind!r}")
-    return None
+    return []
 
 
-def _convert_rrweb_input(data: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
-    """Map an rrweb input event to an input action; skipped when it names no node."""
+def _convert_rrweb_input(data: dict[str, Any], stats: ConversionStats) -> list[Action]:
+    """Map an rrweb input event to a find and an input action; skipped when it names no node."""
     selector = _selector_for_node(data.get("id"))
     value = data.get("text", "")
     if selector is None:
         stats.note_skip("input without node id")
-        return None
-    return {"WR_input_to_element": [_CSS_SELECTOR_BY, selector, str(value)]}
+        return []
+    return _on_element((_CSS_SELECTOR_BY, selector), ["WR_input_to_element", {"input_value": str(value)}])
 
 
 def _convert_rrweb_incremental(
     event: dict[str, Any],
     stats: ConversionStats,
-) -> dict[str, Any] | None:
+) -> list[Action]:
     data = event.get("data") if isinstance(event.get("data"), dict) else None
     if not data:
         stats.note_skip("incremental without data")
-        return None
+        return []
     source = data.get("source")
     if source == _RRWEB_SRC_MOUSE_INTERACTION:
         return _convert_rrweb_mouse(data, stats)
@@ -219,9 +246,9 @@ def _convert_rrweb_incremental(
     if source == _RRWEB_SRC_SCROLL:
         x = data.get("x", 0)
         y = data.get("y", 0)
-        return {"WR_comment": [f"scroll to {x},{y}"]}
+        return _note(f"scroll to {x},{y}")
     stats.note_skip(f"incremental source {source!r}")
-    return None
+    return []
 
 
 def _selector_for_node(node_id: Any) -> str | None:
@@ -237,44 +264,44 @@ def _selector_for_node(node_id: Any) -> str | None:
 
 # ---------- generic mappings --------------------------------------------
 
-def _generic_navigate(event: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
+def _generic_navigate(event: dict[str, Any], stats: ConversionStats) -> list[Action]:
     url = event.get("url")
     if isinstance(url, str) and url:
-        return {"WR_to_url": [url]}
+        return _navigate(url)
     stats.note_skip("navigate without url")
-    return None
+    return []
 
 
-def _generic_click(locator: tuple[str, str] | None, stats: ConversionStats) -> dict[str, Any] | None:
+def _generic_click(locator: tuple[str, str] | None, stats: ConversionStats) -> list[Action]:
     if locator is None:
         stats.note_skip("click without target")
-        return None
-    return {"WR_click_element": list(locator)}
+        return []
+    return _on_element(locator, ["WR_element_click"])
 
 
 def _generic_input(
     event: dict[str, Any], locator: tuple[str, str] | None, stats: ConversionStats,
-) -> dict[str, Any] | None:
+) -> list[Action]:
     if locator is None:
         stats.note_skip("input without target")
-        return None
+        return []
     value = event.get("value", "")
-    return {"WR_input_to_element": [*locator, str(value)]}
+    return _on_element(locator, ["WR_input_to_element", {"input_value": str(value)}])
 
 
-def _generic_submit(locator: tuple[str, str] | None) -> dict[str, Any]:
+def _generic_submit(locator: tuple[str, str] | None) -> list[Action]:
     if locator is None:
-        return {"WR_comment": ["submit form (no target)"]}
-    return {"WR_submit_element": list(locator)}
+        return _note("submit form (no target)")
+    return _on_element(locator, ["WR_element_submit"])
 
 
-def _generic_wait(event: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
+def _generic_wait(event: dict[str, Any], stats: ConversionStats) -> list[Action]:
     try:
         seconds = float(event.get("seconds", 0))
     except (TypeError, ValueError):
         stats.note_skip("wait with non-numeric seconds")
-        return None
-    return {"WR_implicitly_wait": [seconds]}
+        return []
+    return [["WR_implicitly_wait", {"time_to_wait": seconds}]]
 
 
 _GENERIC_DISPATCH = {
@@ -289,12 +316,12 @@ _GENERIC_DISPATCH = {
 def _convert_generic_event(
     event: dict[str, Any],
     stats: ConversionStats,
-) -> dict[str, Any] | None:
+) -> list[Action]:
     kind = str(event.get("kind") or "").lower()
     handler = _GENERIC_DISPATCH.get(kind)
     if handler is None:
         stats.note_skip(f"unknown generic kind {kind!r}")
-        return None
+        return []
     return handler(event, _coerce_locator(event.get("target")), stats)
 
 

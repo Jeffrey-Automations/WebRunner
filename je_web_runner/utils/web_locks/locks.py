@@ -101,29 +101,39 @@ class LockEvent:
 
 
 def parse_log(payload: Any) -> list[LockEvent]:
-    """Convert the harvested log into typed events."""
+    """Convert the harvested log into typed events.
+
+    A ``requested`` entry does not become an event; its ``mode``, ``if_available`` and ``steal`` are
+    given to the later events of the same request id.
+    """
     if not isinstance(payload, list):
         raise WebLocksError(
             f"payload must be list, got {type(payload).__name__}"
         )
     out: list[LockEvent] = []
+    requested: dict[str, dict[str, Any]] = {}
     for raw in payload:
         if not isinstance(raw, dict):
             continue
+        request_id = str(raw.get("id") or "")
         outcome_str = str(raw.get("outcome") or "")
         if outcome_str == "requested":
-            continue  # the matching acquired/unavailable event is what we count
+            # Not an event of its own: the matching acquired/unavailable event is what we count.
+            # It is the only entry that carries the request's options, so keep them for those events.
+            requested[request_id] = raw
+            continue
         try:
             outcome = LockOutcome(outcome_str)
         except ValueError:
             continue
+        options = {**requested.get(request_id, {}), **raw}
         out.append(LockEvent(
-            id=str(raw.get("id") or ""),
+            id=request_id,
             name=str(raw.get("name") or ""),
             outcome=outcome,
-            mode=str(raw.get("mode") or "exclusive"),
-            if_available=bool(raw.get("if_available", False)),
-            steal=bool(raw.get("steal", False)),
+            mode=str(options.get("mode") or "exclusive"),
+            if_available=bool(options.get("if_available", False)),
+            steal=bool(options.get("steal", False)),
             time_ms=float(raw.get("time") or 0.0),
         ))
     return out

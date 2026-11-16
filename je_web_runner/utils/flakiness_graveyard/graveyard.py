@@ -22,7 +22,7 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Iterable
+from typing import Any, Iterable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
@@ -148,13 +148,18 @@ def bury(registry: list[GraveEntry], test_name: str) -> GraveEntry:
 
 
 def load(path: str) -> list[GraveEntry]:
-    """Read the registry from a JSON file; a missing file gives an empty list."""
+    """Read the registry from a JSON file; a missing file gives an empty list.
+    Raises ``FlakinessGraveyardError`` when the file is not a JSON array or an entry has an unknown status.
+    """
     if not isinstance(path, str) or not path:
         raise FlakinessGraveyardError("path must be non-empty string")
     if not os.path.exists(path):
         return []
-    with open(path, encoding="utf-8") as fh:
-        raw = json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except ValueError as error:
+        raise FlakinessGraveyardError(f"registry file {path!r} is not JSON: {error}") from error
     if not isinstance(raw, list):
         raise FlakinessGraveyardError(
             f"registry file {path!r} must contain a JSON array"
@@ -169,9 +174,20 @@ def load(path: str) -> list[GraveEntry]:
             last_flake_date=item.get("last_flake_date", _today().isoformat()),
             owner=item.get("owner", ""),
             ticket_url=item.get("ticket_url", ""),
-            status=Status(item.get("status", Status.QUARANTINED.value)),
+            status=_status_of(item.get("status", Status.QUARANTINED.value), path),
         ))
     return out
+
+
+def _status_of(value: Any, path: str) -> Status:
+    """The :class:`Status` named ``value``; raises ``FlakinessGraveyardError`` for an unknown one."""
+    try:
+        return Status(value)
+    except ValueError as error:
+        known = [status.value for status in Status]
+        raise FlakinessGraveyardError(
+            f"registry file {path!r} has an entry with status {value!r}; known: {known}"
+        ) from error
 
 
 def save(path: str, registry: Iterable[GraveEntry]) -> None:

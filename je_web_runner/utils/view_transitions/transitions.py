@@ -7,8 +7,10 @@ a CLS spike when underlying layout shifts.
 This module:
 
 * Generates the JS snippet to *instrument* a page (one-time injection)
-  that records each transition's lifecycle into ``window.__wr_vt_log__``
-  and observes ``LayoutShift`` entries scoped to the transition window.
+  that records each transition's lifecycle into ``window.__wr_vt_log__``,
+  the names of the ``::view-transition-group(name)`` pseudo-elements it
+  animated (``root`` and every ``view-transition-name`` in use), and
+  observes ``LayoutShift`` entries scoped to the transition window.
 * Parses the harvested log into :class:`TransitionRun` records.
 * Exposes asserts for duration budget, CLS budget, error-free run,
   expected element-name presence.
@@ -37,22 +39,17 @@ _INSTRUMENT_JS = """
     : null;
   if (!_start) return;
 
-  function track(promise, key) {
-    promise.then(
-      function() {
-        const entry = window.__wr_vt_log__.find(e => e.id === key);
-        if (entry) {
-          entry[key === entry.id && '__finished_at__'] = performance.now();
-        }
-      },
-      function(err) {
-        const entry = window.__wr_vt_log__.find(e => e.id === key);
-        if (entry) {
-          entry.error = String(err && err.message || err);
-          entry.__finished_at__ = performance.now();
-        }
-      }
-    );
+  // The names of the ::view-transition-group(name) pseudo-elements that are animating.
+  function animatedGroups() {
+    const prefix = '::view-transition-group(';
+    const names = [];
+    document.getAnimations().forEach(function(animation) {
+      const pseudo = animation.effect && animation.effect.pseudoElement;
+      if (typeof pseudo !== 'string' || pseudo.indexOf(prefix) !== 0) return;
+      const name = pseudo.slice(prefix.length, -1);
+      if (names.indexOf(name) < 0) names.push(name);
+    });
+    return names;
   }
 
   document.startViewTransition = function(callback) {
@@ -83,6 +80,10 @@ _INSTRUMENT_JS = """
     try { obs.observe({type: 'layout-shift', buffered: false}); } catch (e) {}
 
     const transition = _start(callback);
+    // ``ready`` settles once the pseudo-element tree exists and its animations are about to start.
+    transition.ready.then(function() {
+      try { entry.groups = animatedGroups(); } catch (e) {}
+    }, function() {});
     transition.finished.then(function() {
       try { obs.disconnect(); } catch (e) {}
       entry.finishedAt = performance.now();

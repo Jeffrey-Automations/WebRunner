@@ -21,8 +21,9 @@ class ThirdPartyBudgetError(WebRunnerException):
 # A non-exhaustive catalogue of well-known third-party hosts. Caller can
 # extend via ``extra_vendors=``.
 _VENDOR_CATALOGUE = {
+    # Tag Manager (www.googletagmanager.com) is its own vendor, "gtm", below.
     "google_analytics": ("www.google-analytics.com", "ssl.google-analytics.com",
-                         "www.googletagmanager.com", "google-analytics.com"),
+                         "google-analytics.com"),
     "facebook_pixel": ("connect.facebook.net", "www.facebook.com",
                        "graph.facebook.com"),
     "hotjar": ("static.hotjar.com", "script.hotjar.com", "vars.hotjar.com",

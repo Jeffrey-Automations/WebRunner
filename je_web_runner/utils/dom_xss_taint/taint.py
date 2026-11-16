@@ -14,6 +14,7 @@ checks the captured pairs against an attack payload.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable, Sequence
 
@@ -79,12 +80,16 @@ class TaintFinding:
 
 def make_canaries(test_name: str) -> list[str]:
     """Generate a couple of unique sentinel strings to inject as source
-    values (location.hash, postMessage payload, etc.)."""
+    values (location.hash, postMessage payload, etc.).
+
+    The suffix is derived from ``test_name`` alone, so every process and every run gets the same two.
+    """
     if not isinstance(test_name, str) or not test_name:
         raise DomXssTaintError("test_name must be non-empty")
+    digest = hashlib.sha256(test_name.encode("utf-8")).hexdigest()
     return [
-        f"WRXSS-{test_name}-A-{hash(test_name) & 0xFFFFFF:06x}",
-        f"WRXSS-{test_name}-B-{(hash(test_name) >> 8) & 0xFFFFFF:06x}",
+        f"WRXSS-{test_name}-A-{digest[:6]}",
+        f"WRXSS-{test_name}-B-{digest[6:12]}",
     ]
 
 

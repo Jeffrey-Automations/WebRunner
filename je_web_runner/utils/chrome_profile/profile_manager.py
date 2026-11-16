@@ -158,6 +158,17 @@ def _copy_profile_files(profile_dir: Path, snapshot_dir: Path, full_copy: bool) 
     return copied, skipped
 
 
+def _refuse_overlapping_snapshot(profile_dir: Path, snapshot_dir: Path) -> None:
+    """Raise when clearing ``snapshot_dir`` would delete the profile, or the copy would land inside it."""
+    profile = profile_dir.resolve()
+    snapshot = snapshot_dir.resolve()
+    if snapshot == profile or snapshot in profile.parents or profile in snapshot.parents:
+        raise ChromeProfileError(
+            f"snapshot dir {snapshot_dir} overlaps the profile {profile_dir}; "
+            "the snapshot must be a separate directory"
+        )
+
+
 def snapshot_chrome_profile(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     profile_dir: Path,
     snapshot_dir: Path,
@@ -173,11 +184,15 @@ def snapshot_chrome_profile(  # NOSONAR S3776 — cohesive logic; planned refact
     Returns the snapshot path. Per-file copy errors are swallowed and
     logged — partial snapshots are still usable since session-critical
     files are independent of cache files.
+
+    An existing ``snapshot_dir`` is deleted first, so it must be a directory of
+    its own: one that is the profile, holds it or lies inside it is refused.
     """
     profile_dir = Path(profile_dir)
     snapshot_dir = Path(snapshot_dir)
     if not profile_dir.exists():
         raise ChromeProfileError(f"profile dir does not exist: {profile_dir}")
+    _refuse_overlapping_snapshot(profile_dir, snapshot_dir)
 
     if snapshot_dir.exists():
         try:

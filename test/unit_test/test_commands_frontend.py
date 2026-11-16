@@ -306,7 +306,8 @@ def test_wcag22_touch_target(driver: MagicMock) -> None:
         part_one.wcag22_touch_target_assert(crowded)
     driver.execute_script.return_value = crowded
     assert len(part_one.wcag22_touch_target_audit_page()) == 2
-    assert driver.execute_script.call_args.args[0].startswith("return (function")
+    # The library's script returns its own value; the adapter's ``return`` in front is harmless.
+    assert driver.execute_script.call_args.args[0].startswith("return arguments.harvested = (function")
 
 
 # ---------- pull_to_refresh ---------------------------------------------
@@ -486,10 +487,18 @@ def test_storybook(tmp_path: Path) -> None:
     index_file.write_text(json.dumps(index), encoding="utf-8")
     assert len(part_two.storybook_discover(str(index_file), skip_examples=False)) == 2
     assert part_two.storybook_discover(index, title_prefix="Forms/") == []
-    plan = _json(part_two.storybook_plan_actions(index, "http://localhost:6006/", capture_screenshot=False))
+    plan = _json(part_two.storybook_plan_actions(
+        index, "http://localhost:6006/", capture_screenshot=False, axe_source="${axe}"))
     assert plan == [
-        ["WR_to_url", {"url": f"http://localhost:6006/{stories[0]['iframe_path']}"}], ["WR_a11y_run_audit"],
+        ["WR_to_url", {"url": f"http://localhost:6006/{stories[0]['iframe_path']}"}],
+        ["WR_a11y_run_audit", {"axe_source": "${axe}"}],
     ]
+    # An audit without the axe source could not run, so the plan is refused instead of emitted.
+    with pytest.raises(StorybookError):
+        part_two.storybook_plan_actions(index, "http://localhost:6006/")
+    assert _json(part_two.storybook_plan_actions(
+        index, "http://localhost:6006/", run_a11y=False, capture_screenshot=False)) == [
+        ["WR_to_url", {"url": f"http://localhost:6006/{stories[0]['iframe_path']}"}]]
     with pytest.raises(StorybookError):
         part_two.storybook_discover({"v": 4})
 

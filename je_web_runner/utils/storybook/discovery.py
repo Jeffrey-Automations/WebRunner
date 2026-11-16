@@ -106,15 +106,23 @@ def plan_actions_for_stories(
     run_a11y: bool = True,
     capture_screenshot: bool = True,
     extra_per_story: Sequence[list[Any]] | None = None,
+    axe_source: str | None = None,
 ) -> list[list[Any]]:
     """
     對每個 story 產生 ``[navigate, optional a11y, optional screenshot, extras]``。
     Build a flat action list that visits each story under ``base_url`` and
     optionally runs the axe-core audit + screenshot. ``extra_per_story``
     is appended verbatim after the per-story block.
+
+    The audit action is ``WR_a11y_run_audit``, which cannot run without the axe-core source, so
+    ``run_a11y`` needs ``axe_source``: the source text, or a ``${name}`` placeholder for a variable
+    that holds it (``WR_a11y_load_axe`` reads it from a file). Without it ``StorybookError`` is raised;
+    pass ``run_a11y=False`` for a plan with no audit.
     """
     if not isinstance(base_url, str) or not base_url:
         raise StorybookError("base_url must be non-empty")
+    if run_a11y and not axe_source:
+        raise StorybookError("run_a11y needs axe_source (the axe-core source or a ${name} placeholder)")
     base_url = base_url.rstrip("/")
     actions: list[list[Any]] = []
     extras = list(extra_per_story or [])
@@ -122,7 +130,7 @@ def plan_actions_for_stories(
         url = f"{base_url}/{story.iframe_path}"
         actions.append(["WR_to_url", {"url": url}])
         if run_a11y:
-            actions.append(["WR_a11y_run_audit"])
+            actions.append(["WR_a11y_run_audit", {"axe_source": axe_source}])
         if capture_screenshot:
             actions.append(["WR_get_screenshot_as_png"])
         actions.extend([list(extra) for extra in extras])

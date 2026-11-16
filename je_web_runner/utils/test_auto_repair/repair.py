@@ -64,7 +64,12 @@ def collect_git_diff(
     讀 ``git diff <since_ref>..HEAD``(可選擇限定 paths),截到 ``max_chars``。
     Returns the diff text or empty string if git is unavailable. ``runner``
     lets tests substitute a fake ``subprocess.run``.
+
+    Raises :class:`TestAutoRepairError` when ``since_ref`` is empty, is not a string or starts with
+    ``-``: git would read such a value as an option (``--output=<file>`` writes a file).
     """
+    if not isinstance(since_ref, str) or not since_ref or since_ref.startswith("-"):
+        raise TestAutoRepairError(f"since_ref must be a git revision, got {since_ref!r}")
     cmd: list[str] = ["git", "-C", str(repo_dir), "diff", f"{since_ref}..HEAD", "--unified=2"]
     if paths:
         cmd.append("--")

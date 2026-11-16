@@ -12,6 +12,12 @@ Detects duplicated test logic across two axes:
 
 The duplicate detection is structural — it ignores formatting and
 absolute coordinates so it stays robust across small edits.
+
+An action is read in the shape the executor runs, ``["WR_name", {...}]`` or
+``["WR_name", [...]]`` (its target is the ``element_name`` / ``by_value`` /
+``url`` / ``selector`` / ``test_object_name`` argument, else the first
+positional one), the actions inside blocks included; step objects
+``{"action_name", "element_name" | "by_value" | "url"}`` are still read.
 """
 from __future__ import annotations
 
@@ -21,6 +27,10 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.flow.structure import keyword_arguments
+from je_web_runner.utils.linter.flow_rules import every_action
+
+_TARGET_ARGUMENTS = ("element_name", "by_value", "url", "selector", "test_object_name")
 
 
 class DupDryError(WebRunnerException):
@@ -31,7 +41,7 @@ class DupDryError(WebRunnerException):
 class DupSpec:
     """A named test and its action list; an empty name or a non-list raises ``DupDryError``."""
     name: str
-    actions: list[dict[str, Any]] = field(default_factory=list)
+    actions: list[Any] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -47,8 +57,29 @@ def _signature_token(action: dict[str, Any]) -> str:
     return f"{name}:{target}"
 
 
-def _signature(actions: Sequence[dict[str, Any]]) -> str:
-    joined = "|".join(_signature_token(a) for a in actions if isinstance(a, dict))
+def _list_action_token(action: list[Any]) -> str:
+    """The token of a ``["WR_name", ...]`` action: its name and the element, locator or URL it works on."""
+    arguments = keyword_arguments(action)
+    target = next((arguments[key] for key in _TARGET_ARGUMENTS if arguments.get(key)), None)
+    if target is None:
+        positional = action[1] if len(action) > 1 and isinstance(action[1], list) else []
+        target = positional[0] if positional and isinstance(positional[0], str) else ""
+    return f"{action[0].lower()}:{target}"
+
+
+def _tokens(actions: Sequence[Any]) -> list[str]:
+    """One token per action, the actions inside blocks included; entries that are no action are left out."""
+    tokens: list[str] = []
+    for action in actions:
+        if isinstance(action, dict):
+            tokens.append(_signature_token(action))
+        else:
+            tokens.extend(_list_action_token(nested) for _, nested in every_action([action]))
+    return tokens
+
+
+def _signature(actions: Sequence[Any]) -> str:
+    joined = "|".join(_tokens(actions))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
 
 
@@ -98,9 +129,7 @@ def find_prefix_overlap(
     """
     if min_prefix < 1:
         raise DupDryError("min_prefix must be >= 1")
-    tokens = {s.name: [_signature_token(a) for a in s.actions
-                       if isinstance(a, dict)]
-              for s in specs}
+    tokens = {s.name: _tokens(s.actions) for s in specs}
     out: list[PrefixOverlap] = []
     names = sorted(tokens)
     for i, a in enumerate(names):

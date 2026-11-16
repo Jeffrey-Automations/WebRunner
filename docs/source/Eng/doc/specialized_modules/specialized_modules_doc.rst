@@ -305,8 +305,9 @@ action names and bad locator strategies before returning.
 -------------------
 
 rrweb / generic-event-stream → WR action JSON; auto-detects input
-format. Falls back to ``WR_comment`` for events that don't map to
-known actions.
+format. The output is a runnable action list of registered commands (an
+element event becomes ``WR_find_element_by`` followed by the action); an
+event that does not map to a command becomes a ``WR_note``.
 
 ``test_auto_repair``
 --------------------

@@ -159,7 +159,9 @@ def estimate_runs(
     *,
     rate_cards: Sequence[RateCard] = DEFAULT_RATE_CARDS,
 ) -> CostEstimate:
-    """Combine run history × rate card → :class:`CostEstimate`."""
+    """Combine run history × rate card → :class:`CostEstimate`.
+    An empty ``runs`` raises ``TestCostEstimatorError``: there is nothing to estimate.
+    """
     if not runs:
         raise TestCostEstimatorError("runs must be non-empty")
     index = rate_card_index(rate_cards)

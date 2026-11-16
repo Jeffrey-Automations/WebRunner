@@ -197,7 +197,7 @@ class TestToJson(unittest.TestCase):
         rec = WtFrameRecorder()
         rec.record_sent_datagram(b"hi")
         loaded = json.loads(to_json(rec.frames()))
-        self.assertEqual(loaded[0]["payload_b64"], "6869")  # 'hi' hex
+        self.assertEqual(loaded[0]["payload_hex"], "6869")  # 'hi' hex
 
 
 if __name__ == "__main__":

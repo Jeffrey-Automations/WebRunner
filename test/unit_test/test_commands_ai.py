@@ -459,16 +459,22 @@ class TestStoryToActions(unittest.TestCase):
         self.assertIn("- Login (button) selector: #login", prompt)
 
     def test_parse_reply(self):
-        reply = '```json\n[{"WR_click_element": ["id", "login"]}]\n```'
+        reply = ('```json\n[["WR_find_element_by", {"selector": "login", "by": "id"}], '
+                 '["WR_element_click"]]\n```')
         actions = run("WR_story_to_actions_parse_reply", reply, start_url="https://x.test")
-        self.assertEqual(actions, [{"WR_to_url": ["https://x.test"]}, {"WR_click_element": ["id", "login"]}])
+        self.assertEqual(actions, [["WR_to_url", {"url": "https://x.test"}],
+                                   ["WR_find_element_by", {"selector": "login", "by": "id"}],
+                                   ["WR_element_click"]])
         with self.assertRaises(WebRunnerException):
             run("WR_story_to_actions_parse_reply", "not json")
 
     def test_validate(self):
-        self.assertEqual(run("WR_story_to_actions_validate", [{"WR_to_url": ["https://x.test"]}]), 1)
+        self.assertEqual(run("WR_story_to_actions_validate", [["WR_to_url", {"url": "https://x.test"}]]), 1)
         with self.assertRaises(WebRunnerException):
-            run("WR_story_to_actions_validate", [{"WR_execute_script": ["alert(1)"]}])
+            run("WR_story_to_actions_validate", [["WR_execute_script", {"script": "alert(1)"}]])
+        with self.assertRaises(WebRunnerException):
+            # The shape of before the fix is not an action and is refused.
+            run("WR_story_to_actions_validate", [{"WR_to_url": ["https://x.test"]}])
 
 
 class TestStreamingChatAssert(unittest.TestCase):

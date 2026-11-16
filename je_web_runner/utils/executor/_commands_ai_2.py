@@ -124,7 +124,7 @@ def story_to_actions_parse_reply(reply: str, start_url: str | None = None) -> li
     """
     Parse and validate the action list a model replied with (a JSON array, optionally in a code fence).
 
-    The entries are in the reply format ``{"WR_command": [arguments]}``. With ``start_url``, a
+    The entries are actions as in an action file, ``["WR_command", {arguments}]``. With ``start_url``, a
     ``WR_to_url`` to it is put first unless the reply already opens with one.
     """
     from je_web_runner.utils.story_to_actions.generator import StoryPrompt, generate_actions
@@ -133,7 +133,7 @@ def story_to_actions_parse_reply(reply: str, start_url: str | None = None) -> li
 
 
 def story_to_actions_validate(actions: list[dict[str, Any]]) -> int:
-    """Fail when a ``{"WR_command": [arguments]}`` list uses a command or arguments a story may not produce."""
+    """Fail when a list of ``["WR_command", {arguments}]`` uses a command or arguments a story may not produce."""
     from je_web_runner.utils.story_to_actions.generator import validate_actions
     validate_actions(actions)
     return len(actions)

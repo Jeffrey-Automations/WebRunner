@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import secrets
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -117,7 +117,12 @@ class MockCredential:  # pylint: disable=too-many-instance-attributes  # value o
 def build_credential(
     user_handle: str, rp_id: str, *, sign_count: int = 0,
 ) -> MockCredential:
-    """Synthesize a deterministic-but-unique credential for a test user."""
+    """Synthesize a deterministic-but-unique credential for a test user.
+
+    Every field is derived from ``user_handle`` and ``rp_id``, so the same pair gives the same
+    credential in every process. The 64 signature bytes are a digest, not a signature a relying
+    party could verify.
+    """
     if not user_handle or not rp_id:
         raise WebauthnMockError("user_handle and rp_id are required")
     seed = hashlib.sha256(
@@ -127,7 +132,6 @@ def build_credential(
     public_key = _b64url(seed[16:])
     client_data = {"type": "webauthn.create", "challenge": _b64url(seed[:32]),
                    "origin": f"https://{rp_id}"}
-    import json
     return MockCredential(
         id=cred_id,
         public_key_b64=public_key,
@@ -137,7 +141,7 @@ def build_credential(
         ),
         attestation_object_b64=_b64url(b"\xa0"),   # CBOR null map
         authenticator_data_b64=_b64url(seed[:37]),
-        signature_b64=_b64url(secrets.token_bytes(64)),
+        signature_b64=_b64url(hashlib.sha512(seed + b"|signature").digest()),
         user_handle_b64=_b64url(user_handle.encode("utf-8")),
     )
 

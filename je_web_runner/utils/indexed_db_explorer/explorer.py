@@ -72,7 +72,12 @@ _HARVEST_TEMPLATE = """
 
 
 def build_harvest_script(db_name: str) -> str:
-    """Return JS that resolves with the snapshot JSON for ``db_name``."""
+    """Return JS that resolves with the snapshot JSON for ``db_name``.
+
+    The script is an expression whose value is a promise (``page.evaluate``, or CDP ``Runtime.evaluate``
+    with ``awaitPromise``). As a Selenium ``execute_script`` body it returns nothing: run it there as
+    ``"return " + build_harvest_script(name)``.
+    """
     if not isinstance(db_name, str) or not db_name:
         raise IndexedDbExplorerError("db_name must be non-empty string")
     return _HARVEST_TEMPLATE % {"db_name": json.dumps(db_name)}

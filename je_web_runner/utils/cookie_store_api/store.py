@@ -45,6 +45,11 @@ class ChangeEvent:
 
 # ---------- scripts -----------------------------------------------------
 
+# GET_ALL_SCRIPT and the listener installer are expressions: their value is the result under
+# ``page.evaluate`` / CDP ``Runtime.evaluate``. As a Selenium ``execute_script`` body an expression
+# returns nothing, so there GET_ALL_SCRIPT is run as ``"return " + GET_ALL_SCRIPT``.
+# HARVEST_CHANGES_SCRIPT is an ``execute_script`` body already (it starts with ``return``).
+
 GET_ALL_SCRIPT = """
 (async function() {
   if (!('cookieStore' in window)) return [];

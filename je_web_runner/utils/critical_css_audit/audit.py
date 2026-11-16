@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.resource_hints_audit.hints import link_tags
 
 
 class CriticalCssAuditError(WebRunnerException):
@@ -36,18 +37,15 @@ class CssReport:
 _STYLE_BLOCK_RE = re.compile(
     r"<style[^>]*>(.*?)</style>", re.IGNORECASE | re.DOTALL,
 )
-_LINK_RE = re.compile(r"<link\b[^>]*>", re.IGNORECASE)
 _HEAD_RE = re.compile(r"<head[^>]*>(.*?)</head>", re.IGNORECASE | re.DOTALL)
 
 
-def _attr(tag: str, name: str) -> str:
-    match = re.search(rf'{name}\s*=\s*[\'"]?([^\'"\s>]+)[\'"]?',
-                      tag, re.IGNORECASE)
-    return match.group(1) if match else ""
-
-
 def analyse(html: str) -> CssReport:
-    """Scan the ``<head>`` of ``html`` (the whole text if it has none) and return its ``CssReport``."""
+    """Scan the ``<head>`` of ``html`` (the whole text if it has none) and return its ``CssReport``.
+
+    A ``<link rel="stylesheet">`` is render-blocking unless its ``media`` attribute is ``print`` or it
+    has the ``disabled`` attribute.
+    """
     if not isinstance(html, str):
         raise CriticalCssAuditError("html must be a string")
     head_match = _HEAD_RE.search(html)
@@ -57,14 +55,13 @@ def analyse(html: str) -> CssReport:
         inline_blocks=len(inline_blocks),
         inline_bytes=sum(len(b.encode("utf-8")) for b in inline_blocks),
     )
-    for tag in _LINK_RE.findall(head):
-        rel = _attr(tag, "rel").lower()
-        href = _attr(tag, "href")
-        if rel == "stylesheet" and href and "media=\"print\"" not in tag.lower():
-            disabled = "disabled" in tag.lower()
-            if not disabled:
-                report.external_blocking.append(href)
-        if rel == "preload" and _attr(tag, "as").lower() == "style":
+    for attrs in link_tags(head):
+        rel = attrs.get("rel", "").lower()
+        href = attrs.get("href", "")
+        print_only = attrs.get("media", "").strip().lower() == "print"
+        if rel == "stylesheet" and href and not print_only and "disabled" not in attrs:
+            report.external_blocking.append(href)
+        if rel == "preload" and attrs.get("as", "").lower() == "style":
             report.preloaded.append(href)
     return report
 

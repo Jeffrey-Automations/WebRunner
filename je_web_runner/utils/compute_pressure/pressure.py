@@ -9,7 +9,10 @@ please throttle your background work". This module:
   (``nominal``/``fair``/``serious``/``critical``).
 * Records every reaction the app makes (the page-side helper
   ``__wr_cp__.recordReaction(name)`` is exposed for app code to call
-  when it throttles).
+  when it throttles), the levels the driver fired
+  (``__wr_cp__.fire(level)``) and the observer's disconnects.
+  ``return window.__wr_cp__.drainLog();`` reads the log in the shape
+  ``parse_log`` takes.
 * Provides assertions: at least one reaction at critical pressure, no
   CPU-heavy work at serious+, no observer leaks (close called).
 """
@@ -49,6 +52,8 @@ INSTALL_SCRIPT = r"""
   let observerActive = false;
   const reactions = [];
   const closed = [];
+  const fires = [];
+  let currentLevel = 'nominal';
   function FakePressureObserver(cb) {
     observerCallback = cb;
   }
@@ -63,15 +68,23 @@ INSTALL_SCRIPT = r"""
   window.__wr_cp__ = {
     fire: function (level) {
       if (!observerCallback) return false;
+      currentLevel = level;
+      fires.push(level);
       observerCallback([{state: level, source: 'cpu', time: Date.now()}],
                        {state: level});
       return true;
     },
+    // A reaction is stamped with the level that was last fired.
     recordReaction: function (name) {
-      reactions.push({name: String(name || ''), ts: Date.now()});
+      reactions.push({name: String(name || ''), level: currentLevel, ts: Date.now()});
     },
     drainReactions: function () { return reactions.splice(0); },
     drainClosed: function () { return closed.splice(0); },
+    // The whole log in the shape parse_log reads; it empties the recorder.
+    drainLog: function () {
+      return {reactions: reactions.splice(0), fires: fires.splice(0),
+              disconnectCount: closed.splice(0).length};
+    },
     active: function () { return observerActive; },
   };
 })();

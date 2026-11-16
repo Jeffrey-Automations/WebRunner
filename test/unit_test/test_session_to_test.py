@@ -38,9 +38,11 @@ class TestRrweb(unittest.TestCase):
             _rrweb_meta("https://example.com"),
             _rrweb_click(7),
         ])
-        self.assertEqual(result.actions[0], {"WR_to_url": ["https://example.com"]})
-        self.assertEqual(result.actions[1]["WR_click_element"][0], "css selector")
-        self.assertIn("data-rrweb-id", result.actions[1]["WR_click_element"][1])
+        self.assertEqual(result.actions[0], ["WR_to_url", {"url": "https://example.com"}])
+        self.assertEqual(result.actions[1][0], "WR_find_element_by")
+        self.assertEqual(result.actions[1][1]["by"], "css selector")
+        self.assertIn("data-rrweb-id", result.actions[1][1]["selector"])
+        self.assertEqual(result.actions[2], ["WR_element_click"])
 
     def test_input_event(self):
         result = convert_rrweb_events([
@@ -48,8 +50,9 @@ class TestRrweb(unittest.TestCase):
             _rrweb_input(3, "hello"),
         ])
         self.assertEqual(
-            result.actions[1],
-            {"WR_input_to_element": ["css selector", '[data-rrweb-id="3"]', "hello"]},
+            result.actions[1:],
+            [["WR_find_element_by", {"selector": '[data-rrweb-id="3"]', "by": "css selector"}],
+             ["WR_input_to_element", {"input_value": "hello"}]],
         )
 
     def test_scroll_becomes_comment(self):
@@ -57,7 +60,8 @@ class TestRrweb(unittest.TestCase):
             _rrweb_meta("https://x"),
             _rrweb_scroll(0, 500),
         ])
-        self.assertEqual(result.actions[1], {"WR_comment": ["scroll to 0,500"]})
+        self.assertEqual(result.actions[1], ["WR_note", {"text": "scroll to 0,500"}])
+        self.assertEqual(result.stats.comment_actions, 1)
 
     def test_full_snapshot_skipped(self):
         result = convert_rrweb_events([
@@ -65,7 +69,7 @@ class TestRrweb(unittest.TestCase):
             {"type": 2, "timestamp": 0, "data": {}},
             _rrweb_click(1),
         ])
-        self.assertEqual(result.stats.actions_emitted, 2)
+        self.assertEqual(result.stats.actions_emitted, 3)
         self.assertGreaterEqual(result.stats.skipped_events, 1)
 
     def test_mouse_without_id_skipped(self):
@@ -74,8 +78,8 @@ class TestRrweb(unittest.TestCase):
             {"type": 3, "timestamp": 1, "data": {"source": 2, "type": 2}},
             _rrweb_click(1),
         ])
-        # Only meta + valid click → 2 actions
-        self.assertEqual(result.stats.actions_emitted, 2)
+        # Only meta + valid click (find, click) → 3 actions
+        self.assertEqual(result.stats.actions_emitted, 3)
         self.assertGreaterEqual(result.stats.skipped_events, 1)
 
     def test_empty_emits_error(self):
@@ -106,40 +110,47 @@ class TestGeneric(unittest.TestCase):
         result = convert_generic_events([
             {"kind": "navigate", "url": "https://x", "timestamp": 0},
         ])
-        self.assertEqual(result.actions[0], {"WR_to_url": ["https://x"]})
+        self.assertEqual(result.actions[0], ["WR_to_url", {"url": "https://x"}])
 
     def test_click_with_dict_target(self):
         result = convert_generic_events([
             {"kind": "click", "target": {"by": "id", "value": "submit"}},
         ])
-        self.assertEqual(result.actions[0], {"WR_click_element": ["id", "submit"]})
+        self.assertEqual(result.actions, [
+            ["WR_find_element_by", {"selector": "submit", "by": "id"}], ["WR_element_click"],
+        ])
 
     def test_click_with_string_target(self):
         result = convert_generic_events([
             {"kind": "click", "target": "#submit"},
         ])
-        self.assertEqual(result.actions[0], {"WR_click_element": ["css selector", "#submit"]})
+        self.assertEqual(result.actions, [
+            ["WR_find_element_by", {"selector": "#submit", "by": "css selector"}], ["WR_element_click"],
+        ])
 
     def test_input_value(self):
         result = convert_generic_events([
             {"kind": "input", "target": "#name", "value": "alice"},
         ])
-        self.assertEqual(
-            result.actions[0],
-            {"WR_input_to_element": ["css selector", "#name", "alice"]},
-        )
+        self.assertEqual(result.actions, [
+            ["WR_find_element_by", {"selector": "#name", "by": "css selector"}],
+            ["WR_input_to_element", {"input_value": "alice"}],
+        ])
 
     def test_submit_with_and_without_target(self):
         result = convert_generic_events([
             {"kind": "submit", "target": "#form"},
             {"kind": "submit"},
         ])
-        self.assertEqual(result.actions[0], {"WR_submit_element": ["css selector", "#form"]})
-        self.assertEqual(result.actions[1], {"WR_comment": ["submit form (no target)"]})
+        self.assertEqual(result.actions, [
+            ["WR_find_element_by", {"selector": "#form", "by": "css selector"}],
+            ["WR_element_submit"],
+            ["WR_note", {"text": "submit form (no target)"}],
+        ])
 
     def test_wait(self):
         result = convert_generic_events([{"kind": "wait", "seconds": 1.5}])
-        self.assertEqual(result.actions[0], {"WR_implicitly_wait": [1.5]})
+        self.assertEqual(result.actions[0], ["WR_implicitly_wait", {"time_to_wait": 1.5}])
 
     def test_wait_bad_seconds_skipped(self):
         with self.assertRaises(SessionToTestError):
@@ -155,11 +166,11 @@ class TestAutoDetect(unittest.TestCase):
     def test_rrweb_detected_by_int_type(self):
         events = [_rrweb_meta("https://x"), _rrweb_click(1)]
         result = convert_events(events)
-        self.assertEqual(result.actions[0], {"WR_to_url": ["https://x"]})
+        self.assertEqual(result.actions[0], ["WR_to_url", {"url": "https://x"}])
 
     def test_generic_detected(self):
         result = convert_events([{"kind": "navigate", "url": "https://x"}])
-        self.assertEqual(result.actions[0], {"WR_to_url": ["https://x"]})
+        self.assertEqual(result.actions[0], ["WR_to_url", {"url": "https://x"}])
 
     def test_empty_rejected(self):
         with self.assertRaises(SessionToTestError):
@@ -175,7 +186,7 @@ class TestFromFile(unittest.TestCase):
                 {"kind": "navigate", "url": "https://x"},
             ]), encoding="utf-8")
             result = convert_events(path)
-            self.assertEqual(result.actions[0], {"WR_to_url": ["https://x"]})
+            self.assertEqual(result.actions[0], ["WR_to_url", {"url": "https://x"}])
 
     def test_load_file_with_envelope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -199,14 +210,14 @@ class TestWriteActions(unittest.TestCase):
 
     def test_write(self):
         result = ConversionResult(
-            actions=[{"WR_to_url": ["https://x"]}],
+            actions=[["WR_to_url", {"url": "https://x"}]],
             stats=ConversionStats(input_events=1, actions_emitted=1),
         )
         with tempfile.TemporaryDirectory() as tmp:
             out = write_actions_json(result, Path(tmp) / "actions.json")
             self.assertEqual(
                 json.loads(out.read_text(encoding="utf-8")),
-                [{"WR_to_url": ["https://x"]}],
+                [["WR_to_url", {"url": "https://x"}]],
             )
 
 

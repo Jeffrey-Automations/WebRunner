@@ -26,8 +26,10 @@ class RtlLayoutVerifyError(WebRunnerException):
     """Raised when RTL invariants are violated."""
 
 
-HARVEST_SCRIPT = r"""
-(function () {
+# The body of a function, as Selenium's ``execute_script`` runs one: ``execute_script(HARVEST_SCRIPT)``
+# returns the value. It is stored on ``arguments`` first, and the text starts with that statement, so the
+# script gives the same value when a caller writes ``"return "`` in front of it.
+HARVEST_SCRIPT = r"""arguments.harvested = (function (selectors) {
   function box(el) {
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
@@ -45,14 +47,14 @@ HARVEST_SCRIPT = r"""
       unicodeBidi: cs.unicodeBidi,
     };
   }
-  const selectors = arguments[0];
   const out = { documentDir: document.documentElement.dir, items: [] };
   for (const sel of selectors) {
     const els = Array.from(document.querySelectorAll(sel));
     out.items.push({ selector: sel, boxes: els.map(box) });
   }
   return out;
-})();
+})(arguments[0] || []);
+return arguments.harvested;
 """
 
 

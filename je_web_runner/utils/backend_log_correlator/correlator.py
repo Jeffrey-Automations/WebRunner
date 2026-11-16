@@ -35,6 +35,8 @@ _TRACEPARENT_RE = re.compile(
     re.IGNORECASE,
 )
 _TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$", re.IGNORECASE)
+# A Loki label name. The label goes into the LogQL selector as it is, so nothing else may reach it.
+_LOKI_LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 # ---------- data ---------------------------------------------------------
@@ -167,7 +169,13 @@ def fetch_loki(
     timeout: float = 15.0,
     limit: int = 1000,
 ) -> LogFetcher:
-    """Build a fetcher that queries Grafana Loki by label-equals match."""
+    """Build a fetcher that queries Grafana Loki by label-equals match.
+
+    Raises ``BackendLogCorrelatorError`` when ``label`` is not a label name (letters, digits and
+    underscores, not starting with a digit).
+    """
+    if not isinstance(label, str) or not _LOKI_LABEL_RE.match(label):
+        raise BackendLogCorrelatorError(f"label must be a Loki label name, got {label!r}")
     requests = _require_requests()
     url = base_url.rstrip("/") + "/loki/api/v1/query_range"
 
@@ -257,6 +265,10 @@ def correlate(
     """
     Resolve ``trace_id_or_header`` (raw id or full traceparent) and call
     every fetcher in turn, concatenating their results.
+
+    A fetcher that raises ``BackendLogCorrelatorError`` stops the call with that error. Any other
+    exception of a fetcher is logged as a warning and that fetcher contributes nothing, so the
+    remaining fetchers still run.
     """
     if not fetchers:
         raise BackendLogCorrelatorError("at least one fetcher is required")

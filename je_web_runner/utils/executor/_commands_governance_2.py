@@ -10,7 +10,6 @@ from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel  # each library is imported by the command that uses it
 
-import json
 from pathlib import Path
 from typing import Any, Callable
 
@@ -86,49 +85,28 @@ def wr_test_blame_owner_assert_has_owner(  # pylint: disable=too-many-arguments,
 
 # ---------- test_categorizer ---------------------------------------------
 
-def _keyed_step(step: Any) -> Any:
-    if isinstance(step, list) and step and isinstance(step[0], str):
-        return {step[0]: step[1] if len(step) > 1 else {}}
-    return step
-
-
-def _keyed_actions(actions: Any) -> Any:
-    """Action-file steps (``["WR_name", {...}]``) as the ``{"WR_name": {...}}`` objects the rules read."""
-    return [_keyed_step(step) for step in actions] if isinstance(actions, list) else actions
-
-
-def _categorize_path(path: Path) -> Any:
-    from je_web_runner.utils.test_categorizer.categorizer import (
-        CategoryAssignment, TestCategorizerError, categorize_actions,
-    )
-    if not path.is_file():
-        raise TestCategorizerError(f"file not found: {path}")
-    try:
-        actions = json.loads(path.read_text(encoding="utf-8"))
-    except ValueError as error:
-        raise TestCategorizerError(f"file not JSON: {error}") from error
-    tags = categorize_actions(_keyed_actions(actions))
-    return CategoryAssignment(test_id=str(path), tags=tags, action_count=len(actions))
-
-
 def wr_test_categorizer_categorize(actions: list[Any]) -> list[str]:
-    """Tag an action list by what it does: smoke, regression, perf, a11y, security, payment, visual, api."""
+    """
+    Tag an action list by what it does: smoke, regression, perf, a11y, security, payment, visual, api.
+    Actions inside blocks count too.
+    """
     from je_web_runner.utils.test_categorizer.categorizer import categorize_actions
-    return categorize_actions(_keyed_actions(actions))
+    return categorize_actions(actions)
 
 
 def wr_test_categorizer_categorize_file(path: str) -> Any:
-    """Tag the action file at ``path``; returns its ``tags`` and ``action_count``."""
-    return to_plain(_categorize_path(Path(path)))
+    """Tag the action file at ``path`` (a list or an object document); returns its ``tags`` and ``action_count``."""
+    from je_web_runner.utils.test_categorizer.categorizer import categorize_file
+    return to_plain(categorize_file(path))
 
 
 def wr_test_categorizer_categorize_dir(directory: str) -> dict[str, Any]:
     """Tag every ``*.json`` action file of a directory; returns the ``assignments`` and the tag ``distribution``."""
-    from je_web_runner.utils.test_categorizer.categorizer import TestCategorizerError, aggregate
+    from je_web_runner.utils.test_categorizer.categorizer import TestCategorizerError, aggregate, categorize_file
     folder = Path(directory)
     if not folder.is_dir():
         raise TestCategorizerError(f"not a directory: {folder}")
-    assignments = [_categorize_path(child) for child in sorted(folder.glob("*.json"))]
+    assignments = [categorize_file(child) for child in sorted(folder.glob("*.json"))]
     return {"assignments": to_plain(assignments), "distribution": to_plain(aggregate(assignments))}
 
 
@@ -236,8 +214,9 @@ def wr_test_dup_dry_find_duplicates(specs: list[dict[str, Any]]) -> Any:
     """
     Find tests that walk the same steps.
 
-    ``specs`` is a list of ``{"name", "actions"}``; a step is an object with ``action_name`` and one of
-    ``element_name``, ``by_value``, ``url``. Returns groups of test names sharing a step signature.
+    ``specs`` is a list of ``{"name", "actions"}``, where ``actions`` is an action list as in an action
+    file (blocks included) or the older step objects with ``action_name``. Returns groups of test names
+    sharing a step signature.
     """
     from je_web_runner.utils.test_dup_dry.dedup import find_duplicates
     return to_plain(find_duplicates(_dup_specs(specs)))

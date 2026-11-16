@@ -21,7 +21,11 @@ class WebcodecsAssertError(WebRunnerException):
     """Raised when a WebCodecs invariant fails."""
 
 
-HARVEST_SCRIPT = r"""
+# Installs the recorder ``window.__wr_codec__`` (idempotent); it does not read anything back. The page's
+# encoder output callback calls ``__wr_codec__.record('video' | 'audio', chunk, metadata)``, and the
+# harness reads the chunks with ``return window.__wr_codec__.drain('video');`` and gives them to
+# ``parse_chunks``. As an expression (``page.evaluate``) the script's value is the recorder itself.
+INSTALL_SCRIPT = r"""
 (function () {
   if (window.__wr_codec__) return window.__wr_codec__;
   const captures = {video: [], audio: []};
@@ -42,6 +46,9 @@ HARVEST_SCRIPT = r"""
   return window.__wr_codec__;
 })();
 """
+
+# The first name of ``INSTALL_SCRIPT``, kept for callers that import it: it installs, it does not harvest.
+HARVEST_SCRIPT = INSTALL_SCRIPT
 
 
 class ChunkType(str, Enum):

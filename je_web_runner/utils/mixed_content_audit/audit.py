@@ -106,8 +106,10 @@ def scan_har(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
 ) -> list[MixedFinding]:
     """
     Parse a HAR object/string, returning one finding per http request on
-    an https page. When ``page_url`` is None, we assume the first entry's
-    page URL is the document.
+    an https page. When ``page_url`` is None, the first page of the HAR
+    (``log.pages[0]``) is taken as the document. When the HAR names no page
+    either, the document is assumed to be https and every http request is
+    reported: pass ``page_url`` for a HAR recorded on an http page.
     """
     har_obj = coerce_har(har, MixedContentAuditError, "scan_har")
     entries = ((har_obj.get("log") or {}).get("entries")) or []

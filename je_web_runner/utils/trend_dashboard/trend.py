@@ -56,7 +56,7 @@ def compute_trend(ledger_path: str) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as error:
         raise TrendDashboardError(f"ledger not JSON: {error}") from error
-    runs = data.get("runs")
+    runs = data.get("runs") if isinstance(data, dict) else None
     if not isinstance(runs, list):
         raise TrendDashboardError("ledger missing 'runs' list")
     return compute_trend_from_runs(runs)
@@ -83,7 +83,7 @@ def compute_trend_from_runs(runs: list[Any]) -> dict[str, Any]:
         try:
             bucket.total_duration += float(duration)
         except (TypeError, ValueError):
-            pass
+            pass  # a duration that is not a number adds nothing; the run itself is still counted
     daily = sorted(buckets.values(), key=lambda b: b.label)
     return {
         "daily": [

@@ -32,6 +32,8 @@ class PopoverKind(str, Enum):
     POPOVER_HINT = "hint"
 
 
+# An expression whose value is the snapshot list (``page.evaluate`` / CDP ``Runtime.evaluate``). As a
+# Selenium ``execute_script`` body it returns nothing: run it there as ``"return " + HARVEST_SCRIPT``.
 HARVEST_SCRIPT = """
 (function() {
   function describe(el) {

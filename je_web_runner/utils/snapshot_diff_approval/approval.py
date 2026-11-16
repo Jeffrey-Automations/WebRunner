@@ -8,6 +8,11 @@ Maintains an on-disk register of snapshots with three states:
   needs human review before promotion to baseline.
 * **rejected** — explicitly rejected (kept for audit / blame).
 
+A pending or rejected entry keeps the hash of the baseline it was compared
+with (``baseline_sha256``), so the baseline stays in force until a candidate
+is approved: later runs are still diffed against it, and a run that matches
+it again clears a pending candidate.
+
 Workflow helpers: ``capture``, ``compare`` (returns ``DiffResult``),
 ``approve``, ``reject``, ``list_pending``. Bytes/text comparison only —
 visual pixel diff is delegated to [[visual_ai]].
@@ -45,6 +50,7 @@ class SnapshotEntry:
     updated_at: str
     approved_by: str = ""
     note: str = ""
+    baseline_sha256: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Return the fields as a plain dict, with the ``status`` enum replaced by its string value."""
@@ -77,14 +83,18 @@ class DiffResult:
 def load(path: str) -> dict[str, SnapshotEntry]:
     """Read the registry file into a ``name -> SnapshotEntry`` dict.
     A missing file gives an empty registry; entries that are not objects are skipped.
-    Raises ``SnapshotDiffApprovalError`` when the file is not a JSON object.
+    Raises ``SnapshotDiffApprovalError`` when the file is not a JSON object or an entry
+    has an unknown status.
     """
     if not isinstance(path, str) or not path:
         raise SnapshotDiffApprovalError("path must be non-empty string")
     if not os.path.exists(path):
         return {}
-    with open(path, encoding="utf-8") as fh:
-        raw = json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except ValueError as error:
+        raise SnapshotDiffApprovalError(f"registry file {path!r} is not JSON: {error}") from error
     if not isinstance(raw, dict):
         raise SnapshotDiffApprovalError(
             f"registry file {path!r} must contain a JSON object"
@@ -96,12 +106,33 @@ def load(path: str) -> dict[str, SnapshotEntry]:
         out[name] = SnapshotEntry(
             name=name,
             sha256=str(item.get("sha256") or ""),
-            status=Status(item.get("status", Status.PENDING.value)),
+            status=_status_of(item.get("status", Status.PENDING.value), name),
             updated_at=str(item.get("updated_at") or _now()),
             approved_by=str(item.get("approved_by") or ""),
             note=str(item.get("note") or ""),
+            baseline_sha256=str(item.get("baseline_sha256") or ""),
         )
     return out
+
+
+_STATUS_BY_VALUE = {status.value: status for status in Status}
+
+
+def _status_of(value: Any, name: str) -> Status:
+    """The :class:`Status` named ``value``; raises ``SnapshotDiffApprovalError`` for an unknown one."""
+    status = _STATUS_BY_VALUE.get(value) if isinstance(value, str) else None
+    if status is None:
+        raise SnapshotDiffApprovalError(
+            f"snapshot {name!r} has status {value!r}; known: {sorted(_STATUS_BY_VALUE)}"
+        )
+    return status
+
+
+def _baseline_of(entry: SnapshotEntry | None) -> str:
+    """The baseline hash in force for ``entry``: its own when it is the baseline, else the one it kept."""
+    if entry is None:
+        return ""
+    return entry.sha256 if entry.status == Status.BASELINE else entry.baseline_sha256
 
 
 def save(path: str, registry: dict[str, SnapshotEntry]) -> None:
@@ -117,26 +148,33 @@ def capture(
     registry: dict[str, SnapshotEntry], *, name: str, payload: bytes,
 ) -> DiffResult:
     """Compare ``payload`` against baseline. If no baseline exists, the
-    snapshot enters as ``pending``."""
+    snapshot enters as ``pending``; a mismatch enters as ``pending`` too and
+    keeps the baseline it was compared with. A payload that matches the
+    baseline changes nothing, except that it clears a pending candidate."""
     if not name:
         raise SnapshotDiffApprovalError("name must be non-empty")
     head = _hash(payload)
     existing = registry.get(name)
-    if existing and existing.status == Status.BASELINE:
-        if existing.sha256 == head:
-            return DiffResult(name=name,
-                              baseline_sha=existing.sha256, head_sha=head)
+    baseline = _baseline_of(existing)
+    if not baseline:
         registry[name] = SnapshotEntry(
             name=name, sha256=head, status=Status.PENDING,
-            updated_at=_now(), note="auto-captured on mismatch",
+            updated_at=_now(),
         )
-        return DiffResult(name=name,
-                          baseline_sha=existing.sha256, head_sha=head)
-    registry[name] = SnapshotEntry(
-        name=name, sha256=head, status=Status.PENDING,
-        updated_at=_now(),
-    )
-    return DiffResult(name=name, baseline_sha="", head_sha=head)
+        return DiffResult(name=name, baseline_sha="", head_sha=head)
+    if baseline != head:
+        if existing is None or existing.status != Status.REJECTED or existing.sha256 != head:
+            registry[name] = SnapshotEntry(
+                name=name, sha256=head, status=Status.PENDING,
+                updated_at=_now(), note="auto-captured on mismatch",
+                baseline_sha256=baseline,
+            )
+    elif existing is not None and existing.status == Status.PENDING:
+        registry[name] = SnapshotEntry(
+            name=name, sha256=baseline, status=Status.BASELINE,
+            updated_at=_now(), note="matches the baseline again",
+        )
+    return DiffResult(name=name, baseline_sha=baseline, head_sha=head)
 
 
 def approve(
@@ -158,6 +196,7 @@ def approve(
     entry.status = Status.BASELINE
     entry.approved_by = reviewer
     entry.updated_at = _now()
+    entry.baseline_sha256 = ""
     return entry
 
 
@@ -166,6 +205,7 @@ def reject(
     reviewer: str, note: str = "",
 ) -> SnapshotEntry:
     """Mark the snapshot ``name`` as rejected, recording ``reviewer`` and an optional note.
+    The baseline the rejected candidate was compared with stays in force for later captures.
     Raises ``SnapshotDiffApprovalError`` when the snapshot is unknown or ``reviewer`` is empty.
     """
     entry = registry.get(name)

@@ -152,6 +152,8 @@ def extract_pdf_text(
         )
     except ImportError:
         pass
+    except Exception as error:  # pypdf raises its own error types for a file it cannot parse
+        raise DownloadVerifyError(f"failed to extract PDF text from {p}: {error!r}") from error
     try:
         import pdfplumber  # type: ignore[import-not-found]
         pieces: list[str] = []

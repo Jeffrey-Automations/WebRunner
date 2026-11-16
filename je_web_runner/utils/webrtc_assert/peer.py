@@ -210,6 +210,8 @@ def assert_sdp_has_codec(snapshot: PeerSnapshot, codec_name: str, *, side: str =
     """Assert the SDP for the chosen side advertises ``codec_name`` (e.g. 'opus')."""
     if not isinstance(codec_name, str) or not codec_name:
         raise WebRtcAssertError("codec_name must be a non-empty string")
+    if side not in ("remote", "local"):
+        raise WebRtcAssertError(f"side must be 'remote' or 'local', got {side!r}")
     sdp = snapshot.local_sdp if side == "local" else snapshot.remote_sdp
     if not sdp:
         raise WebRtcAssertError(f"{side} SDP is empty")

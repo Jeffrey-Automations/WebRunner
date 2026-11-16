@@ -37,11 +37,10 @@ class TestCdpPayloads(unittest.TestCase):
         self.assertIn("Emulation.setCPUThrottlingRate", methods)
         self.assertIn("Memory.simulatePressureNotification", methods)
 
-    def test_includes_heap_when_set(self):
+    def test_heap_limit_has_no_cdp_command(self):
+        # Chromium answers "'HeapProfiler.setSamplingHeapProfiler' wasn't found"; no CDP command sets a heap limit.
         cmds = cdp_payloads(EmulationProfile(name="x", js_heap_limit_bytes=1024))
-        self.assertTrue(any(
-            c["method"] == "HeapProfiler.setSamplingHeapProfiler" for c in cmds
-        ))
+        self.assertFalse(any(c["method"].startswith("HeapProfiler.") for c in cmds))
 
     def test_rejects_non_profile(self):
         with self.assertRaises(MemoryPressureError):

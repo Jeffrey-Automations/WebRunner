@@ -545,10 +545,13 @@ GENERIC_EVENTS = [
 def test_session_to_test_convert_generic_and_rrweb(tmp_path: Path):
     convert = infra_2.INFRA_2_COMMANDS["WR_session_to_test_convert"]
     converted = convert(GENERIC_EVENTS)
+    # Real action lists of registered commands: an element event is a lookup followed by the action.
     assert converted["actions"] == [
-        {"WR_to_url": ["https://shop.example/login"]},
-        {"WR_input_to_element": ["css selector", "#user", "alice"]},
-        {"WR_click_element": ["id", "submit"]},
+        ["WR_to_url", {"url": "https://shop.example/login"}],
+        ["WR_find_element_by", {"selector": "#user", "by": "css selector"}],
+        ["WR_input_to_element", {"input_value": "alice"}],
+        ["WR_find_element_by", {"selector": "submit", "by": "id"}],
+        ["WR_element_click"],
     ]
     assert converted["stats"]["input_events"] == 4
     assert converted["stats"]["skipped_events"] == 1
@@ -559,7 +562,10 @@ def test_session_to_test_convert_generic_and_rrweb(tmp_path: Path):
         {"type": 3, "data": {"source": 2, "type": 2, "id": 17}, "timestamp": 2},
     ]
     from_file = convert(_write_json(tmp_path / "session.json", {"events": rrweb}))
-    assert from_file["actions"][1] == {"WR_click_element": ["css selector", '[data-rrweb-id="17"]']}
+    assert from_file["actions"][1:] == [
+        ["WR_find_element_by", {"selector": '[data-rrweb-id="17"]', "by": "css selector"}],
+        ["WR_element_click"],
+    ]
     with pytest.raises(SessionToTestError):
         convert([{"kind": "hover"}])
 
@@ -569,8 +575,8 @@ def test_session_to_test_write(tmp_path: Path):
     target = tmp_path / "out" / "login.json"
     written = write(GENERIC_EVENTS, str(target))
     assert written["path"] == str(target)
-    assert written["stats"]["actions_emitted"] == 3
+    assert written["stats"]["actions_emitted"] == 5
     assert json.dumps(written)
-    assert len(json.loads(target.read_text(encoding="utf-8"))) == 3
+    assert len(json.loads(target.read_text(encoding="utf-8"))) == 5
     with pytest.raises(SessionToTestError):
         write([], str(tmp_path / "out" / "empty.json"))

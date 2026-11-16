@@ -9,6 +9,11 @@ action list and picks tags based on what the test actually *does*:
 * axe / a11y_* / screen_reader_runner → a11y
 * big data-driven loop → data
 
+Actions are read in the shape the executor runs, ``["WR_name", {...}]``, the
+ones inside blocks (``WR_if``, the loops, ``WR_try`` …) included; the older
+``{"WR_name": ...}`` objects are still read. A file may be the list itself or
+an object document with the list under ``webdriver_wrapper``.
+
 Heuristic is deliberately conservative; teams override via
 ``rules=[...custom_rules]``.
 """
@@ -21,6 +26,9 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.linter.flow_rules import every_action
+
+_ACTION_LIST_KEY = "webdriver_wrapper"
 
 
 class TestCategorizerError(WebRunnerException):
@@ -39,17 +47,22 @@ class Rule:
     matcher: Callable[[list[dict[str, Any]]], bool]
 
 
+def action_names(actions: list[Any]) -> list[str]:
+    """
+    The command names of ``actions``: those of the ``["WR_name", ...]`` lists, the ones inside blocks
+    included, and those of the one-key ``{"WR_name": ...}`` objects.
+    """
+    names = [action[0] for _, action in every_action(actions)]
+    names.extend(next(iter(action)) for action in actions
+                 if isinstance(action, dict) and len(action) == 1 and isinstance(next(iter(action)), str))
+    return names
+
+
 def _has_any(action_name_pattern: str) -> Callable[[list[dict[str, Any]]], bool]:
     regex = re.compile(action_name_pattern)
 
     def _check(actions: list[dict[str, Any]]) -> bool:
-        for action in actions:
-            if not isinstance(action, dict) or len(action) != 1:
-                continue
-            name = next(iter(action.keys()))
-            if regex.search(name):
-                return True
-        return False
+        return any(regex.search(name) for name in action_names(actions))
     return _check
 
 
@@ -149,7 +162,7 @@ def categorize_file(
     *,
     rules: Sequence[Rule] = DEFAULT_RULES,
 ) -> CategoryAssignment:
-    """Load JSON file, run rules, return :class:`CategoryAssignment`."""
+    """Load an action file (a list, or an object document), run rules, return :class:`CategoryAssignment`."""
     p = Path(path)
     if not p.exists():
         raise TestCategorizerError(f"file not found: {p}")
@@ -157,8 +170,10 @@ def categorize_file(
         actions = json.loads(p.read_text(encoding="utf-8"))
     except ValueError as error:
         raise TestCategorizerError(f"file not JSON: {error}") from error
+    if isinstance(actions, dict) and _ACTION_LIST_KEY in actions:
+        actions = actions[_ACTION_LIST_KEY]
     if not isinstance(actions, list):
-        raise TestCategorizerError(f"{p} must contain a JSON list")
+        raise TestCategorizerError(f"{p} must contain a JSON list, or an object with one under {_ACTION_LIST_KEY!r}")
     tags = categorize_actions(actions, rules=rules)
     return CategoryAssignment(
         test_id=str(p), tags=tags, action_count=len(actions),

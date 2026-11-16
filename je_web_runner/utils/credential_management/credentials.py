@@ -12,7 +12,8 @@ This module installs a shim that:
 
 * Returns seeded credentials from ``get``.
 * Records every ``store`` call so the test can assert "did the page
-  remember the password?".
+  remember the password?" (the id, the type and whether a password was
+  given; the password text is not copied into the log).
 * Records ``preventSilentAccess`` calls so tests can verify logout
   hygiene.
 """
@@ -47,9 +48,10 @@ INSTALL_SCRIPT = r"""
       };
     },
     store: async function (cred) {
+      // The password itself stays in the page: the log only says whether there was one.
       store.push({
         id: cred.id, type: cred.type || 'password',
-        password: cred.password || '', provider: cred.provider || '',
+        hasPassword: !!cred.password, provider: cred.provider || '',
       });
       return cred;
     },
@@ -99,11 +101,17 @@ def build_seed(credentials: list[SeedCredential]) -> dict[str, Any]:
 
 @dataclass
 class StoredCall:
-    """One ``navigator.credentials.store`` call the page made."""
+    """One ``navigator.credentials.store`` call the page made.
+
+    ``has_password`` says whether the stored credential carried a password. ``password`` is empty for
+    a log from ``INSTALL_SCRIPT``, which does not copy the password; it is filled only when the log
+    itself holds a plaintext password, which ``assert_no_password_in_clear`` refuses.
+    """
     id: str = ""
     type: str = ""
     password: str = ""
     provider: str = ""
+    has_password: bool = False
 
 
 @dataclass
@@ -130,6 +138,7 @@ def parse_log(payload: Any) -> CmLog:
             type=str(raw.get("type") or "password"),
             password=str(raw.get("password") or ""),
             provider=str(raw.get("provider") or ""),
+            has_password=bool(raw.get("hasPassword") or raw.get("password")),
         ))
     return CmLog(
         stored=stored,
@@ -151,12 +160,16 @@ def assert_stored(log: CmLog, *, credential_id: str) -> StoredCall:
 
 
 def assert_no_password_in_clear(log: CmLog) -> None:
-    """Belt-and-braces: ensure no plaintext password was *also* logged."""
-    leaked = [s for s in log.stored if s.password and len(s.password) > 0]
+    """Belt-and-braces: ensure no plaintext password was *also* logged.
+
+    The shim records only that a stored credential had a password, so a page that stores a
+    ``PasswordCredential`` passes; a log entry that holds the password text itself fails.
+    """
+    leaked = [s for s in log.stored if s.password]
     if leaked:
         raise CredentialManagementError(
             f"{len(leaked)} stored credential(s) leaked plaintext password "
-            "into the test harness — page should not expose .password back"
+            "into the test harness — the log must not hold .password"
         )
 
 
@@ -174,9 +187,13 @@ def assert_prevent_silent_access_called(log: CmLog, *, at_least: int = 1) -> Non
 def assert_get_requested_mediation(
     log: CmLog, *, mediation: str = "required",
 ) -> None:
-    """Raise ``CredentialManagementError`` when a ``credentials.get`` call used another mediation mode."""
+    """Raise ``CredentialManagementError`` when a ``credentials.get`` call used another mediation mode,
+    or when the page never called ``credentials.get``.
+    """
     if mediation not in ("silent", "optional", "required", "conditional"):
         raise CredentialManagementError(f"unknown mediation {mediation!r}")
+    if not log.gets:
+        raise CredentialManagementError("page never called navigator.credentials.get")
     for opts in log.gets:
         if not isinstance(opts, dict):
             continue

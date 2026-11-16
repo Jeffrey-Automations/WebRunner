@@ -15,6 +15,7 @@ the module stays driver-agnostic.
 """
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -144,7 +145,10 @@ setTimeout(function() {
 
 
 def build_probe_page(target_url: str) -> str:
-    """Render an HTML probe page that tries to embed ``target_url``."""
+    """Render an HTML probe page that tries to embed ``target_url``.
+
+    The URL is HTML-escaped, so one carrying quotes or markup stays the value of the iframe's ``src``.
+    """
     if not isinstance(target_url, str) or not target_url:
         raise ClickjackingAuditError("target_url must be non-empty string")
     parsed = urlparse(target_url)
@@ -152,7 +156,7 @@ def build_probe_page(target_url: str) -> str:
         raise ClickjackingAuditError(
             f"target_url must be http(s), got {parsed.scheme!r}"
         )
-    return _PROBE_TEMPLATE % {"target_url": target_url}
+    return _PROBE_TEMPLATE % {"target_url": html.escape(target_url, quote=True)}
 
 
 PROBE_STATUS_SCRIPT = "return document.getElementById('status').textContent;"

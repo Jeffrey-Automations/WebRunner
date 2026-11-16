@@ -98,15 +98,20 @@ def reset_distribution_cache() -> None:
     _DISTRIBUTION_CACHE = None
 
 
+def _normalised_name(name: str) -> str:
+    return name.lower().replace("_", "-")
+
+
 def _python_distributions(allow_distributions: Iterable[str] | None = None) -> list[LockEntry]:
+    """The installed distributions; ``allow_distributions`` keeps only those names (an empty one keeps none)."""
     entries: list[LockEntry] = []
     seen: set = set()
-    allow = set(allow_distributions) if allow_distributions else None
+    allow = None if allow_distributions is None else {_normalised_name(a) for a in allow_distributions}
     for name, version in _scan_distributions():
-        normalised = name.lower().replace("_", "-")
+        normalised = _normalised_name(name)
         if normalised in seen:
             continue
-        if allow is not None and normalised not in {a.lower() for a in allow}:
+        if allow is not None and normalised not in allow:
             continue
         seen.add(normalised)
         entries.append(LockEntry(name=normalised, version=version, kind="python"))
@@ -121,7 +126,8 @@ def build_lock(
 ) -> WorkspaceLock:
     """
     Build a :class:`WorkspaceLock` from the active interpreter + caller-supplied
-    driver / Playwright versions.
+    driver / Playwright versions. ``allow_distributions`` keeps only the named
+    Python packages: ``None`` records every installed one, an empty list none.
     """
     entries: list[LockEntry] = []
     entries.extend(_python_distributions(allow_distributions=allow_distributions))

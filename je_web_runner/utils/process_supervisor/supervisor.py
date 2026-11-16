@@ -3,9 +3,12 @@ Browser 程序監視：清掉 orphan chromedriver / geckodriver / msedgedriver�
 給 long-running test 一個 watchdog 防止卡住。
 Process supervisor for WebDriver-related binaries. Two surfaces:
 
-- :class:`ProcessSupervisor` — listing + killing orphan ``chromedriver``
+- :class:`ProcessSupervisor` — listing + killing ``chromedriver``
   / ``geckodriver`` / ``msedgedriver`` processes by walking the OS
-  process table.
+  process table. A process is picked by its name only: the listing does
+  not know a driver's parent, so it cannot tell an orphan from the driver
+  of a running session. Call it when no session should be alive, or pass
+  the pids to keep as ``protected_pids``.
 - :func:`with_watchdog` — wrap any callable with a hard wall-clock
   timeout so a single hung test can't take down the whole shard.
 
@@ -15,6 +18,7 @@ heavy ``psutil`` dependency stays optional. The fallback uses the stdlib
 """
 from __future__ import annotations
 
+import csv
 import os
 import subprocess  # nosec B404 — argv-only invocation, no shell
 import threading
@@ -96,9 +100,9 @@ def _tasklist_windows_lister() -> list[OrphanFinding]:
     except (OSError, subprocess.SubprocessError) as error:
         raise ProcessSupervisorError(f"tasklist failed: {error!r}") from error
     findings: list[OrphanFinding] = []
-    for line in out.splitlines():
-        # CSV with quoted fields: "Image","PID","Session","Session#","Mem"
-        cleaned = [field.strip().strip('"') for field in line.split(",")]
+    # CSV with quoted fields: "Image","PID","Session","Session#","Mem"; a field may hold a comma.
+    for row in csv.reader(out.splitlines()):
+        cleaned = [cell.strip() for cell in row]
         if len(cleaned) < 2:
             continue
         name = cleaned[0]
@@ -144,7 +148,7 @@ def default_killer(pid: int) -> bool:
 
 @dataclass
 class ProcessSupervisor:
-    """List + kill orphan webdriver processes."""
+    """List + kill webdriver processes by name; every match counts, orphaned or not."""
 
     lister: ProcessLister = field(default=default_lister)
     killer: ProcessKiller = field(default=default_killer)

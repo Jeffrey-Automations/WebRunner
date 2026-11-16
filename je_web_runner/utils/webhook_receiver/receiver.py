@@ -15,7 +15,6 @@ background thread, picks a free port automatically, and exposes:
 from __future__ import annotations
 
 import json
-import socket
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -67,12 +66,6 @@ class ReceivedRequest:
 # ---------- handler factory --------------------------------------------
 
 ResponseFn = Callable[[ReceivedRequest], dict[str, Any] | None]
-
-
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 def _response_for(request: ReceivedRequest, response_fn: ResponseFn | None) -> dict[str, Any]:
@@ -170,7 +163,7 @@ def _build_handler(
 
 # ---------- server ------------------------------------------------------
 
-class WebhookServer:
+class WebhookServer:  # pylint: disable=too-many-instance-attributes  # settings plus server state
     """Threaded HTTP server. Use as a context manager."""
 
     def __init__(
@@ -185,7 +178,10 @@ class WebhookServer:
         if port is not None and (port <= 0 or port >= 65536):
             raise WebhookReceiverError("port must be a valid TCP port")
         self._host = host
-        self._port = port or _free_port()
+        # Without a port the system picks one when the server binds, in ``start``. Picking it here
+        # and binding later would leave a moment in which another process can take it.
+        self._system_port = port is None
+        self._port = port or 0
         self._response_fn = response_fn
         self._received: list[ReceivedRequest] = []
         self._lock = threading.Lock()
@@ -194,7 +190,13 @@ class WebhookServer:
 
     @property
     def base_url(self) -> str:
-        """The ``http://host:port`` URL the app under test should send its webhooks to."""
+        """The ``http://host:port`` URL the app under test should send its webhooks to.
+
+        Raises ``WebhookReceiverError`` before ``start`` when no port was given: the system
+        chooses the port when the server binds.
+        """
+        if not self._port:
+            raise WebhookReceiverError("base_url is known once the server is started (no port was given)")
         # S5332 ok: this is a localhost test-fixture HTTP server with random
         # port, intentionally plain HTTP so callers can hit it without certs.
         return f"http://{self._host}:{self._port}"  # NOSONAR S5332 — intentional plain HTTP
@@ -208,12 +210,14 @@ class WebhookServer:
         handler_cls = _build_handler(
             self._received, self._lock, self._response_fn,
         )
+        port = 0 if self._system_port else self._port
         try:
-            self._server = ThreadingHTTPServer((self._host, self._port), handler_cls)
+            self._server = ThreadingHTTPServer((self._host, port), handler_cls)
         except OSError as error:
             raise WebhookReceiverError(
-                f"failed to bind {self._host}:{self._port}: {error}"
+                f"failed to bind {self._host}:{port}: {error}"
             ) from error
+        self._port = self._server.server_address[1]
         self._thread = threading.Thread(
             target=self._server.serve_forever, daemon=True, name="wr-webhook",
         )
@@ -284,12 +288,12 @@ def assert_received_path(
     method: str | None = None,
     minimum: int = 1,
 ) -> int:
-    """Assert at least ``minimum`` requests hit ``path``."""
+    """Assert at least ``minimum`` requests hit ``path``; ``method`` (any case) narrows them to one HTTP method."""
     if not isinstance(path, str) or not path:
         raise WebhookReceiverError("path must be non-empty string")
     matches = [
         r for r in server.received()
-        if r.path == path and (method is None or r.method == method)
+        if r.path == path and (method is None or r.method.upper() == method.upper())
     ]
     if len(matches) < minimum:
         raise WebhookReceiverError(

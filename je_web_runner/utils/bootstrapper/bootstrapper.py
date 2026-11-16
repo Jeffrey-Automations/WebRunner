@@ -155,6 +155,7 @@ def init_workspace(
             try:
                 target.chmod(0o755)
             except OSError:
-                pass
+                # The hook is written either way; a file system without mode bits cannot mark it executable.
+                pass  # noqa: S110  # NOSONAR S2486 — justified above
         report[entry.relative_path] = "created"
     return report

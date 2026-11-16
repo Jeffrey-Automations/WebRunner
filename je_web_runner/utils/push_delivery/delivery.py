@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.pii_scanner.scanner import _luhn_check
 
 
 class PushDeliveryError(WebRunnerException):
@@ -38,15 +39,31 @@ APNS_MAX_TTL_SEC = 30 * 24 * 3600
 
 
 _PII_PATTERNS = (
-    re.compile(r"\b\d{3}-?\d{2}-?\d{4}\b"),                  # SSN
-    re.compile(r"\b(?:\d[ -]?){13,19}\b"),                   # Card-like
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),                    # SSN, as it is written: 123-45-6789
+    re.compile(r"\b(?:\d[ -]?){13,19}\b"),                   # Card-like; counts when the checksum holds
     re.compile(r"(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
 )
+_CARD_PATTERN = _PII_PATTERNS[1]
+
+
+def _pii_pattern(value: str) -> str | None:
+    """The pattern of the first PII-shaped part of ``value``, or None.
+
+    An order or tracking number is not PII: nine digits count only when written as an SSN, and
+    13 to 19 digits only when they pass the card checksum.
+    """
+    for pattern in _PII_PATTERNS:
+        if pattern is not _CARD_PATTERN and pattern.search(value):
+            return pattern.pattern
+        if pattern is _CARD_PATTERN and any(_luhn_check(match.group(0)) for match in pattern.finditer(value)):
+            return pattern.pattern
+    return None
 
 
 def assert_fcm_payload(payload: dict[str, Any]) -> None:
     """Raise PushDeliveryError unless ``payload`` is a usable FCM v1 message: a ``message`` dict
-    with a target, within the size limit, no PII in the notification, a valid Android TTL.
+    with exactly one target (``token``, ``topic`` or ``condition``), within the size limit,
+    no PII in the notification, a valid Android TTL.
     """
     if not isinstance(payload, dict):
         raise PushDeliveryError("payload must be a dict")
@@ -55,9 +72,10 @@ def assert_fcm_payload(payload: dict[str, Any]) -> None:
     message = payload["message"]
     if not isinstance(message, dict):
         raise PushDeliveryError("message must be a dict")
-    if not any(k in message for k in ("token", "topic", "condition")):
+    targets = [k for k in ("token", "topic", "condition") if k in message]
+    if len(targets) != 1:
         raise PushDeliveryError(
-            "FCM message needs exactly one of token/topic/condition"
+            f"FCM message needs exactly one of token/topic/condition, got {targets or 'none'}"
         )
     _assert_size(payload, FCM_MAX_BYTES)
     _assert_no_pii(message.get("notification") or {})
@@ -100,12 +118,12 @@ def _assert_no_pii(notification: dict[str, Any]) -> None:
         value = notification.get(field_name)
         if not isinstance(value, str):
             continue
-        for pat in _PII_PATTERNS:
-            if pat.search(value):
-                raise PushDeliveryError(
-                    f"notification.{field_name!r} contains PII-shaped value: "
-                    f"{pat.pattern!r}"
-                )
+        pattern = _pii_pattern(value)
+        if pattern is not None:
+            raise PushDeliveryError(
+                f"notification.{field_name!r} contains PII-shaped value: "
+                f"{pattern!r}"
+            )
 
 
 def _assert_ttl_string(ttl: Any, max_seconds: int) -> None:

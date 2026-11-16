@@ -22,6 +22,9 @@ class StorageBucketsError(WebRunnerException):
     """Raised on bad snapshot or failed assertion."""
 
 
+# An expression whose value is a promise of the snapshot (``page.evaluate`` / CDP ``Runtime.evaluate``
+# with ``awaitPromise``). As a Selenium ``execute_script`` body it returns nothing: run it there as
+# ``"return " + HARVEST_SCRIPT``.
 HARVEST_SCRIPT = """
 (async function() {
   if (!('storageBuckets' in navigator)) {

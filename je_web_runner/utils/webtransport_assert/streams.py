@@ -76,11 +76,11 @@ class WtFrame:
             ) from error
 
     def to_dict(self) -> dict[str, Any]:
-        """Return the fields as a plain dict, with the payload replaced by ``payload_b64``
-        (which, despite the name, holds the hex encoding of the bytes).
+        """Return the fields as a plain dict, with the payload replaced by ``payload_hex``,
+        the hex encoding of the bytes (``bytes.fromhex`` reads it back).
         """
         out = asdict(self)
-        out["payload_b64"] = bytes(self.payload).hex()
+        out["payload_hex"] = bytes(self.payload).hex()
         out.pop("payload", None)
         return out
 

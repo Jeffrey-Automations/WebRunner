@@ -192,6 +192,9 @@ def audit_consent(
     """
     Cross-check that no non-essential cookies are set pre-consent, and
     (when ``user_rejected``) that none re-appear post-rejection.
+
+    ``unknown_cookies`` lists the cookies of either snapshot that no rule classifies, each
+    ``(name, domain)`` once; they do not fail the audit.
     """
     before_classified = classify_all(before_consent, extra_rules=extra_rules)
     after_classified = classify_all(after_consent, extra_rules=extra_rules)
@@ -199,9 +202,7 @@ def audit_consent(
     pre_violations = [
         c for c in before_classified if c.category in NON_ESSENTIAL
     ]
-    unknown = [
-        c for c in before_classified if c.category == CookieCategory.UNKNOWN
-    ]
+    unknown = _unknown_once([*before_classified, *after_classified])
     reintroduced: list[ClassifiedCookie] = []
     if user_rejected:
         reintroduced = [
@@ -214,6 +215,18 @@ def audit_consent(
         post_consent_reintroduced=reintroduced,
         unknown_cookies=unknown,
     )
+
+
+def _unknown_once(classified: Iterable[ClassifiedCookie]) -> list[ClassifiedCookie]:
+    """The unclassified cookies of ``classified``, the first of each ``(name, domain)``."""
+    seen: set[tuple[str, str]] = set()
+    unknown: list[ClassifiedCookie] = []
+    for item in classified:
+        key = (item.cookie.name, item.cookie.domain)
+        if item.category == CookieCategory.UNKNOWN and key not in seen:
+            seen.add(key)
+            unknown.append(item)
+    return unknown
 
 
 # ---------- helpers -----------------------------------------------------

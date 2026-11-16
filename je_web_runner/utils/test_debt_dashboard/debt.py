@@ -9,8 +9,9 @@ tree and produces a snapshot of every form of "deferred test work":
 * ``# TODO`` / ``# FIXME`` comments inside ``def test_*``
 * JSON action files with ``"_skip": true`` markers
 
-Each item gets an age (from git blame mtime if available, else file
-mtime) and an owner (best-effort from CODEOWNERS).
+Each item gets an age (the days since its file was last modified, from
+the file's mtime) and an owner (from CODEOWNERS, read by the parser and
+the matcher of ``test_owners_map``).
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from typing import Any
 
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.test_owners_map.owners import codeowners_lines, pattern_matches
 
 
 class TestDebtDashboardError(WebRunnerException):
@@ -115,43 +117,18 @@ class CodeownersIndex:
     rules: list[tuple]  # (glob_pattern, owners_str)
 
     def owner_for(self, path: str) -> str | None:
-        """Last-matching glob wins (Github semantics)."""
+        """Last-matching glob wins (Github semantics); ``path`` may use the separators of this OS."""
+        posix_path = path.replace("\\", "/")
         winner: str | None = None
         for pattern, owners in self.rules:
-            if _glob_match(pattern, path):
+            if pattern_matches(pattern, posix_path):
                 winner = owners
         return winner
 
 
-def _glob_match(pattern: str, path: str) -> bool:
-    """Very small subset of CODEOWNERS glob — '**' for any-depth match."""
-    if pattern == "*":
-        return True
-    pat = re.escape(pattern).replace(r"\*\*", r".*").replace(r"\*", r"[^/]*")
-    if pattern.startswith("/"):
-        pat = "^" + pat[1:]
-    else:
-        pat = "(^|/)" + pat
-    pat += "$"
-    return re.search(pat, path) is not None
-
-
 def parse_codeowners(text: str) -> CodeownersIndex:
-    """Parse a CODEOWNERS file body into an :class:`CodeownersIndex`."""
-    rules: list[tuple] = []
-    for raw in text.splitlines():
-        # pylint: disable=duplicate-code  # CODEOWNERS line loop; test_blame_owner builds another rule type
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        # pylint: enable=duplicate-code
-        pattern = parts[0]
-        owners = " ".join(parts[1:])
-        rules.append((pattern, owners))
-    return CodeownersIndex(rules=rules)
+    """Parse a CODEOWNERS file body into an :class:`CodeownersIndex`; the owners of a rule are joined by a space."""
+    return CodeownersIndex(rules=[(pattern, " ".join(owners)) for pattern, owners in codeowners_lines(text)])
 
 
 # ---------- scanners ---------------------------------------------------

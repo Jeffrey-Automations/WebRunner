@@ -51,7 +51,13 @@ INSTALL_SCRIPT = r"""
     window.documentPictureInPicture.requestWindow = function (opts) {
       events.push({kind: 'enter', mode: 'document', ts: Date.now(),
                    width: opts && opts.width, height: opts && opts.height});
-      return origDoc(opts);
+      // A document PiP window has no exit call: it ends when the window goes away.
+      return origDoc(opts).then(function (pipWindow) {
+        pipWindow.addEventListener('pagehide', function () {
+          events.push({kind: 'exit', mode: 'document', ts: Date.now()});
+        }, {once: true});
+        return pipWindow;
+      });
     };
   }
   window.__wr_pip__ = {

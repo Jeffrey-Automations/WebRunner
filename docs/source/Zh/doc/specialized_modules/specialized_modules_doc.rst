@@ -295,7 +295,8 @@ strategy。
 -------------------
 
 rrweb / 通用 event stream → WR action JSON;自動偵測輸入格式。
-無法對映到已知 action 的事件會 fallback 成 ``WR_comment``。
+輸出是可直接執行的動作清單，只使用已註冊的指令（元素事件會變成 ``WR_find_element_by``
+加上對應的動作）；無法對映到指令的事件會變成 ``WR_note``。
 
 ``test_auto_repair``
 --------------------

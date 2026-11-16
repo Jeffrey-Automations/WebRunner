@@ -190,6 +190,7 @@ def from_cdp_console_events(events: Iterable[dict[str, Any]]) -> list[ConsoleMes
     """
     Convert CDP ``Runtime.consoleAPICalled`` payloads into messages.
     Each event dict is expected to have ``type`` and ``args`` like CDP returns.
+    The message's URL and line (0-based, as CDP counts) are those of the first call frame of ``stackTrace``.
     """
     out: list[ConsoleMessage] = []
     for event in events:
@@ -204,14 +205,26 @@ def from_cdp_console_events(events: Iterable[dict[str, Any]]) -> list[ConsoleMes
                     text_parts.append(str(value))
                 elif arg.get("description"):
                     text_parts.append(str(arg["description"]))
+        frame = _top_call_frame(event.get("stackTrace"))
         out.append(ConsoleMessage(
             severity=str(event.get("type") or "log"),
             text=" ".join(text_parts).strip(),
-            url=(event.get("stackTrace") or {}).get("url"),
+            url=frame.get("url") or None,
+            line=frame.get("lineNumber"),
             timestamp=float(event.get("timestamp") or 0) / 1000.0 or time.time(),
             source="cdp-console",
         ))
     return out
+
+
+def _top_call_frame(stack_trace: Any) -> dict[str, Any]:
+    """The first call frame of a CDP ``StackTrace`` (``{"callFrames": [{"url", "lineNumber", ...}]}``),
+    or an empty dict when the event has none.
+    """
+    frames = stack_trace.get("callFrames") if isinstance(stack_trace, dict) else None
+    if isinstance(frames, list) and frames and isinstance(frames[0], dict):
+        return frames[0]
+    return {}
 
 
 def from_cdp_exception_events(events: Iterable[dict[str, Any]]) -> list[ConsoleMessage]:

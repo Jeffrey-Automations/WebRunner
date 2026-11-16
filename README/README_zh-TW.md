@@ -1188,7 +1188,7 @@ my_checks = "my_package.webrunner_commands:COMMANDS"   # {"WR_my_check": functio
 ### CLI 與編排優化
 
 - **正規表示式測試選擇器** —— `test_filter.name_filter.filter_paths(paths, include=["smoke.*"], exclude=["slow"])` 只保留相符的候選路徑；與現有的標籤過濾正交。
-- **行程監督者** —— `process_supervisor.ProcessSupervisor().kill_orphans()` 走訪作業系統行程表尋找 `chromedriver` / `geckodriver` / `msedgedriver` 並殺掉殘留（自動跳過 `os.getpid()`）。`with_watchdog(callable, timeout_seconds=300)` 用一個硬性掛鐘逾時擲出來包裹長時可呼叫物件。
+- **行程監督者** —— `process_supervisor.ProcessSupervisor().kill_orphans()` 走訪作業系統行程表尋找 `chromedriver` / `geckodriver` / `msedgedriver` 並依名稱殺掉找到的每一個（它無法分辨孤兒與使用中的 driver；要保留的請用 `protected_pids` 傳入；自動跳過 `os.getpid()`）。`with_watchdog(callable, timeout_seconds=300)` 用一個硬性掛鐘逾時擲出來包裹長時可呼叫物件。
 - **流水線 DSL** —— `pipeline.load_pipeline({"stages": [...]})` + `run_pipeline(pipeline, runner)` 執行多階段閘門：`continue_on_failure=True` 讓某階段非阻塞（linters / 掃描器），否則下游階段跳過。
 
 ### 前端 / 行動端 / 覆蓋率

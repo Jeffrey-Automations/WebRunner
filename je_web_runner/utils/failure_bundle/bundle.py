@@ -31,6 +31,26 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _entry_name(name: Any, prefix: str = "") -> str:
+    """
+    ``prefix + name`` as a zip entry name, once ``name`` is known to stay inside the bundle.
+
+    A name is ``/``-separated parts, none empty, ``.`` or ``..``; it has no backslash, colon or NUL
+    and does not start with ``/``, so extracting the bundle cannot write outside the target folder
+    on any system. The manifest's name is refused too.
+    """
+    if not isinstance(name, str) or not name:
+        raise FailureBundleError(f"bad entry name {name!r}: must be a non-empty string")
+    if any(char in name for char in ("\\", ":", "\x00")):
+        raise FailureBundleError(f"bad entry name {name!r}: backslash, colon and NUL are not allowed")
+    if any(part in ("", ".", "..") for part in name.split("/")):
+        raise FailureBundleError(f"bad entry name {name!r}: must be a relative path without '.' or '..' parts")
+    target = prefix + name
+    if target == _MANIFEST_NAME:
+        raise FailureBundleError(f"bad entry name {name!r}: reserved for the manifest")
+    return target
+
+
 @dataclass
 class FailureBundle:
     """Builder for one failure bundle."""
@@ -42,14 +62,15 @@ class FailureBundle:
     _entries: dict[str, bytes] = field(default_factory=dict)
 
     def add_screenshot(self, png_bytes: bytes, name: str = "screenshot.png") -> None:
-        """Add a PNG screenshot under ``artifacts/``; raise ``FailureBundleError`` if it is not bytes."""
+        """Add a PNG screenshot under ``artifacts/``; raise ``FailureBundleError`` if it is not bytes
+        or ``name`` could leave the bundle."""
         if not isinstance(png_bytes, (bytes, bytearray)):
             raise FailureBundleError("screenshot must be bytes")
-        self._entries[f"artifacts/{name}"] = bytes(png_bytes)
+        self._entries[_entry_name(name, "artifacts/")] = bytes(png_bytes)
 
     def add_dom(self, html: str, name: str = "dom.html") -> None:
-        """Add the page HTML under ``artifacts/``."""
-        self._entries[f"artifacts/{name}"] = html.encode("utf-8")
+        """Add the page HTML under ``artifacts/``; raise ``FailureBundleError`` if ``name`` could leave the bundle."""
+        self._entries[_entry_name(name, "artifacts/")] = html.encode("utf-8")
 
     def add_console(self, messages: list[dict[str, Any]]) -> None:
         """Add the console messages as ``artifacts/console.json``."""
@@ -68,19 +89,21 @@ class FailureBundle:
         path = Path(trace_path)
         if not path.is_file():
             raise FailureBundleError(f"trace file not found: {trace_path!r}")
-        self._entries[f"artifacts/{path.name}"] = path.read_bytes()
+        self._entries[_entry_name(path.name, "artifacts/")] = path.read_bytes()
 
     def add_file(self, source: str | Path, inside_name: str | None = None) -> None:
-        """Add any file, under ``inside_name`` or ``artifacts/<file name>``; raise if it does not exist."""
+        """Add any file, under ``inside_name`` or ``artifacts/<file name>``; raise ``FailureBundleError`` if it
+        does not exist or ``inside_name`` could leave the bundle or is the manifest's name."""
         path = Path(source)
         if not path.is_file():
             raise FailureBundleError(f"file not found: {source!r}")
-        target = inside_name or f"artifacts/{path.name}"
+        target = _entry_name(inside_name) if inside_name else _entry_name(path.name, "artifacts/")
         self._entries[target] = path.read_bytes()
 
     def add_text(self, name: str, text: str) -> None:
-        """Add ``text`` as a UTF-8 file under ``artifacts/``."""
-        self._entries[f"artifacts/{name}"] = text.encode("utf-8")
+        """Add ``text`` as a UTF-8 file under ``artifacts/``; raise ``FailureBundleError`` if ``name`` could leave
+        the bundle."""
+        self._entries[_entry_name(name, "artifacts/")] = text.encode("utf-8")
 
     def _manifest(self) -> dict[str, Any]:
         return {

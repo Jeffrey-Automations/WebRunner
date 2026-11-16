@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, Sequence
+from typing import Any, Callable, Protocol, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -24,26 +24,72 @@ class StoryToActionsError(WebRunnerException):
     """Raised on bad inputs, client failures, or invalid generated actions."""
 
 
-# Actions we trust the LLM to emit. Anything else is rejected so we don't
-# silently let in hallucinations.
-ALLOWED_ACTIONS = frozenset({
-    "WR_to_url",
-    "WR_click_element",
-    "WR_double_click_element",
-    "WR_input_to_element",
-    "WR_submit_element",
-    "WR_clear_element",
-    "WR_implicitly_wait",
-    "WR_assert_element_text",
-    "WR_assert_element_visible",
-    "WR_comment",
-})
-
-
+# Commands we trust the LLM to emit, each with its arguments in call order. Anything else is
+# rejected so we don't silently let in hallucinations. Every name is registered in the executor;
+# ``WR_find_element_by`` makes an element current and the ``WR_element_*`` commands act on it.
 _LOCATOR_BY = frozenset({
     "id", "name", "xpath", "link text", "partial link text",
     "tag name", "class name", "css selector",
 })
+_WAIT_STATES = frozenset({"present", "visible", "clickable", "hidden"})
+
+
+@dataclass(frozen=True)
+class _Argument:
+    """One argument of an allowed command: its name, the test a value must pass, and what to say when it fails."""
+
+    name: str
+    accepts: Callable[[Any], bool]
+    wants: str
+    required: bool = True
+
+
+def _is_text(value: Any) -> bool:
+    return isinstance(value, str)
+
+
+def _is_filled_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
+
+
+def _is_seconds(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+
+
+def _is_checks(value: Any) -> bool:
+    return isinstance(value, dict) and bool(value)
+
+
+_SELECTOR = _Argument("selector", _is_filled_text, "a non-empty string")
+_BY = _Argument("by", _LOCATOR_BY.__contains__, f"one of {sorted(_LOCATOR_BY)}", required=False)
+
+_COMMANDS: dict[str, tuple[_Argument, ...]] = {
+    "WR_to_url": (_Argument("url", _is_filled_text, "a non-empty string"),),
+    "WR_find_element_by": (_SELECTOR, _BY),
+    "WR_wait_for_element": (
+        _SELECTOR, _BY,
+        _Argument("timeout", _is_seconds, "a number of seconds >= 0", required=False),
+        _Argument("state", _WAIT_STATES.__contains__, f"one of {sorted(_WAIT_STATES)}", required=False),
+    ),
+    "WR_element_click": (),
+    "WR_element_clear": (),
+    "WR_element_submit": (),
+    "WR_element_input": (_Argument("input_value", _is_text, "a string"),),
+    "WR_element_assert": (_Argument("check_dict", _is_checks, "a non-empty object of attribute to value"),),
+    "WR_assert_title": (_Argument("value", _is_text, "a string"),),
+    "WR_implicitly_wait": (_Argument("time_to_wait", _is_seconds, "a number of seconds >= 0"),),
+    "WR_note": (_Argument("text", _is_text, "a string"),),
+}
+
+ALLOWED_ACTIONS = frozenset(_COMMANDS)
+
+
+def _command_signatures() -> list[str]:
+    """``WR_command(argument, optional?)`` for every allowed command, sorted."""
+    return [
+        f"{name}({', '.join(a.name if a.required else a.name + '?' for a in _COMMANDS[name])})"
+        for name in sorted(_COMMANDS)
+    ]
 
 
 # ---------- input model -------------------------------------------------
@@ -89,9 +135,12 @@ def build_prompt_text(prompt: StoryPrompt) -> str:
     parts.append("# Task")
     parts.append(
         "Translate the user story below into a WebRunner action JSON list. "
-        f"Allowed action names: {sorted(ALLOWED_ACTIONS)}. "
-        f"Locator strategies: {sorted(_LOCATOR_BY)}. "
-        "Return ONLY a JSON array of action dicts, no commentary."
+        'Each action is ["WR_command", {"argument": value}], or ["WR_command"] for a command '
+        "without arguments. Allowed commands (a ? marks an optional argument): "
+        f"{_command_signatures()}. "
+        "WR_find_element_by makes an element the current one; the WR_element_* commands act on it. "
+        f"Locator strategies for 'by': {sorted(_LOCATOR_BY)}. "
+        "Return ONLY the JSON array of actions, no commentary."
     )
     parts.append("\n# Story\n" + prompt.story.strip())
     if prompt.start_url:
@@ -118,8 +167,12 @@ def build_prompt_text(prompt: StoryPrompt) -> str:
 def generate_actions(
     prompt: StoryPrompt,
     client: StoryClient,
-) -> list[dict[str, Any]]:
-    """Build prompt → ask client → parse → validate. Returns the action list."""
+) -> list[Any]:
+    """
+    Build prompt → ask client → parse → validate. Returns the action list.
+
+    The actions are in the shape the executor runs: ``["WR_command", {arguments}]``.
+    """
     prompt_text = build_prompt_text(prompt)
     try:
         raw = client.generate(prompt_text)
@@ -134,7 +187,7 @@ def generate_actions(
     # Apply the start_url policy: if user supplied one and the LLM didn't
     # open with WR_to_url, prepend it. Saves a round of corrections.
     if prompt.start_url and not _starts_with_navigate(actions, prompt.start_url):
-        actions.insert(0, {"WR_to_url": [prompt.start_url]})
+        actions.insert(0, ["WR_to_url", {"url": prompt.start_url}])
         web_runner_logger.info(
             f"story_to_actions: prepended WR_to_url with start_url {prompt.start_url!r}"
         )
@@ -160,7 +213,7 @@ def _fenced_block(text: str) -> str:
     return body if body else text
 
 
-def _parse_json_response(raw: str) -> list[dict[str, Any]]:
+def _parse_json_response(raw: str) -> list[Any]:
     text = _fenced_block(raw.strip())
     try:
         loaded = json.loads(text)
@@ -175,17 +228,22 @@ def _parse_json_response(raw: str) -> list[dict[str, Any]]:
     return loaded
 
 
-def _starts_with_navigate(actions: Sequence[dict[str, Any]], url: str) -> bool:
+def _starts_with_navigate(actions: Sequence[Any], url: str) -> bool:
     if not actions:
         return False
-    first = actions[0]
-    return isinstance(first, dict) and first.get("WR_to_url") == [url]
+    name, arguments = _bound_arguments(0, actions[0])
+    return name == "WR_to_url" and arguments.get("url") == url
 
 
 # ---------- validation --------------------------------------------------
 
 def validate_actions(actions: Sequence[Any]) -> None:
-    """Raise :class:`StoryToActionsError` on the first invalid entry."""
+    """
+    Raise :class:`StoryToActionsError` on the first invalid entry.
+
+    An entry is an action as the executor runs it: ``["WR_command"]``, ``["WR_command", {arguments}]``
+    or ``["WR_command", [arguments]]``, with a command of ``ALLOWED_ACTIONS`` and its arguments.
+    """
     if not isinstance(actions, list):
         raise StoryToActionsError(
             f"actions must be a list, got {type(actions).__name__}"
@@ -196,74 +254,52 @@ def validate_actions(actions: Sequence[Any]) -> None:
         _validate_one(index, action)
 
 
-def _validate_one(index: int, action: Any) -> None:  # NOSONAR S3776 — cohesive logic
-    if not isinstance(action, dict) or len(action) != 1:
+def _bound_arguments(index: int, action: Any) -> tuple[str, dict[str, Any]]:
+    """The command of ``action`` and its arguments by name; positional ones take the names in call order."""
+    if not isinstance(action, list) or not action or not isinstance(action[0], str) or len(action) > 3:
         raise StoryToActionsError(
-            f"action #{index} must be a single-key dict, got {action!r}"
+            f'action #{index} must be ["WR_command", {{arguments}}], got {action!r}'
         )
-    name, args = next(iter(action.items()))
-    if name not in ALLOWED_ACTIONS:
+    name = action[0]
+    if name not in _COMMANDS:
         raise StoryToActionsError(
             f"action #{index} uses disallowed name {name!r}; allowed: {sorted(ALLOWED_ACTIONS)}"
         )
-    if not isinstance(args, list):
-        raise StoryToActionsError(
-            f"action #{index} ({name}) args must be a list, got {type(args).__name__}"
-        )
-    if name == "WR_to_url":
-        if len(args) != 1 or not isinstance(args[0], str) or not args[0]:
-            raise StoryToActionsError(f"action #{index} WR_to_url needs [url]")
-    elif name == "WR_implicitly_wait":
-        if len(args) != 1 or not isinstance(args[0], (int, float)) or args[0] < 0:
+    names = [argument.name for argument in _COMMANDS[name]]
+    bound: dict[str, Any] = {}
+    for part in action[1:]:
+        if isinstance(part, dict):
+            bound.update(part)
+        elif isinstance(part, list) and len(part) <= len(names):
+            bound.update(zip(names, part))
+        else:
             raise StoryToActionsError(
-                f"action #{index} WR_implicitly_wait needs [seconds>=0]"
+                f"action #{index} ({name}) takes an object of {names} or at most {len(names)} listed values"
             )
-    elif name == "WR_comment":
-        if len(args) != 1 or not isinstance(args[0], str):
-            raise StoryToActionsError(f"action #{index} WR_comment needs [text]")
-    else:
-        _validate_locator_action(index, name, args)
+    return name, bound
 
 
-def _validate_locator_action(index: int, name: str, args: list) -> None:  # NOSONAR S3776 — cohesive logic
-    if len(args) < 2:
-        raise StoryToActionsError(
-            f"action #{index} ({name}) needs at least [by, value]"
-        )
-    by, value = args[0], args[1]
-    if by not in _LOCATOR_BY:
-        raise StoryToActionsError(
-            f"action #{index} ({name}) uses unknown locator {by!r}; "
-            f"allowed: {sorted(_LOCATOR_BY)}"
-        )
-    if not isinstance(value, str) or not value:
-        raise StoryToActionsError(
-            f"action #{index} ({name}) locator value must be a non-empty string"
-        )
-    if name == "WR_input_to_element":
-        if len(args) != 3 or not isinstance(args[2], str):
+def _validate_one(index: int, action: Any) -> None:
+    name, bound = _bound_arguments(index, action)
+    arguments = _COMMANDS[name]
+    unknown = sorted(set(bound) - {argument.name for argument in arguments})
+    if unknown:
+        raise StoryToActionsError(f"action #{index} ({name}) has unknown argument(s) {unknown}")
+    for argument in arguments:
+        if argument.name not in bound:
+            if argument.required:
+                raise StoryToActionsError(f"action #{index} ({name}) needs {argument.name!r}")
+        elif not argument.accepts(bound[argument.name]):
             raise StoryToActionsError(
-                f"action #{index} WR_input_to_element needs [by, value, text]"
+                f"action #{index} ({name}) {argument.name!r} must be {argument.wants}, "
+                f"got {bound[argument.name]!r}"
             )
-    elif name == "WR_assert_element_text":
-        if len(args) != 3 or not isinstance(args[2], str):
-            raise StoryToActionsError(
-                f"action #{index} {name} needs [by, value, expected_text]"
-            )
-    elif name in (
-        "WR_assert_element_visible",
-        "WR_click_element", "WR_double_click_element",
-        "WR_submit_element", "WR_clear_element",
-    ) and len(args) != 2:
-        raise StoryToActionsError(
-            f"action #{index} {name} needs exactly [by, value]"
-        )
 
 
 # ---------- output helpers ----------------------------------------------
 
 def write_actions_json(
-    actions: Sequence[dict[str, Any]],
+    actions: Sequence[Any],
     output_path: str | Path,
 ) -> Path:
     """Persist validated actions to disk in WebRunner action JSON format."""

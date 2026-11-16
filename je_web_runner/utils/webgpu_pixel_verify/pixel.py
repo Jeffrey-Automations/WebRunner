@@ -72,7 +72,7 @@ def parse_frame(payload: dict) -> CanvasFrame:
     try:
         width = int(payload["width"])
         height = int(payload["height"])
-    except (KeyError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError) as exc:
         raise WebgpuPixelVerifyError(
             "payload missing/invalid width or height"
         ) from exc
@@ -115,7 +115,7 @@ def assert_mean_in_band(
     """Raise ``WebgpuPixelVerifyError`` unless the mean of ``channel`` (``r``, ``g``, ``b``
     or ``a``) lies within ``[min_value, max_value]``.
     """
-    if channel not in "rgba" or len(channel) != 1:
+    if channel not in ("r", "g", "b", "a"):
         raise WebgpuPixelVerifyError("channel must be one of 'r','g','b','a'")
     if min_value > max_value:
         raise WebgpuPixelVerifyError("min_value > max_value")

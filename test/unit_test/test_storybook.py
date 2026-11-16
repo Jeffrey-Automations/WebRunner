@@ -102,7 +102,7 @@ class TestPlanActions(unittest.TestCase):
         })
         stories = discover_stories(document)
         plan = plan_actions_for_stories(
-            stories, base_url="http://localhost:6006",
+            stories, base_url="http://localhost:6006", axe_source="${axe}",
         )
         commands = [a[0] for a in plan]
         self.assertEqual(commands[:3], [

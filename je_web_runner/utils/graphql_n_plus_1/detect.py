@@ -110,7 +110,11 @@ def detect(rows: Sequence[QueryRow], threshold: int = 5) -> list[Finding]:
 
 
 def detect_cartesian(rows: Sequence[QueryRow]) -> list[Finding]:
-    """Flag fields whose total queries > parent_field's queries * 10."""
+    """Flag fields that ran more than 10 times the queries of the least-queried field.
+
+    The rows carry no parent-to-child link between fields, so the field with the fewest queries
+    stands in for the parent. A trace with one field is never flagged.
+    """
     per_field: Counter = Counter()
     for row in rows:
         per_field[row.parent_field] += 1

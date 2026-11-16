@@ -7,7 +7,8 @@ stdlib ``ssl``) and reports:
 * Negotiated TLS version (must be 1.2 or 1.3).
 * Negotiated cipher suite (must be on a configurable allowlist;
   defaults block 3DES, RC4, NULL, EXPORT, MD5 macs).
-* Whether OCSP stapling was offered (optional but recommended).
+* ``ocsp_stapled``: always ``False``. The stdlib ``ssl`` module has no way to read a stapled OCSP
+  response, so this field says nothing about the server.
 * Whether the certificate is trusted by the system store.
 """
 from __future__ import annotations
@@ -51,7 +52,13 @@ def handshake(
     host: str, port: int = 443, *, timeout: float = 10.0,
     context: ssl.SSLContext | None = None,
 ) -> TlsHandshakeReport:
-    """Do a real TLS handshake and report what was negotiated."""
+    """Do a real TLS handshake and report what was negotiated.
+
+    The handshake is always made with a TLS 1.2 floor, hostname checking and ``CERT_REQUIRED``. A
+    ``context`` passed in is changed in place to those settings and keeps them afterwards. A server
+    that only offers an older protocol therefore fails the handshake (``TlsCipherAuditError``)
+    instead of producing a report for :func:`assert_modern_tls` to reject.
+    """
     if not isinstance(host, str) or not host:
         raise TlsCipherAuditError("host must be a non-empty string")
     if not 1 <= port <= 65535:

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.flow.structure import nested_actions
 
 
 class TestDedupError(WebRunnerException):
@@ -32,46 +33,69 @@ class TestDedupError(WebRunnerException):
 
 # ---------- canonicalisation -------------------------------------------
 
-def _canonicalise(actions: Sequence[dict[str, Any]]) -> str:
+def _split_action(action: Any, label: str) -> tuple[str, list[Any], dict[str, Any]]:
+    """
+    Command, positional and keyword arguments of one action.
+
+    Reads the shape the executor runs (``["WR_x"]``, ``["WR_x", {kwargs}]``, ``["WR_x", [args]]``,
+    ``["WR_x", [args], {kwargs}]``) and the older ``{"WR_x": [args]}`` object.
+    """
+    if isinstance(action, dict) and len(action) == 1:
+        name, args = next(iter(action.items()))
+        if not isinstance(args, list):
+            raise TestDedupError(f"{label} ({name}) args must be a list")
+        return str(name), args, {}
+    if not isinstance(action, list) or not action or not isinstance(action[0], str) or len(action) > 3:
+        raise TestDedupError(
+            f"{label} must be [command, arguments] or a single-key dict, got {action!r}"
+        )
+    positional: list[Any] = []
+    kwargs: dict[str, Any] = {}
+    for part in action[1:]:
+        if isinstance(part, dict):
+            kwargs = part
+        elif isinstance(part, list):
+            positional = part
+        else:
+            raise TestDedupError(f"{label} ({action[0]}) arguments must be a list or an object")
+    return action[0], positional, kwargs
+
+
+def _canonicalise(actions: Sequence[Any]) -> str:
     """
     Reduce an action list to a structure-only fingerprint.
     Drops user-data (URL paths, typed text) so two tests that differ only
-    in test-data end up with the same fingerprint.
+    in test-data end up with the same fingerprint. The actions a block command runs
+    (``WR_if``, ``WR_for_each`` ...) are part of the fingerprint.
     """
     if not isinstance(actions, list):
         raise TestDedupError("actions must be a list")
-    pieces: list[str] = []
-    for index, action in enumerate(actions):
-        if not isinstance(action, dict) or len(action) != 1:
-            raise TestDedupError(
-                f"action #{index} must be a single-key dict, got {action!r}"
-            )
-        name, args = next(iter(action.items()))
-        if not isinstance(args, list):
-            raise TestDedupError(
-                f"action #{index} ({name}) args must be a list"
-            )
-        kind_sig = _arg_type_signature(args)
-        pieces.append(f"{name}({kind_sig})")
-    return " > ".join(pieces)
+    return " > ".join(_action_signature(action, f"action #{index}") for index, action in enumerate(actions))
 
 
-def _arg_type_signature(args: list[Any]) -> str:
-    parts: list[str] = []
-    for arg in args:
-        if isinstance(arg, bool):
-            parts.append("bool")
-        elif isinstance(arg, (int, float)):
-            parts.append("number")
-        elif isinstance(arg, str):
-            parts.append(f"str[{_string_kind(arg)}]")
-        elif isinstance(arg, list):
-            parts.append("list")
-        elif isinstance(arg, dict):
-            parts.append("dict")
-        else:
-            parts.append(type(arg).__name__)
-    return ",".join(parts)
+def _action_signature(action: Any, label: str) -> str:
+    """``command(argument kinds)`` for one action, followed by the signatures of the actions it holds."""
+    name, positional, kwargs = _split_action(action, label)
+    kinds = [_arg_kind(arg) for arg in positional]
+    kinds.extend(f"{key}={_arg_kind(kwargs[key])}" for key in sorted(kwargs))
+    signature = f"{name}({','.join(kinds)})"
+    nested = [_action_signature(inner, f"{label} {where}") for where, inner in nested_actions(action, "")]
+    return f"{signature}{{{' > '.join(nested)}}}" if nested else signature
+
+
+def _arg_kind(arg: Any) -> str:
+    """The kind of one argument value, without its data."""
+    if isinstance(arg, bool):
+        return "bool"
+    if isinstance(arg, (int, float)):
+        return "number"
+    if isinstance(arg, str):
+        return f"str[{_string_kind(arg)}]"
+    if isinstance(arg, list):
+        return "list"
+    if isinstance(arg, dict):
+        return "dict"
+    return type(arg).__name__
 
 
 def _string_kind(value: str) -> str:
@@ -94,13 +118,16 @@ class ActionFile:
     """One on-disk action JSON file."""
 
     path: str
-    actions: list[dict[str, Any]]
+    actions: list[Any]
     fingerprint: str = ""
 
     @classmethod
     def load(cls, path: str | Path) -> ActionFile:
         """Read an action JSON file and compute its structural fingerprint.
-        Raises ``TestDedupError`` when the file is missing, is not JSON or is not a list.
+
+        The file is a list of actions or an object with the list under ``webdriver_wrapper`` (its
+        ``meta`` is not part of the fingerprint). Raises ``TestDedupError`` when the file is missing,
+        is not JSON or holds neither.
         """
         p = Path(path)
         if not p.exists():
@@ -109,8 +136,12 @@ class ActionFile:
             data = json.loads(p.read_text(encoding="utf-8"))
         except ValueError as error:
             raise TestDedupError(f"action file {p} is not JSON: {error}") from error
+        if isinstance(data, dict):
+            data = data.get("webdriver_wrapper")
         if not isinstance(data, list):
-            raise TestDedupError(f"action file {p} must contain a JSON list")
+            raise TestDedupError(
+                f"action file {p} must contain a JSON list, or an object with a 'webdriver_wrapper' list"
+            )
         instance = cls(path=str(p), actions=data)
         instance.fingerprint = _canonicalise(data)
         return instance
@@ -184,11 +215,13 @@ def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
 def _summary_for(file: ActionFile) -> str:
     """Compact text representation an embedder will encode."""
     parts: list[str] = []
-    for action in file.actions[:25]:  # cap to keep embeddings stable
-        if not isinstance(action, dict) or len(action) != 1:
-            continue
-        name, args = next(iter(action.items()))
-        textual = [str(a) for a in args if isinstance(a, str)][:3]
+    for index, action in enumerate(file.actions[:25]):  # cap to keep embeddings stable
+        try:
+            name, positional, kwargs = _split_action(action, f"action #{index}")
+        except TestDedupError:
+            continue  # an entry that is not an action adds nothing to the summary
+        args = [*positional, *(kwargs[key] for key in sorted(kwargs))]
+        textual = [a for a in args if isinstance(a, str)][:3]
         if textual:
             parts.append(f"{name}: {' '.join(textual)}")
         else:
@@ -292,7 +325,7 @@ def clusters_markdown(clusters: Sequence[DuplicateCluster]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def stable_fingerprint(actions: Sequence[dict[str, Any]]) -> str:
+def stable_fingerprint(actions: Sequence[Any]) -> str:
     """SHA-256 of the canonical fingerprint. Stable across processes."""
     raw = _canonicalise(actions)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

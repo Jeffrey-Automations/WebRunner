@@ -36,7 +36,7 @@ INSTALL_SCRIPT = r"""
       if (reg.pushManager) {
         const origSub = reg.pushManager.subscribe.bind(reg.pushManager);
         reg.pushManager.subscribe = function (opts) {
-          subs.push({
+          const entry = {
             applicationServerKey: opts && opts.applicationServerKey
               ? (typeof opts.applicationServerKey === 'string'
                   ? opts.applicationServerKey
@@ -44,8 +44,14 @@ INSTALL_SCRIPT = r"""
                     new Uint8Array(opts.applicationServerKey))))
               : '',
             userVisibleOnly: opts && opts.userVisibleOnly,
+            endpoint: '',
+          };
+          subs.push(entry);
+          // The endpoint exists only once the push service has answered.
+          return origSub(opts).then(function (subscription) {
+            entry.endpoint = (subscription && subscription.endpoint) || '';
+            return subscription;
           });
-          return origSub(opts);
         };
       }
       const origShow = reg.showNotification.bind(reg);

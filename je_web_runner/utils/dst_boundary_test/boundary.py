@@ -54,6 +54,14 @@ class DstBoundary:
         return self.offset_after - self.offset_before
 
 
+def _zone(tz_name: str) -> ZoneInfo:
+    """The zone called ``tz_name``; ``DstBoundaryError`` when there is none."""
+    try:
+        return ZoneInfo(tz_name)
+    except Exception as error:
+        raise DstBoundaryError(f"unknown timezone: {tz_name!r}") from error
+
+
 def find_boundaries(
     tz_name: str, start_year: int, end_year: int,
 ) -> list[DstBoundary]:
@@ -64,10 +72,7 @@ def find_boundaries(
         raise DstBoundaryError("start_year must be <= end_year")
     if end_year - start_year > 10:
         raise DstBoundaryError("range too large (>10 years)")
-    try:
-        tz = ZoneInfo(tz_name)
-    except Exception as error:
-        raise DstBoundaryError(f"unknown timezone: {tz_name!r}") from error
+    tz = _zone(tz_name)
 
     boundaries: list[DstBoundary] = []
     cursor = datetime(start_year, 1, 1, tzinfo=tz)
@@ -100,7 +105,7 @@ def is_nonexistent_local_time(
         raise DstBoundaryError(
             "wall_clock must be a naive datetime (no tzinfo)"
         )
-    tz = ZoneInfo(tz_name)
+    tz = _zone(tz_name)
     localized = wall_clock.replace(tzinfo=tz)
     # round-trip through UTC; if naive minute disappears, the resulting
     # local time will differ from the input.
@@ -109,15 +114,21 @@ def is_nonexistent_local_time(
 
 
 def is_ambiguous_local_time(tz_name: str, wall_clock: datetime) -> bool:
-    """True if the given naive datetime falls in a fall-back overlap."""
+    """True if the given naive datetime falls in a fall-back overlap.
+
+    A time inside a spring-forward gap also has two candidate offsets, but it happens zero times,
+    not twice: it is nonexistent, not ambiguous.
+    """
     if wall_clock.tzinfo is not None:
         raise DstBoundaryError(
             "wall_clock must be a naive datetime (no tzinfo)"
         )
-    tz = ZoneInfo(tz_name)
+    tz = _zone(tz_name)
     earlier = wall_clock.replace(tzinfo=tz, fold=0)
     later = wall_clock.replace(tzinfo=tz, fold=1)
-    return earlier.utcoffset() != later.utcoffset()
+    if earlier.utcoffset() == later.utcoffset():
+        return False
+    return not is_nonexistent_local_time(tz_name, wall_clock)
 
 
 @dataclass
@@ -130,18 +141,25 @@ class ScheduledFire:
 def expected_fires_around_boundary(
     boundary: DstBoundary, wall_clock_hour: int = 2, wall_clock_minute: int = 30,
 ) -> list[ScheduledFire]:
-    """For a "daily 02:30 local" job, return what should fire on this date."""
+    """For a "daily 02:30 local" job, return what should fire on the day of ``boundary``.
+
+    Nothing when that wall-clock time falls in the gap of a spring-forward day, two fires (``fold=0``
+    then ``fold=1``) when it falls in the overlap of a fall-back day, and one fire otherwise.
+    """
     if not 0 <= wall_clock_hour <= 23 or not 0 <= wall_clock_minute <= 59:
         raise DstBoundaryError("wall_clock_hour/minute out of range")
-    tz = ZoneInfo(boundary.tz_name)
+    tz = _zone(boundary.tz_name)
     moment_local = boundary.moment_utc.astimezone(tz)
     day = moment_local.date()
     naive = datetime(day.year, day.month, day.day,
                      wall_clock_hour, wall_clock_minute)
-    if boundary.transition == Transition.SPRING_FORWARD:
-        # If the wall-clock minute disappears, no fire that day.
+    if is_nonexistent_local_time(boundary.tz_name, naive):
+        # The wall-clock minute disappears: no fire that day.
         return []
-    # Fall back: the same wall-clock minute happens twice.
+    if not is_ambiguous_local_time(boundary.tz_name, naive):
+        return [ScheduledFire(moment_utc=naive.replace(tzinfo=tz).astimezone(ZoneInfo("UTC")),
+                              local_label=naive.isoformat())]
+    # The same wall-clock minute happens twice.
     return [
         ScheduledFire(moment_utc=naive.replace(tzinfo=tz, fold=0)
                       .astimezone(ZoneInfo("UTC")),

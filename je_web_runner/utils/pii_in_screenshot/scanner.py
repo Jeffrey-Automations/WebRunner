@@ -170,7 +170,8 @@ def _scan_text(
             if rule.validator is not None and not rule.validator(value):
                 continue
             redacted = _redact_match(value)
-            dedup_key = (rule.name, redacted)
+            # The value itself, not its redaction: two different addresses can redact alike.
+            dedup_key = (rule.name, value)
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)

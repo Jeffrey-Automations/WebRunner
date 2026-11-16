@@ -1206,7 +1206,7 @@ Smaller modules, grouped by what they help with. The larger areas have their own
 ### CLI & orchestration polish
 
 - **Regex test selector** — `test_filter.name_filter.filter_paths(paths, include=["smoke.*"], exclude=["slow"])` keeps only matching candidate paths; orthogonal to the existing tag filter.
-- **Process supervisor** — `process_supervisor.ProcessSupervisor().kill_orphans()` walks the OS process table for `chromedriver` / `geckodriver` / `msedgedriver` and kills stragglers (skips `os.getpid()` automatically). `with_watchdog(callable, timeout_seconds=300)` wraps a long callable with a hard wall-clock raise.
+- **Process supervisor** — `process_supervisor.ProcessSupervisor().kill_orphans()` walks the OS process table for `chromedriver` / `geckodriver` / `msedgedriver` and kills every one it finds by name (it cannot tell an orphan from a driver in use; pass `protected_pids` for the ones to keep; `os.getpid()` is skipped automatically). `with_watchdog(callable, timeout_seconds=300)` wraps a long callable with a hard wall-clock raise.
 - **Pipeline DSL** — `pipeline.load_pipeline({"stages": [...]})` + `run_pipeline(pipeline, runner)` execute multi-stage gates: `continue_on_failure=True` makes a stage non-blocking (linters / scanners), otherwise downstream stages skip.
 
 ### Frontend / mobile / coverage

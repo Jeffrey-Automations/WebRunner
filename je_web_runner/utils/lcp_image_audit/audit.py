@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.resource_hints_audit.hints import same_resource
 
 
 class LcpImageAuditError(WebRunnerException):
@@ -80,12 +81,12 @@ def assert_lcp_preloaded(
 ) -> None:
     """Raise LcpImageAuditError unless the LCP image is preloaded, by a ``<link rel=preload>``
     in ``html`` or by one of ``link_header_urls``.
+
+    A preloaded URL counts when it equals the LCP URL or one is the other's path tail
+    (``/img/hero.jpg`` for ``https://cdn.test/img/hero.jpg``); ``not-hero.jpg`` is not ``hero.jpg``.
     """
     preloaded = set(_extract_preloaded_image_urls(html)) | set(link_header_urls)
-    if candidate.url not in preloaded and not any(
-        candidate.url.endswith("/" + u) or u.endswith(candidate.url)
-        for u in preloaded
-    ):
+    if not any(same_resource(candidate.url, u) for u in preloaded):
         raise LcpImageAuditError(
             f"LCP image {candidate.url!r} not in preload set "
             f"({len(preloaded)} preloaded image(s) declared)"

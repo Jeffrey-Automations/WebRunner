@@ -50,24 +50,41 @@ def _matches(rule: HeaderRule, url: str) -> bool:
     return bool(rule.url_match.search(url))
 
 
+def _present_name(headers: dict[str, str], name: str) -> str:
+    """The spelling ``headers`` already uses for header ``name``, or ``name`` when it is absent."""
+    if name in headers:
+        return name
+    wanted = name.lower()
+    for key in headers:
+        if key.lower() == wanted:
+            return key
+    return name
+
+
 def apply_to_request_headers(
     headers: dict[str, str],
     url: str,
     rules: list[HeaderRule],
 ) -> dict[str, str]:
-    """Return a new headers dict with all matching rules applied."""
+    """Return a new headers dict with all matching rules applied.
+
+    Header names are compared without regard to case (Playwright reports them in lower case): a rule
+    changes or removes the header under the spelling the request already uses, and a header the
+    request does not have is added under the rule's spelling.
+    """
     next_headers = dict(headers)
     for rule in rules:
         if not _matches(rule, url):
             continue
+        key = _present_name(next_headers, rule.header)
         if rule.action == "set":
-            next_headers[rule.header] = rule.value or ""
+            next_headers[key] = rule.value or ""
         elif rule.action == "remove":
-            next_headers.pop(rule.header, None)
+            next_headers.pop(key, None)
         elif rule.action == "append":
-            existing = next_headers.get(rule.header, "")
+            existing = next_headers.get(key, "")
             joined = f"{existing}, {rule.value}" if existing else (rule.value or "")
-            next_headers[rule.header] = joined
+            next_headers[key] = joined
     return next_headers
 
 

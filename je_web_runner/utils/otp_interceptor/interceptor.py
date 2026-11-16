@@ -200,10 +200,11 @@ def _mailpit_to_message(raw: Any) -> InterceptedMessage | None:
         return None
     to_list = raw.get("To") or []
     first_to = to_list[0] if to_list else {}
+    recipient = first_to.get("Address") if isinstance(first_to, dict) else first_to
     return InterceptedMessage(
         message_id=str(raw.get("ID") or ""),
         sender=str((raw.get("From") or {}).get("Address") or ""),
-        recipient=str(first_to.get("Address") if isinstance(first_to, dict) else first_to),
+        recipient=str(recipient or ""),
         subject=str(raw.get("Subject") or ""),
         body=str(raw.get("Text") or raw.get("Snippet") or ""),
         received_at=_parse_time(raw.get("Created")),
@@ -256,11 +257,18 @@ class ImapProvider(OtpProvider):
         return msg
 
     def _close_quietly(self, conn: Any) -> None:
-        for method_name in ("close", "logout"):
+        """
+        Close the mailbox and log out, whatever state the connection is in.
+
+        ``close`` is only legal once a mailbox is selected, so it fails whenever ``login`` or
+        ``select`` failed, and that failure is already on its way to the caller: it is logged at
+        debug level. A failing ``logout`` is a connection that was not ended, and is a warning.
+        """
+        for method_name, log in (("close", web_runner_logger.debug), ("logout", web_runner_logger.warning)):
             try:
                 getattr(conn, method_name)()
             except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
-                web_runner_logger.warning(f"IMAP {method_name} failed during cleanup: {error!r}")
+                log(f"IMAP {method_name} failed during cleanup: {error!r}")
 
     def fetch_messages(
         self,

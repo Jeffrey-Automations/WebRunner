@@ -137,8 +137,10 @@ class SafeAreaSnapshot:
     padding_right: str = "0px"
 
 
-HARVEST_SCRIPT = r"""
-(function () {
+# The body of a function, as Selenium's ``execute_script`` runs one: ``execute_script(HARVEST_SCRIPT)``
+# returns the value. It is stored on ``arguments`` first, and the text starts with that statement, so the
+# script gives the same value when a caller writes ``"return "`` in front of it.
+HARVEST_SCRIPT = r"""arguments.harvested = (function () {
   const cs = getComputedStyle(document.body);
   return {
     padding_top: cs.paddingTop,
@@ -147,6 +149,7 @@ HARVEST_SCRIPT = r"""
     padding_right: cs.paddingRight,
   };
 })();
+return arguments.harvested;
 """
 
 

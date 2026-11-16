@@ -69,15 +69,23 @@ _PATTERN_TAGS: list[tuple] = [
 ]
 
 
+def _status(entry: dict[str, Any]) -> int:
+    """The HTTP status of a network entry; 0 when it has none or it is not a number (``"(failed)"``)."""
+    try:
+        return int(entry.get("status") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _network_tag(bundle: FailureBundle) -> Tag | None:
     server_errors = [e for e in bundle.network_errors
-                     if isinstance(e, dict) and 500 <= int(e.get("status", 0)) < 600]
+                     if isinstance(e, dict) and 500 <= _status(e) < 600]
     if server_errors:
         urls = ", ".join(str(e.get("url", "?")) for e in server_errors[:3])
         return Tag(name="network-5xx", confidence=1.0,
                    reason=f"Backend 5xx during run: {urls}")
     failed = [e for e in bundle.network_errors
-              if isinstance(e, dict) and int(e.get("status", 0)) >= 400]
+              if isinstance(e, dict) and _status(e) >= 400]
     if failed:
         return Tag(name="network-4xx", confidence=0.7,
                    reason="Client-side HTTP error during run.")

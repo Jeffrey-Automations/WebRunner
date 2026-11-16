@@ -15,7 +15,7 @@ import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
@@ -191,8 +191,26 @@ def _image_response(server: VisualReviewServer, request_path: str) -> tuple[int,
     return 200, target.read_bytes(), "image/png"
 
 
-def _accept_from_form(server: VisualReviewServer, body: str) -> tuple[int, bytes, str] | None:
-    """Accept the baseline named in the form ``body``; the refusal response, or None once accepted."""
+def _is_cross_site(headers: Any) -> bool:
+    """True when a browser sent the request from a page of another origin.
+
+    A browser names the page that submitted a form in ``Origin`` (``null`` for an opaque one) or,
+    failing that, in ``Referer``; it must be the host and port this request was sent to. A client
+    that sends neither header is not a browser and is let through.
+    """
+    source = headers.get("Origin") or headers.get("Referer")
+    if not source:
+        return False
+    return urlparse(source).netloc.lower() != (headers.get("Host") or "").lower()
+
+
+def _accept_from_form(server: VisualReviewServer, headers: Any, body: str) -> tuple[int, bytes, str] | None:
+    """Accept the baseline named in the form ``body``; the refusal response, or None once accepted.
+
+    A request a browser sent from a page of another origin is refused with 403 and changes nothing.
+    """
+    if _is_cross_site(headers):
+        return 403, b"cross-site request refused", _TEXT_PLAIN
     params = parse_qs(body)
     names = params.get("name") or []
     if not names:
@@ -240,13 +258,14 @@ def _make_handler(server: VisualReviewServer) -> Callable:
         def do_POST(self):  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
             """Handle ``POST /accept``: accept the snapshot named in the form body, then
             redirect to the index; a refused request gets the refusal's status and body.
+            A form posted by a page of another origin is refused with 403.
             """
             if self.path != "/accept":
                 self._send(404, b"not found", _TEXT_PLAIN)
                 return
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length).decode("utf-8") if length else ""
-            refusal = _accept_from_form(server, body)
+            refusal = _accept_from_form(server, self.headers, body)
             if refusal is not None:
                 self._send(*refusal)
                 return

@@ -116,8 +116,8 @@ def assert_no_enforced_violations(violations: Iterable[Violation]) -> None:
 def looks_like_recon(
     violations: Iterable[Violation], *, distinct_hosts_threshold: int = 5,
 ) -> list[str]:
-    """Buckets per directive whose distinct blocked-host count exceeds
-    ``distinct_hosts_threshold`` — a probable XSS / SSRF probe."""
+    """Buckets per directive whose distinct blocked-host count reaches
+    ``distinct_hosts_threshold`` (that many or more) — a probable XSS / SSRF probe."""
     if distinct_hosts_threshold < 2:
         raise CspViolationParserError(
             "distinct_hosts_threshold must be >= 2"

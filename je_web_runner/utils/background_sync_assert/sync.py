@@ -8,10 +8,13 @@ Catches the two big bugs offline-first apps hit:
 * Sync fires once, fails, and never retries — silently losing the user's
   queued action.
 
-The shim records each ``registration.sync.register(tag)``,
-``getTags()``, and each ``sync`` event the SW dispatches. Python helpers
-assert tag presence, fire count, and a retry happened at least once
-when the first attempt failed.
+The page shim (``INSTALL_SCRIPT``) records each
+``registration.sync.register(tag)`` and each ``sync`` event the service
+worker reports. A ``sync`` event exists only inside the service worker,
+so the worker must include ``SERVICE_WORKER_RELAY_SCRIPT``, which posts
+each event to the page; without it the fired list stays empty. Python
+helpers assert tag presence, fire count, and a retry happened at least
+once when the first attempt failed.
 """
 from __future__ import annotations
 
@@ -39,9 +42,14 @@ INSTALL_SCRIPT = r"""
           return origReg(tag);
         };
       }
-      reg.addEventListener && reg.addEventListener('sync', (e) => {
-        fired.push({tag: e.tag, lastChance: !!e.lastChance, ts: Date.now()});
-      });
+    });
+    // A 'sync' event is dispatched inside the service worker only; the page hears of it when the
+    // worker says so (SERVICE_WORKER_RELAY_SCRIPT).
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      const relayed = e.data && e.data.__wr_bg_sync__;
+      if (relayed) {
+        fired.push({tag: relayed.tag, lastChance: !!relayed.lastChance, ts: Date.now()});
+      }
     });
   }
   window.__wr_bg_sync__ = {
@@ -49,6 +57,21 @@ INSTALL_SCRIPT = r"""
     drainFired: function () { return fired.splice(0); },
   };
 })();
+"""
+
+
+# To be part of the service worker under test (appended to its source, or loaded with importScripts):
+# it tells every page of the origin about each ``sync`` event, which is how ``INSTALL_SCRIPT`` in the
+# page learns that one fired. Its ``waitUntil`` only covers the message; whether the sync succeeds is
+# still decided by the worker's own handler.
+SERVICE_WORKER_RELAY_SCRIPT = r"""
+self.addEventListener('sync', (event) => {
+  event.waitUntil(
+    self.clients.matchAll({includeUncontrolled: true, type: 'window'}).then((clients) => {
+      clients.forEach((client) => client.postMessage(
+        {__wr_bg_sync__: {tag: event.tag, lastChance: !!event.lastChance}}));
+    }));
+});
 """
 
 

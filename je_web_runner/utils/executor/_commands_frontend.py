@@ -29,7 +29,11 @@ def _problems(checks: Iterable[Callable[[], Any]], error_type: type[Exception]) 
 
 
 def _harvest(command: str, script: str, *arguments: Any) -> Any:
-    """Run one of the libraries' constant harvest scripts in the current page and return its value."""
+    """
+    Run one of the libraries' constant harvest scripts in the current page and return its value. The
+    ``return`` in front serves the scripts that are a bare expression; the ones that return their own
+    value are unaffected by it.
+    """
     return selenium_driver(command).execute_script("return " + script.strip(), *arguments)
 
 

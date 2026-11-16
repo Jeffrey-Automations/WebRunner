@@ -11,6 +11,10 @@ Catches sloppy cookie config where:
   but stores something session-shaped (>= 20 chars, alphanumeric).
 * Cookie name suggests session/auth (``sid`` / ``session`` / ``token`` /
   ``jwt``) and one of the above is true.
+
+The "apex" of a host is taken as its last two labels. That is wrong under a multi-label public
+suffix (``example.co.uk``, ``example.com.tw``): two unrelated sites there share the "apex", so
+``session-on-apex`` can be reported for a cookie of another site. No public suffix list is used.
 """
 from __future__ import annotations
 
@@ -46,8 +50,10 @@ class CookieScopeFinding:
         return {**asdict(self), "severity": self.severity.value}
 
 
+# ``session`` / ``sessid`` / ``token`` / ``jwt`` anywhere in the name (``sessionid``, ``JSESSIONID``,
+# ``PHPSESSID``); the short ``sid`` and ``auth`` only as a word of it (``connect.sid``, not ``outside``).
 _SESSION_LIKE_NAMES = re.compile(
-    r"(?:^|[_-])(sid|session|token|jwt|auth)(?:[_-]|$)", re.IGNORECASE,
+    r"session|sessid|token|jwt|(?:^|[._-])(?:sid|auth)(?:[._-]|$)", re.IGNORECASE,
 )
 _SESSION_LIKE_VALUE = re.compile(r"^[A-Za-z0-9._-]{20,}$")
 

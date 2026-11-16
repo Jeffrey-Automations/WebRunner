@@ -46,15 +46,20 @@ def _error_text(check: Callable[[], Any], error_type: type[Exception]) -> str:
 # ---------- api_mock -----------------------------------------------------------
 def api_mock_register(
         method: str, url_pattern: str, body: Any = "", status: int = 200, times: int | None = None,
+        headers: dict[str, str] | None = None, content_type: str | None = None,
 ) -> dict[str, Any]:
     """
     Register a mocked HTTP route for the Playwright page.
 
     ``url_pattern`` is an exact URL, a ``*`` wildcard pattern or ``re:<regex>``; ``method`` may be ``*``.
-    ``times`` limits how often the route answers. Routes take effect after ``WR_api_mock_attach``.
+    ``times`` limits how often the route answers; ``headers`` and ``content_type`` are sent with the
+    answer. Routes take effect after ``WR_api_mock_attach``.
     """
     from je_web_runner.utils.api_mock.router import register_route
-    return to_plain(register_route(method, url_pattern, body=body, status=status, times=times))
+    # Only what was given: the router has its own default content type for a body.
+    given = (("headers", headers), ("content_type", content_type))
+    extra: dict[str, Any] = {name: value for name, value in given if value is not None}
+    return to_plain(register_route(method, url_pattern, body=body, status=status, times=times, **extra))
 
 
 def api_mock_attach() -> bool:

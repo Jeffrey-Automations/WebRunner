@@ -26,8 +26,10 @@ class PullToRefreshError(WebRunnerException):
     """Raised on assertion failure or malformed input."""
 
 
-HARVEST_SCRIPT = r"""
-(function (scrollerSelector) {
+# The body of a function, as Selenium's ``execute_script`` runs one: ``execute_script(HARVEST_SCRIPT)``
+# returns the value. It is stored on ``arguments`` first, and the text starts with that statement, so the
+# script gives the same value when a caller writes ``"return "`` in front of it.
+HARVEST_SCRIPT = r"""arguments.harvested = (function (scrollerSelector) {
   const el = document.querySelector(scrollerSelector) || document.scrollingElement;
   const cs = getComputedStyle(el);
   return {
@@ -36,6 +38,7 @@ HARVEST_SCRIPT = r"""
     pull_threshold_attr: el.dataset ? el.dataset.pullThreshold || '' : '',
   };
 })(arguments[0]);
+return arguments.harvested;
 """
 
 

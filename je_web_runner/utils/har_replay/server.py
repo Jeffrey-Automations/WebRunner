@@ -30,13 +30,19 @@ class HarReplayError(WebRunnerException):
 
 @dataclass
 class HarEntry:
-    """One recorded response: method, path, status, headers and body (optionally base64)."""
+    """One recorded response: method, path, status, headers and body (optionally base64).
+
+    ``path`` of a hand-written entry may be a pattern: ``*`` matches any run of characters and
+    ``re:<regex>`` is searched in the request path. With ``literal_path`` the path is compared as
+    written; :func:`load_har` sets it, because a recorded URL can hold ``*`` (``?fields=*``).
+    """
     method: str
     path: str
     status: int
     headers: dict[str, str] = field(default_factory=dict)
     body: str = ""
     body_is_base64: bool = False
+    literal_path: bool = False
 
 
 def load_har(source: str | Path) -> list[HarEntry]:
@@ -82,13 +88,16 @@ def _entry_from_har(entry: dict[str, Any]) -> HarEntry:
         headers=headers,
         body=str(content.get("text") or ""),
         body_is_base64=str(content.get("encoding", "")).lower() == "base64",
+        literal_path=True,
     )
 
 
 _PathMatcher = Callable[[str], bool]
 
 
-def _build_matcher(pattern: str) -> _PathMatcher:
+def _build_matcher(pattern: str, literal: bool = False) -> _PathMatcher:
+    if literal:
+        return lambda path: path == pattern
     if pattern.startswith("re:"):
         regex = re.compile(pattern[3:])
         return lambda path: regex.search(path) is not None
@@ -129,12 +138,12 @@ class HarReplayServer(BackgroundServer):  # pylint: disable=too-many-instance-at
         self.calls: list[tuple[str, str]] = []
 
     def _build_buckets(self) -> None:
-        grouped: dict[tuple[str, str], list[HarEntry]] = defaultdict(list)
+        grouped: dict[tuple[str, str, bool], list[HarEntry]] = defaultdict(list)
         for entry in self.entries:
-            grouped[(entry.method, entry.path)].append(entry)
-        for (method, path), group in grouped.items():
+            grouped[(entry.method, entry.path, entry.literal_path)].append(entry)
+        for (method, path, literal), group in grouped.items():
             bucket = _Bucket(
-                matcher=_build_matcher(path),
+                matcher=_build_matcher(path, literal),
                 pattern=path,
                 entries=group,
             )

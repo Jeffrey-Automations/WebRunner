@@ -137,7 +137,9 @@ def _validate_against_schema(args: Mapping[str, Any],
         return
     if schema_type and schema_type in JSON_TYPE_MAP:
         expected = JSON_TYPE_MAP[schema_type]
-        if not isinstance(args, expected):
+        # bool is an int subclass in Python; in JSON Schema a boolean is not an integer or a number.
+        is_number_type = schema_type in ("integer", "number")
+        if not isinstance(args, expected) or (is_number_type and isinstance(args, bool)):
             raise ToolCallAssertError(
                 f"{path or 'value'}: expected {schema_type}, "
                 f"got {type(args).__name__}"

@@ -373,16 +373,21 @@ def storybook_discover(
 
 def storybook_plan_actions(
         source: str | dict[str, Any], base_url: str, run_a11y: bool = True,
-        capture_screenshot: bool = True, title_prefix: str | None = None,
+        capture_screenshot: bool = True, title_prefix: str | None = None, axe_source: str | None = None,
 ) -> list[list[Any]]:
     """
     Build an action list that opens every story under ``base_url``, audits it and takes a screenshot.
+
+    The audit action needs the axe-core source: give it as ``axe_source`` (the text, or a ``${name}``
+    placeholder the run fills in). With ``run_a11y`` and no ``axe_source`` the call fails, because the plan
+    could not run.
 
     :return: actions such as ``["WR_to_url", {"url": ...}]``, ready to run or to save as an action file
     """
     from je_web_runner.utils.storybook.discovery import plan_actions_for_stories
     return plan_actions_for_stories(
         _stories(source, True, title_prefix), base_url, run_a11y=run_a11y, capture_screenshot=capture_screenshot,
+        axe_source=axe_source,
     )
 
 

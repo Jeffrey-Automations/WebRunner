@@ -498,11 +498,9 @@ def memory_leak_trend(samples: list[int], max_bytes_per_iter: int | None = None)
 # ---------- memory_pressure_emulate ---------------------------------------------------------------------
 
 # What the library's own runner sends to undo a profile.
-_PRESSURE_RESTORE: tuple[tuple[str, dict[str, Any]], ...] = (
-    ("Emulation.setHardwareConcurrencyOverride", {"hardwareConcurrency": 0}),
-    ("Emulation.setCPUThrottlingRate", {"rate": 1.0}),
-    ("Memory.simulatePressureNotification", {"level": "nominal"}),
-)
+# The core count the page had before the last profile was applied; Chromium cannot clear the override,
+# so restoring means setting this value again.
+_PRESSURE_BEFORE: dict[str, int | None] = {"cores": None}
 
 
 def _pressure_profile(profile: Any) -> Any:
@@ -549,18 +547,26 @@ def memory_pressure_emulate_apply(profile: Any) -> list[dict[str, Any]]:
 
     :return: the CDP commands that were sent.
     """
+    from je_web_runner.utils.memory_pressure_emulate import emulate as lib
     payloads = memory_pressure_emulate_payloads(profile)
     driver = selenium_driver("WR_memory_pressure_emulate_apply")
+    if _PRESSURE_BEFORE["cores"] is None:
+        _PRESSURE_BEFORE["cores"] = lib.original_hardware_concurrency(driver.execute_cdp_cmd)
     for payload in payloads:
         driver.execute_cdp_cmd(payload["method"], payload["params"])
     return payloads
 
 
 def memory_pressure_emulate_restore() -> bool:
-    """Take the current Chromium browser back to normal CPU, core count and memory pressure."""
+    """
+    Take the current Chromium browser back to normal CPU speed and to the core count it reported before
+    ``WR_memory_pressure_emulate_apply``. A memory-pressure notification is one signal and has nothing to undo.
+    """
+    from je_web_runner.utils.memory_pressure_emulate import emulate as lib
     driver = selenium_driver("WR_memory_pressure_emulate_restore")
-    for method, params in _PRESSURE_RESTORE:
-        driver.execute_cdp_cmd(method, dict(params))
+    for payload in lib.restore_payloads(_PRESSURE_BEFORE["cores"]):
+        driver.execute_cdp_cmd(payload["method"], payload["params"])
+    _PRESSURE_BEFORE["cores"] = None
     return True
 
 

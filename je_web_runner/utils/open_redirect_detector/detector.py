@@ -8,7 +8,8 @@ This module:
 
 1. Generates a payload set covering same-origin variants, scheme-relative
    (`//evil.com`), absolute external URLs, mixed-case bypass, path-only
-   tricks (`/\\evil.com`), data: / javascript: schemes.
+   tricks (`/\\\\evil.com`: a slash and two backslashes, which a browser reads as
+   `//evil.com`), data: / javascript: schemes.
 2. Given a callable that performs the request and returns the final
    Location header (without auto-following), classifies the result as
    ALLOWED (vulnerable), BLOCKED (safe), or AMBIGUOUS.

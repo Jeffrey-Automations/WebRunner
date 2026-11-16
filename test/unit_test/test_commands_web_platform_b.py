@@ -511,7 +511,7 @@ def test_webtransport_assert_record_and_list() -> None:
     from je_web_runner.utils.webtransport_assert.streams import WebTransportAssertError
     assert RUN["WR_webtransport_assert_record"](WT_FRAMES) == 5
     datagrams = RUN["WR_webtransport_assert_frames"](channel="datagram")
-    assert [frame["payload_b64"] for frame in datagrams] == [b"hello".hex(), "00ff10"]
+    assert [frame["payload_hex"] for frame in datagrams] == [b"hello".hex(), "00ff10"]
     assert datagrams[0]["payload_text"] == "hello"
     assert len(RUN["WR_webtransport_assert_frames"](direction="received", stream_id=4)) == 2
     assert json.dumps(RUN["WR_webtransport_assert_frames"]())

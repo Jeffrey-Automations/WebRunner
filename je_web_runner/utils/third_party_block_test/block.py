@@ -171,14 +171,17 @@ def _execute_flow(vendor: Vendor, flow: Callable[[], str | None]) -> BlockOutcom
 def assert_resilient_to(
     report: BlockReport, *, vendors: Sequence[str],
 ) -> None:
-    """Assert listed vendors did not break the flow."""
-    bad = [
-        v for v in vendors
-        if (
-            report.by_vendor().get(v) or BlockOutcome(vendor=v, resilience=Resilience.BROKEN)
-        ).resilience == Resilience.BROKEN
-    ]
+    """Assert listed vendors did not break the flow.
+
+    A listed vendor the report has no outcome for also fails the assertion, named as not run.
+    """
+    outcomes = report.by_vendor()
+    missing = [v for v in vendors if v not in outcomes]
+    bad = [v for v in vendors if v in outcomes and outcomes[v].resilience == Resilience.BROKEN]
+    problems: list[str] = []
     if bad:
-        raise ThirdPartyBlockError(
-            f"flow broke when these vendors were blocked: {bad}"
-        )
+        problems.append(f"flow broke when these vendors were blocked: {bad}")
+    if missing:
+        problems.append(f"these vendors are not in the report (never blocked): {missing}")
+    if problems:
+        raise ThirdPartyBlockError("; ".join(problems))

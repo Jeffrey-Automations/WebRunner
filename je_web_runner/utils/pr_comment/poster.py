@@ -77,7 +77,8 @@ def _request(
     payload: dict[str, Any] | None = None,
     timeout: float = 15.0,
 ) -> Any:
-    if not url.startswith(("https://api.github.com/", "http://api.github.com/")):  # NOSONAR — allow-list
+    # HTTPS only: the request carries the token.
+    if not url.startswith("https://api.github.com/"):
         raise PrCommentError(f"refusing to call non-GitHub URL: {url!r}")
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method=method)

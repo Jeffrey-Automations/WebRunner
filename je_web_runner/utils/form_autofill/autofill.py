@@ -72,16 +72,33 @@ _CANONICAL_BY_TYPE: dict[str, str] = {
 }
 
 
-def _normalise(text: Any) -> str:
+_WORD_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
+
+
+def _word_runs(text: Any) -> set[str]:
+    """Every run of consecutive words of ``text``, joined and lower-cased.
+
+    Words are split at separators, at camelCase boundaries and at digits: ``billing_firstName`` gives
+    ``billing``, ``first``, ``name``, ``billingfirst``, ``firstname`` and ``billingfirstname``.
+    """
     if not isinstance(text, str):
-        return ""
-    return _NORMALISE_RE.sub("", text.lower())
+        return set()
+    words = [word.lower() for word in _WORD_RE.findall(text)]
+    return {
+        "".join(words[start:end])
+        for start in range(len(words))
+        for end in range(start + 1, len(words) + 1)
+    }
 
 
 def classify_field(field: dict[str, Any]) -> str | None:
     """
     依 ``data-testid`` > ``id`` > ``name`` > ``placeholder`` > ``label`` > ``type``
     Pick the first matching alias group; return the canonical key or None.
+
+    An alias matches a word of the attribute or a run of its words (``shipping_city`` and
+    ``confirmPassword`` match ``city`` and ``password``), never letters inside another word
+    (``quantity`` is not ``q``, ``passport`` is not ``pass``).
     """
     if not isinstance(field, dict):
         return None
@@ -97,11 +114,9 @@ def classify_field(field: dict[str, Any]) -> str | None:
         field.get("aria-label"),
     ]
     for candidate in candidates:
-        token = _normalise(candidate)
-        if not token:
-            continue
+        runs = _word_runs(candidate)
         for alias, canonical in _CANONICAL_BY_TOKEN.items():
-            if alias in token:
+            if _NORMALISE_RE.sub("", alias) in runs:
                 return canonical
     return None
 

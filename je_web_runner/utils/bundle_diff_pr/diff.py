@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from je_web_runner.utils.bundle_budget.budget import (
-    Asset, AssetKind, assets_from_har,
+    Asset, AssetKind, BundleBudgetError, assets_from_har,
 )
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
@@ -71,13 +71,24 @@ def _index(assets: Sequence[Asset]) -> dict[str, Asset]:
     return {a.url: a for a in assets}
 
 
+def _assets(har: str | dict[str, Any], which: str) -> dict[str, Asset]:
+    """The assets of one HAR by URL; a HAR that cannot be read is this module's error."""
+    try:
+        return _index(assets_from_har(har))
+    except BundleBudgetError as error:
+        raise BundleDiffPrError(f"{which} HAR: {error}") from error
+
+
 def diff_hars(
     base_har: str | dict[str, Any],
     head_har: str | dict[str, Any],
 ) -> BundleDiff:
-    """Compare two HAR snapshots; classify URLs as added/removed/grew/shrunk."""
-    base = _index(assets_from_har(base_har))
-    head = _index(assets_from_har(head_har))
+    """Compare two HAR snapshots; classify URLs as added/removed/grew/shrunk.
+
+    Raises ``BundleDiffPrError`` when a HAR cannot be read.
+    """
+    base = _assets(base_har, "base")
+    head = _assets(head_har, "head")
     result = BundleDiff()
     for url, asset in head.items():
         if url not in base:
@@ -120,6 +131,8 @@ def assert_under_max_growth(
     diff: BundleDiff, *, max_growth_bytes: int,
 ) -> None:
     """Raise ``BundleDiffPrError`` when the total bundle growth exceeds ``max_growth_bytes``."""
+    if not isinstance(diff, BundleDiff):
+        raise BundleDiffPrError("assert_under_max_growth expects BundleDiff")
     if max_growth_bytes < 0:
         raise BundleDiffPrError("max_growth_bytes must be >= 0")
     if diff.total_delta_bytes > max_growth_bytes:

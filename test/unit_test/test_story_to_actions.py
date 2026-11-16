@@ -75,51 +75,53 @@ class TestValidate(unittest.TestCase):
 
     def test_unknown_action_name(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_fly_to_moon": []}])
+            validate_actions([["WR_fly_to_moon"]])
 
-    def test_multi_key_action_rejected(self):
+    def test_object_action_rejected(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_to_url": ["x"], "extra": []}])
+            validate_actions([{"WR_to_url": ["x"]}])
 
-    def test_args_must_be_list(self):
+    def test_args_must_be_list_or_object(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_to_url": "x"}])
+            validate_actions([["WR_to_url", "x"]])
 
     def test_to_url_needs_string(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_to_url": []}])
+            validate_actions([["WR_to_url", []]])
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_to_url": [""]}])
+            validate_actions([["WR_to_url", [""]]])
 
     def test_implicitly_wait_needs_number(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_implicitly_wait": ["soon"]}])
+            validate_actions([["WR_implicitly_wait", ["soon"]]])
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_implicitly_wait": [-1]}])
+            validate_actions([["WR_implicitly_wait", {"time_to_wait": -1}]])
 
-    def test_click_needs_locator(self):
+    def test_find_needs_known_locator(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_click_element": ["#x"]}])
+            validate_actions([["WR_find_element_by"]])
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_click_element": ["unknown_by", "#x"]}])
+            validate_actions([["WR_find_element_by", {"selector": "#x", "by": "unknown_by"}]])
 
     def test_input_needs_text(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_input_to_element": ["id", "name"]}])
+            validate_actions([["WR_element_input"]])
 
-    def test_assert_text_needs_expected(self):
+    def test_assert_needs_checks(self):
         with self.assertRaises(StoryToActionsError):
-            validate_actions([{"WR_assert_element_text": ["id", "x"]}])
+            validate_actions([["WR_element_assert", {"check_dict": {}}]])
 
     def test_valid_passes(self):
         validate_actions([
-            {"WR_to_url": ["https://x"]},
-            {"WR_click_element": ["id", "submit"]},
-            {"WR_input_to_element": ["css selector", "#name", "alice"]},
-            {"WR_assert_element_text": ["id", "status", "OK"]},
-            {"WR_assert_element_visible": ["id", "ok"]},
-            {"WR_implicitly_wait": [1.5]},
-            {"WR_comment": ["done"]},
+            ["WR_to_url", {"url": "https://x"}],
+            ["WR_find_element_by", {"selector": "submit", "by": "id"}],
+            ["WR_element_click"],
+            ["WR_find_element_by", ["#name"]],
+            ["WR_element_input", {"input_value": "alice"}],
+            ["WR_wait_for_element", {"selector": "#status", "state": "visible"}],
+            ["WR_element_assert", {"check_dict": {"text": "OK"}}],
+            ["WR_implicitly_wait", [1.5]],
+            ["WR_note", {"text": "done"}],
         ])
 
     def test_allowed_actions_visible(self):
@@ -130,8 +132,8 @@ class TestGenerateActions(unittest.TestCase):
 
     def test_happy_path(self):
         client = StubClient(json.dumps([
-            {"WR_to_url": ["https://x"]},
-            {"WR_click_element": ["id", "submit"]},
+            ["WR_to_url", {"url": "https://x"}],
+            ["WR_element_click"],
         ]))
         actions = generate_actions(StoryPrompt(story="open the page"), client)
         self.assertEqual(len(actions), 2)
@@ -139,33 +141,33 @@ class TestGenerateActions(unittest.TestCase):
         self.assertIn("open the page", client.last_prompt)
 
     def test_strips_markdown_fence(self):
-        client = StubClient('```json\n[{"WR_to_url": ["https://x"]}]\n```')
+        client = StubClient('```json\n[["WR_to_url", {"url": "https://x"}]]\n```')
         actions = generate_actions(StoryPrompt(story="x"), client)
-        self.assertEqual(actions, [{"WR_to_url": ["https://x"]}])
+        self.assertEqual(actions, [["WR_to_url", {"url": "https://x"}]])
 
     def test_prepends_start_url_when_missing(self):
-        client = StubClient(json.dumps([{"WR_click_element": ["id", "go"]}]))
+        client = StubClient(json.dumps([["WR_element_click"]]))
         actions = generate_actions(
             StoryPrompt(story="x", start_url="https://shop/"),
             client,
         )
-        self.assertEqual(actions[0], {"WR_to_url": ["https://shop/"]})
+        self.assertEqual(actions[0], ["WR_to_url", {"url": "https://shop/"}])
         self.assertEqual(len(actions), 2)
 
     def test_does_not_duplicate_start_url(self):
         client = StubClient(json.dumps([
-            {"WR_to_url": ["https://shop/"]},
-            {"WR_click_element": ["id", "go"]},
+            ["WR_to_url", {"url": "https://shop/"}],
+            ["WR_element_click"],
         ]))
         actions = generate_actions(
             StoryPrompt(story="x", start_url="https://shop/"),
             client,
         )
         self.assertEqual(len(actions), 2)
-        self.assertEqual(actions[0], {"WR_to_url": ["https://shop/"]})
+        self.assertEqual(actions[0], ["WR_to_url", {"url": "https://shop/"}])
 
     def test_invalid_action_propagates(self):
-        client = StubClient(json.dumps([{"WR_fake": []}]))
+        client = StubClient(json.dumps([["WR_fake"]]))
         story_prompt = StoryPrompt(story="x")
         with self.assertRaises(StoryToActionsError):
             generate_actions(story_prompt, client)
@@ -201,7 +203,7 @@ class TestGenerateActions(unittest.TestCase):
 class TestWriteActions(unittest.TestCase):
 
     def test_write(self):
-        actions = [{"WR_to_url": ["https://x"]}]
+        actions = [["WR_to_url", {"url": "https://x"}]]
         with tempfile.TemporaryDirectory() as tmp:
             out = write_actions_json(actions, Path(tmp) / "actions.json")
             self.assertEqual(
@@ -213,7 +215,7 @@ class TestWriteActions(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             value = Path(tmp) / "actions.json"
             with self.assertRaises(StoryToActionsError):
-                write_actions_json([{"WR_fake": []}], value)
+                write_actions_json([["WR_fake"]], value)
 
 
 if __name__ == "__main__":

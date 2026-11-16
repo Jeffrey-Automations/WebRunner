@@ -12,9 +12,9 @@ priority queue. This module:
 """
 from __future__ import annotations
 
-import re
 from dataclasses import asdict, dataclass
 from enum import Enum
+from html.parser import HTMLParser
 from typing import Any, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
@@ -46,17 +46,47 @@ class Hint:
         return {**asdict(self), "kind": self.kind.value}
 
 
-_LINK_RE = re.compile(r"<link\b[^>]*>", re.IGNORECASE)
-_ATTR_RE = re.compile(r'(\w+)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))',
-                      re.IGNORECASE)
+class _LinkCollector(HTMLParser):
+    """Collects the attributes of every ``<link>`` start tag."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[dict[str, str]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Record a ``<link>``; as in a browser, the first of a repeated attribute wins."""
+        if tag != "link":
+            return
+        found: dict[str, str] = {}
+        for name, value in attrs:
+            found.setdefault(name, value or "")
+        self.links.append(found)
 
 
-def _parse_attrs(tag: str) -> dict[str, str]:
-    attrs: dict[str, str] = {}
-    for match in _ATTR_RE.finditer(tag):
-        key = match.group(1).lower()
-        attrs[key] = match.group(2) or match.group(3) or match.group(4) or ""
-    return attrs
+def link_tags(html: str) -> list[dict[str, str]]:
+    """Return the attributes of each ``<link>`` tag of ``html``, by lower-case attribute name.
+
+    An attribute without a value (``crossorigin``, ``disabled``) is present with the value ``""``;
+    ``data-href`` is its own attribute, not ``href``.
+    """
+    collector = _LinkCollector()
+    collector.feed(html)
+    collector.close()
+    return collector.links
+
+
+def same_resource(first: str, second: str) -> bool:
+    """True when two URLs name the same file: equal, or one is the other's path tail.
+
+    ``/img/hero.jpg`` and ``img/hero.jpg`` match ``https://cdn.test/img/hero.jpg``;
+    ``hero.jpg`` does not match ``not-hero.jpg``.
+    """
+    if first == second:
+        return True
+    for whole, tail in ((first, second), (second, first)):
+        if tail.strip("/") and whole.endswith("/" + tail.lstrip("/")):
+            return True
+    return False
 
 
 def parse_hints(html: str) -> list[Hint]:
@@ -67,8 +97,7 @@ def parse_hints(html: str) -> list[Hint]:
     if not isinstance(html, str):
         raise ResourceHintsAuditError("html must be a string")
     out: list[Hint] = []
-    for tag in _LINK_RE.findall(html):
-        attrs = _parse_attrs(tag)
+    for attrs in link_tags(html):
         rel = (attrs.get("rel") or "").lower()
         try:
             kind = HintKind(rel)
@@ -78,7 +107,7 @@ def parse_hints(html: str) -> list[Hint]:
             kind=kind,
             href=attrs.get("href", ""),
             as_=attrs.get("as", ""),
-            crossorigin="crossorigin" in tag.lower(),
+            crossorigin="crossorigin" in attrs,
         ))
     return out
 
@@ -97,15 +126,15 @@ def assert_preload_has_as(hints: Iterable[Hint]) -> None:
 def find_unused_hints(
     hints: Sequence[Hint], used_urls: Iterable[str],
 ) -> list[Hint]:
-    """Return the preload, prefetch and modulepreload hints whose href matches none of ``used_urls``."""
+    """Return the preload, prefetch and modulepreload hints whose href matches none of ``used_urls``
+    (see ``same_resource`` for what matches).
+    """
     used = {u for u in used_urls if isinstance(u, str)}
     return [h for h in hints
             if h.kind in (HintKind.PRELOAD, HintKind.PREFETCH,
                           HintKind.MODULEPRELOAD)
             and h.href
-            and h.href not in used
-            and not any(u.endswith(h.href) or h.href.endswith(u)
-                        for u in used)]
+            and not any(same_resource(h.href, u) for u in used)]
 
 
 def assert_no_unused_hints(

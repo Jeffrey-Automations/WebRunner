@@ -4,6 +4,7 @@ from je_web_runner.utils.throttler.throttler import (
     ServiceThrottler,
     ThrottlerError,
     acquire,
+    configure_global,
     throttle,
 )
 
@@ -12,5 +13,6 @@ __all__ = [
     "ServiceThrottler",
     "ThrottlerError",
     "acquire",
+    "configure_global",
     "throttle",
 ]

@@ -29,6 +29,14 @@ class RateLimitResponse:
     headers: dict[str, str] = field(default_factory=dict)
     body: Any = None
 
+    def header(self, name: str) -> str | None:
+        """The value of header ``name``, whatever case the response spells it in; None when absent."""
+        wanted = name.lower()
+        for key, value in self.headers.items():
+            if str(key).lower() == wanted:
+                return value
+        return None
+
     @property
     def is_429(self) -> bool:
         """True when the status is 429 Too Many Requests."""
@@ -37,7 +45,7 @@ class RateLimitResponse:
     @property
     def retry_after_seconds(self) -> float | None:
         """The ``Retry-After`` header as seconds, or None when it is absent or not a number."""
-        raw = self.headers.get("Retry-After") or self.headers.get("retry-after")
+        raw = self.header("Retry-After")
         if not raw:
             return None
         try:
@@ -48,13 +56,13 @@ class RateLimitResponse:
     @property
     def limit(self) -> int | None:
         """The ``X-RateLimit-Limit`` header as an int, or None when absent or not digits."""
-        raw = self.headers.get("X-RateLimit-Limit") or self.headers.get("x-ratelimit-limit")
+        raw = self.header("X-RateLimit-Limit")
         return int(raw) if raw and raw.isdigit() else None
 
     @property
     def remaining(self) -> int | None:
         """The ``X-RateLimit-Remaining`` header as an int, or None when absent or not digits."""
-        raw = self.headers.get("X-RateLimit-Remaining") or self.headers.get("x-ratelimit-remaining")
+        raw = self.header("X-RateLimit-Remaining")
         return int(raw) if raw and raw.isdigit() else None
 
 

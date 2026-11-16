@@ -9,15 +9,19 @@ test fails. Falls back through:
 2. Author with the most lines remaining in the test (from blame).
 3. Most-recent committer (HEAD).
 4. Project-wide default owner (caller-supplied).
+
+CODEOWNERS is read by the parser and the matcher of ``test_owners_map``
+(:func:`~je_web_runner.utils.test_owners_map.owners.pattern_matches`); the
+owners are returned here without their leading ``@``.
 """
 from __future__ import annotations
 
-import fnmatch
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.test_owners_map.owners import codeowners_lines, pattern_matches
 
 
 class BlameOwnerError(WebRunnerException):
@@ -45,24 +49,8 @@ def parse_codeowners(text: str) -> list[CodeownersRule]:
     """
     if not isinstance(text, str):
         raise BlameOwnerError("CODEOWNERS text must be a string")
-    rules: list[CodeownersRule] = []
-    for raw_line in text.splitlines():
-        line = raw_line.split("#", 1)[0].strip()
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        pattern, *owners = parts
-        rules.append(CodeownersRule(pattern=pattern,
-                                    owners=[o.lstrip("@") for o in owners]))
-    return rules
-
-
-def _glob_match(path: str, pattern: str) -> bool:
-    if pattern.endswith("/"):
-        pattern += "**"
-    return fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, "**/" + pattern)
+    return [CodeownersRule(pattern=pattern, owners=[o.lstrip("@") for o in owners])
+            for pattern, owners in codeowners_lines(text)]
 
 
 def owners_from_codeowners(
@@ -73,7 +61,7 @@ def owners_from_codeowners(
         raise BlameOwnerError("test_path must be non-empty")
     selected: CodeownersRule | None = None
     for rule in rules:
-        if _glob_match(test_path, rule.pattern):
+        if pattern_matches(rule.pattern, test_path):
             selected = rule
     return list(selected.owners) if selected else []
 

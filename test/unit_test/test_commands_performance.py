@@ -629,17 +629,26 @@ def test_memory_pressure_emulate(driver):
     assert payloads == [
         {"method": "Emulation.setHardwareConcurrencyOverride", "params": {"hardwareConcurrency": 1}},
         {"method": "Emulation.setCPUThrottlingRate", "params": {"rate": 2.0}},
-        {"method": "Memory.simulatePressureNotification", "params": {"level": "fair"}},
+        # Chromium knows two levels, moderate and critical; "fair" is sent as moderate.
+        {"method": "Memory.simulatePressureNotification", "params": {"level": "moderate"}},
     ]
     custom = {"name": "slow", "cpu_throttle_rate": 6, "pressure_level": "critical"}
+    driver.execute_cdp_cmd.return_value = {"result": {"value": 8}}
     applied = perf2.memory_pressure_emulate_apply(custom)
     assert applied[1]["params"] == {"rate": 6}
+    # The page's own core count is read first, so that restore can set it back.
     assert [call.args[0] for call in driver.execute_cdp_cmd.call_args_list] == [
-        payload["method"] for payload in applied]
+        "Runtime.evaluate", *(payload["method"] for payload in applied)]
     driver.execute_cdp_cmd.reset_mock()
     assert perf2.memory_pressure_emulate_restore() is True
-    assert driver.execute_cdp_cmd.call_args_list[1].args == ("Emulation.setCPUThrottlingRate", {"rate": 1.0})
-    assert driver.execute_cdp_cmd.call_count == 3
+    assert [call.args for call in driver.execute_cdp_cmd.call_args_list] == [
+        ("Emulation.setCPUThrottlingRate", {"rate": 1}),
+        ("Emulation.setHardwareConcurrencyOverride", {"hardwareConcurrency": 8}),
+    ]
+    # Restoring twice does not set a core count it no longer knows.
+    driver.execute_cdp_cmd.reset_mock()
+    perf2.memory_pressure_emulate_restore()
+    assert [call.args[0] for call in driver.execute_cdp_cmd.call_args_list] == ["Emulation.setCPUThrottlingRate"]
     for bad in ("warp_speed", {"name": "x", "cpu_throttle_rate": 0.5}, {"name": "x", "pressure_level": "hot"},
                 {"cores": 2}):
         with pytest.raises(MemoryPressureError):
@@ -670,7 +679,8 @@ def test_third_party_block_test(driver):
         {"vendor": "hotjar", "resilience": "resilient", "error": None, "notes": []},
         {"vendor": "stripe", "resilience": "broken", "error": "TimeoutError()", "notes": ["critical_path vendor"]},
     ]
-    with pytest.raises(ThirdPartyBlockError, match=r"\['stripe', 'sentry'\]"):
+    # A vendor that broke the flow and one that was never blocked are named apart.
+    with pytest.raises(ThirdPartyBlockError, match=r"broke.*\['stripe'\].*not in the report.*\['sentry'\]"):
         perf2.third_party_block_test_assert(outcomes, ["hotjar", "stripe", "sentry"])
     with pytest.raises(ThirdPartyBlockError, match="bad outcome"):
         perf2.third_party_block_test_assert([{"vendor": "hotjar", "resilience": "fine"}], ["hotjar"])

@@ -50,7 +50,20 @@ class VerifyResult:
 
 
 def _equal(a: str, b: str) -> bool:
-    return hmac.compare_digest(a.encode("ascii"), b.encode("ascii"))
+    """Constant-time comparison; a received value may hold any character, so both are UTF-8 bytes."""
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
+def _header(headers: Mapping[str, str], name: str) -> str | None:
+    """The value of header ``name``, whatever the case of its name in ``headers``."""
+    value = headers.get(name)
+    if value is not None:
+        return value
+    wanted = name.lower()
+    for key, candidate in headers.items():
+        if isinstance(key, str) and key.lower() == wanted:
+            return candidate
+    return None
 
 
 def _hex(secret: str, body: bytes) -> str:
@@ -59,7 +72,7 @@ def _hex(secret: str, body: bytes) -> str:
 
 def _verify_github(headers: Mapping[str, str], body: bytes,
                    secret: str) -> VerifyResult:
-    received = headers.get("X-Hub-Signature-256")
+    received = _header(headers, "X-Hub-Signature-256")
     if not received:
         raise WebhookSignatureVerifyError("missing X-Hub-Signature-256 header")
     if not received.startswith(_GITHUB_SIG_PREFIX):
@@ -72,7 +85,7 @@ def _verify_github(headers: Mapping[str, str], body: bytes,
 
 def _verify_stripe(headers: Mapping[str, str], body: bytes, secret: str,
                    tolerance_seconds: int) -> VerifyResult:
-    raw = headers.get("Stripe-Signature")
+    raw = _header(headers, "Stripe-Signature")
     if not raw:
         raise WebhookSignatureVerifyError("missing Stripe-Signature header")
     parts = {p.split("=", 1)[0]: p.split("=", 1)[1]
@@ -101,8 +114,8 @@ def _verify_stripe(headers: Mapping[str, str], body: bytes, secret: str,
 
 def _verify_slack(headers: Mapping[str, str], body: bytes, secret: str,
                   tolerance_seconds: int) -> VerifyResult:
-    sig = headers.get("X-Slack-Signature")
-    ts = headers.get("X-Slack-Request-Timestamp")
+    sig = _header(headers, "X-Slack-Signature")
+    ts = _header(headers, "X-Slack-Request-Timestamp")
     if not sig or not ts:
         raise WebhookSignatureVerifyError(
             "missing X-Slack-Signature or X-Slack-Request-Timestamp header"
@@ -124,7 +137,7 @@ def _verify_slack(headers: Mapping[str, str], body: bytes, secret: str,
 
 def _verify_generic(headers: Mapping[str, str], body: bytes,
                     secret: str) -> VerifyResult:
-    received = headers.get("X-Signature")
+    received = _header(headers, "X-Signature")
     if not received:
         raise WebhookSignatureVerifyError("missing X-Signature header")
     return VerifyResult(ok=_equal(_hex(secret, body), received.lower()),
@@ -138,7 +151,10 @@ def verify(
     secret: str,
     tolerance_seconds: int = 300,
 ) -> VerifyResult:
-    """Return a ``VerifyResult`` (raises only on malformed input)."""
+    """Return a ``VerifyResult`` (raises only on malformed input).
+
+    Header names are matched without regard to case.
+    """
     if not isinstance(scheme, Scheme):
         raise WebhookSignatureVerifyError(
             f"scheme must be Scheme, got {type(scheme).__name__}"
@@ -176,17 +192,20 @@ def sign_github(body: bytes, secret: str) -> str:
 
 def sign_stripe(body: bytes, secret: str, ts: int | None = None) -> str:
     """Return a ``Stripe-Signature`` style value ``t=<ts>,v1=<hmac>`` over ``<ts>.<body>``;
-    ``ts`` defaults to the current time.
+    ``ts`` defaults to the current time (``0`` is the epoch, not "now").
     """
-    ts = int(ts or time.time())
+    ts = int(time.time() if ts is None else ts)
     signed = f"{ts}.".encode() + body
     return f"t={ts},v1={_hex(secret, signed)}"
 
 
 def sign_slack(body: bytes, secret: str, ts: int | None = None) -> str:
-    """Return a Slack signature ``v0=<hmac>`` over ``v0:<ts>:<body>``;
-    ``ts`` defaults to the current time.
+    """Return a Slack signature ``v0=<hmac>`` over ``v0:<ts>:<body>``.
+
+    The value does not carry the timestamp, and the verifier reads it from the
+    ``X-Slack-Request-Timestamp`` header: pass the ``ts`` you send in that header. Left out, ``ts``
+    is the current time, which the caller then cannot know exactly (``0`` is the epoch, not "now").
     """
-    ts = int(ts or time.time())
+    ts = int(time.time() if ts is None else ts)
     base = f"v0:{ts}:".encode() + body
     return "v0=" + _hex(secret, base)

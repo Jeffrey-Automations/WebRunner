@@ -258,6 +258,11 @@ def assert_sorted_by(
     Assert each page (and inter-page boundary) is sorted by ``items_by_page_key``.
     Different from :func:`assert_no_duplicates` — this catches "page 3
     items come BEFORE page 2 items" bugs that look fine within a page.
+
+    ``items_by_page_key`` is called with each item's **key**, the value ``key_fn`` returned in
+    :func:`walk_all_pages` (the findings keep the keys, not the items), and returns what to order
+    by. Pass ``lambda key: key`` when the key itself is the sort value; to check another field,
+    walk the pages with a ``key_fn`` that returns it, for example ``(created_at, id)``.
     """
     if not callable(items_by_page_key):
         raise PaginationAuditError("items_by_page_key must be callable")

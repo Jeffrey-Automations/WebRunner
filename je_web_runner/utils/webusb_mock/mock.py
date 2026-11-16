@@ -29,6 +29,12 @@ INSTALL_SCRIPT = r"""
   const queued = {};     // queued IN responses per endpoint
   function FakeUsbDevice(spec) {
     Object.assign(this, spec);
+    // The page reads the WebUSB names; MockUsbDevice.to_dict() gives the Python ones.
+    const names = {vendorId: 'vendor_id', productId: 'product_id',
+                   productName: 'product_name', serialNumber: 'serial_number'};
+    for (const key in names) {
+      if (this[key] === undefined && spec[names[key]] !== undefined) this[key] = spec[names[key]];
+    }
     this.opened = false;
     this.configuration = null;
     this.claimed = new Set();
@@ -63,10 +69,12 @@ INSTALL_SCRIPT = r"""
     return {bytesWritten: data.byteLength, status: 'ok'};
   };
   const fakeDevices = devices.map((d) => new FakeUsbDevice(d));
-  navigator.usb = {
+  // ``navigator.usb`` is a getter without a setter where WebUSB exists (secure contexts), so a plain
+  // assignment is ignored there; define the property on the navigator object itself.
+  Object.defineProperty(navigator, 'usb', {configurable: true, value: {
     requestDevice: async () => fakeDevices[0],
     getDevices: async () => fakeDevices,
-  };
+  }});
   window.__wr_usb__ = {
     queueIn: function (kind, bytes) {
       queued[kind] = queued[kind] || [];
@@ -90,7 +98,9 @@ class MockUsbDevice:
     serial_number: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """Return the fields as a plain dict for JSON output."""
+        """Return the fields as a plain dict for JSON output. ``INSTALL_SCRIPT`` accepts it as a device
+        and shows the page ``vendorId``, ``productId``, ``productName`` and ``serialNumber``.
+        """
         return asdict(self)
 
 

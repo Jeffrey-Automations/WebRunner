@@ -24,13 +24,22 @@ class CompressionStreamsError(WebRunnerException):
 
 
 class Algorithm(str, Enum):
-    """The compression formats ``CompressionStream`` accepts."""
+    """The formats ``decompress`` reads.
+
+    ``gzip``, ``deflate`` and ``deflate-raw`` are also ``CompressionStream`` formats. ``br`` is the
+    ``Content-Encoding`` token of Brotli, for bytes that come from elsewhere (a response body): it is
+    not a ``CompressionStream`` format, and Chromium 148 refuses both ``br`` and ``brotli`` with
+    "Unsupported compression format", so ``HARVEST_SCRIPT`` cannot be run with it.
+    """
     GZIP = "gzip"
     DEFLATE = "deflate"
     DEFLATE_RAW = "deflate-raw"
     BROTLI = "br"
 
 
+# An async function expression taking (algorithm, text) and resolving to the base64 of the compressed
+# bytes: pass it to ``page.evaluate`` with its arguments, or call it from an ``execute_script`` body
+# (``return (<script>)(arguments[0], arguments[1]);`` after dropping its final ``;``).
 HARVEST_SCRIPT = r"""
 async (algorithm, text) => {
   const stream = new Blob([text]).stream();

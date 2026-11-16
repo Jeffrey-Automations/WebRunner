@@ -35,8 +35,10 @@ class Wcag22TouchTargetError(WebRunnerException):
 MIN_SIZE_CSS_PX = 24
 
 
-HARVEST_SCRIPT = r"""
-(function () {
+# The body of a function, as Selenium's ``execute_script`` runs one: ``execute_script(HARVEST_SCRIPT)``
+# returns the value. It is stored on ``arguments`` first, and the text starts with that statement, so the
+# script gives the same value when a caller writes ``"return "`` in front of it.
+HARVEST_SCRIPT = r"""arguments.harvested = (function () {
   const interactive = 'a[href],button,input:not([type="hidden"]),' +
                       'select,textarea,[role="button"],[role="link"],' +
                       '[tabindex]:not([tabindex="-1"])';
@@ -67,6 +69,7 @@ HARVEST_SCRIPT = r"""
   }
   return out;
 })();
+return arguments.harvested;
 """
 
 

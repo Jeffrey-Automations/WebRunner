@@ -6,10 +6,14 @@ Lets the team express PR-merge requirements without scattering ad-hoc
 ``require`` pair:
 
     rules:
-      - when:   "changed.has_path('src/payments/**')"
+      - when:   "facts.has_path('src/payments/**')"
         require: ["pr_title_has_jira", "two_reviewers", "no_flake_regression"]
-      - when:   "changed.is_docs_only"
+      - when:   "facts.is_docs_only"
         require: ["one_reviewer"]
+
+A ``when`` is ``facts.<attribute>`` or ``facts.<method>('literal')`` on
+:class:`PrFacts` and must yield a bool (``facts.is_docs_only``,
+``facts.has_path('glob')``); anything else is a ``PreMergeGateDslError``.
 
 The Python side parses a YAML / JSON / dict structure into ``Rule``
 objects and evaluates them against a ``PrFacts`` snapshot.

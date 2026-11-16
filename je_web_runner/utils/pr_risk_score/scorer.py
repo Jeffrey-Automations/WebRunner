@@ -181,15 +181,14 @@ def score_pr(
         contributions[name] = round(contrib, 4)
     normalised = weighted_sum / weight_total
     score = round(_clip(normalised) * 100.0, 2)
-    reasons = sorted(
-        (
-            r for r in (
-                _format_reason(name, components[name], getattr(weights, name))
-                for name in _SIGNAL_NAMES
-            ) if r is not None
-        ),
-        key=lambda s: -float(s.split("%")[0].rsplit(":", 1)[-1].strip()),
-    )
+    # Largest contribution to the score first; ``sorted`` keeps the signal order for equal ones.
+    by_contribution = sorted(_SIGNAL_NAMES, key=lambda name: -contributions[name])
+    reasons = [
+        reason for reason in (
+            _format_reason(name, components[name], getattr(weights, name))
+            for name in by_contribution
+        ) if reason is not None
+    ]
     return RiskReport(
         score=score,
         level=_level_for(score),

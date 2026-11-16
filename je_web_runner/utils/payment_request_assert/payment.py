@@ -135,19 +135,20 @@ def assert_supports(log: PaymentLog, *, method: str) -> None:
 
 
 def assert_total_currency(log: PaymentLog, *, currency: str) -> None:
-    """Raise PaymentRequestAssertError when a constructed PaymentRequest's total is not in ``currency``,
-    or none was constructed.
+    """Raise PaymentRequestAssertError when a constructed PaymentRequest's total is not in ``currency``
+    (a total without a readable ``amount.currency`` included), or none was constructed.
     """
     if not currency:
         raise PaymentRequestAssertError("currency must be non-empty")
     if not log.constructed:
         raise PaymentRequestAssertError("page never constructed a PaymentRequest")
     for c in log.constructed:
-        total = c.details.get("total") or {}
-        amount = total.get("amount") or {} if isinstance(total, dict) else {}
-        if isinstance(amount, dict) and amount.get("currency") != currency:
+        total = c.details.get("total")
+        amount = total.get("amount") if isinstance(total, dict) else None
+        actual = amount.get("currency") if isinstance(amount, dict) else None
+        if actual != currency:
             raise PaymentRequestAssertError(
-                f"total currency {amount.get('currency')!r} != {currency!r}"
+                f"total currency {actual!r} != {currency!r}"
             )
 
 
@@ -170,7 +171,11 @@ def assert_completed(log: PaymentLog, *, status: str = "success") -> None:
 
 
 def assert_shipping_required(log: PaymentLog) -> None:
-    """Raise PaymentRequestAssertError when a PaymentRequest was constructed without ``requestShipping``."""
+    """Raise PaymentRequestAssertError when a PaymentRequest was constructed without ``requestShipping``,
+    or none was constructed.
+    """
+    if not log.constructed:
+        raise PaymentRequestAssertError("page never constructed a PaymentRequest")
     for c in log.constructed:
         if not c.options.get("requestShipping"):
             raise PaymentRequestAssertError(

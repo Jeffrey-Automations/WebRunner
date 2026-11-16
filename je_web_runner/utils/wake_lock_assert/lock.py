@@ -31,12 +31,20 @@ INSTALL_SCRIPT = r"""
       const sentinel = await origRequest(type || 'screen');
       events.push({kind: 'acquire', type: type || 'screen', ts: Date.now()});
       const origRelease = sentinel.release.bind(sentinel);
+      // One release event per sentinel: release() also fires the sentinel's 'release' event, and a
+      // second release() of a released sentinel does nothing.
+      let logged = false;
       sentinel.release = async function () {
-        events.push({kind: 'release', type: sentinel.type, ts: Date.now(),
-                     by: 'app'});
+        if (!logged) {
+          logged = true;
+          events.push({kind: 'release', type: sentinel.type, ts: Date.now(),
+                       by: 'app'});
+        }
         return origRelease();
       };
       sentinel.addEventListener('release', () => {
+        if (logged) return;
+        logged = true;
         events.push({kind: 'release', type: sentinel.type,
                      ts: Date.now(), by: 'os'});
       });

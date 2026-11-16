@@ -32,7 +32,8 @@ class CorsOutcome(str, Enum):
     AMBIGUOUS = "ambiguous"
 
 
-_PREFLIGHT_VERBS = {"PUT", "PATCH", "DELETE"}
+# The CORS-safelisted methods (Fetch standard): every other method makes the browser preflight.
+_SAFELISTED_VERBS = {"GET", "HEAD", "POST"}
 
 
 # ---------- matrix ------------------------------------------------------
@@ -46,8 +47,11 @@ class CorsCase:
     with_credentials: bool
 
     def needs_preflight(self) -> bool:
-        """True when the verb is one that makes the browser send a preflight request."""
-        return self.verb.upper() in _PREFLIGHT_VERBS
+        """True when the verb alone makes the browser send a preflight request: any method other
+        than GET, HEAD and POST. Request headers are not part of a case, so a preflight caused by a
+        header (``Authorization``, a JSON content type) is not modelled.
+        """
+        return self.verb.upper() not in _SAFELISTED_VERBS
 
 
 def build_matrix(

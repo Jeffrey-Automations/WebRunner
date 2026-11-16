@@ -7,6 +7,9 @@ should have a deterministic answer. This module provides:
 * :class:`OwnersMap` — adds a per-test override layer (a small YAML/JSON
   file your team controls separately).
 * Lookup helpers + bulk audit ("which tests have no owner?").
+
+:func:`codeowners_lines` and :func:`pattern_matches` are the one CODEOWNERS
+reader of the package; ``test_blame_owner`` and ``test_debt_dashboard`` use them.
 """
 from __future__ import annotations
 
@@ -49,7 +52,7 @@ class OwnersFile:
             raise TestOwnersMapError("path must be non-empty string")
         winner: list[str] = []
         for rule in self.rules:
-            if _matches(rule.pattern, path):
+            if pattern_matches(rule.pattern, path):
                 winner = list(rule.owners)
         return winner
 
@@ -59,13 +62,16 @@ class OwnersFile:
 _TRAILING_COMMENT_RE = re.compile(r"(?<=\s)#")
 
 
-def parse_codeowners(text: str) -> OwnersFile:
-    """Parse a CODEOWNERS-format string."""
+def codeowners_lines(text: str) -> list[tuple[str, list[str]]]:
+    """
+    ``(pattern, owners)`` for every rule line of a CODEOWNERS body, in file order. Comment lines,
+    trailing comments and lines that name no owner are dropped; the owners keep their ``@``.
+    """
     if not isinstance(text, str):
         raise TestOwnersMapError(
             f"parse_codeowners expects str, got {type(text).__name__}"
         )
-    rules: list[CodeownersRule] = []
+    lines: list[tuple[str, list[str]]] = []
     for raw in text.splitlines():
         # Strip trailing comments (but keep '#' inside owners like @owner#1)
         comment = _TRAILING_COMMENT_RE.search(raw)
@@ -75,8 +81,15 @@ def parse_codeowners(text: str) -> OwnersFile:
         parts = line.split()
         if len(parts) < 2:
             continue
-        rules.append(CodeownersRule(pattern=parts[0], owners=parts[1:]))
-    return OwnersFile(rules=rules)
+        lines.append((parts[0], parts[1:]))
+    return lines
+
+
+def parse_codeowners(text: str) -> OwnersFile:
+    """Parse a CODEOWNERS-format string."""
+    return OwnersFile(rules=[
+        CodeownersRule(pattern=pattern, owners=owners) for pattern, owners in codeowners_lines(text)
+    ])
 
 
 def load_codeowners_file(path: str | Path) -> OwnersFile:
@@ -87,21 +100,29 @@ def load_codeowners_file(path: str | Path) -> OwnersFile:
     return parse_codeowners(p.read_text(encoding="utf-8"))
 
 
-def _matches(pattern: str, path: str) -> bool:
-    """Limited CODEOWNERS glob: ``*``, ``**``, dir/, /-anchor."""
+def pattern_matches(pattern: str, path: str) -> bool:
+    """
+    Whether the CODEOWNERS ``pattern`` owns the ``/``-separated ``path``, as GitHub reads it.
+
+    ``*`` stays inside one path segment and ``**`` crosses them (``**/`` also matches no directory);
+    a leading ``/`` anchors the pattern at the root, otherwise it may start at any directory. A
+    pattern that ends in ``/``, or whose last segment has no ``*``, names a file or a directory and
+    owns everything below it (``/apps/github`` owns ``apps/github/hook.py``); one whose last segment
+    has a ``*`` owns only what that segment matches (``docs/*`` does not own ``docs/guide/intro.md``).
+    """
     if pattern == "*":
         return True
-    is_dir_pattern = pattern.endswith("/")
     pat = pattern.rstrip("/")
-    regex = re.escape(pat).replace(r"\*\*", r".*").replace(r"\*", r"[^/]*")
+    regex = (re.escape(pat)
+             .replace(r"\*\*/", "(?:.*/)?")
+             .replace(r"\*\*", ".*")
+             .replace(r"\*", "[^/]*"))
     if pat.startswith("/"):
         regex = "^" + regex[1:]
     else:
         regex = "(^|/)" + regex
-    if is_dir_pattern:
-        regex += "(/|$)"
-    else:
-        regex += "$"
+    names_a_directory = pattern.endswith("/") or "*" not in pat.rsplit("/", 1)[-1]
+    regex += "(/|$)" if names_a_directory else "$"
     return re.search(regex, path) is not None
 
 

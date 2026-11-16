@@ -32,9 +32,24 @@ class PressureLevel(str, Enum):
 
 # ---------- emulation profile ------------------------------------------
 
+# ``Memory.simulatePressureNotification`` knows two levels, ``moderate`` and ``critical`` (Chromium's
+# MemoryPressureLevel); anything else is answered "Invalid memory pressure level". ``nominal`` is the
+# absence of a notification.
+_CDP_PRESSURE_LEVEL = {
+    PressureLevel.FAIR: "moderate",
+    PressureLevel.SERIOUS: "moderate",
+    PressureLevel.CRITICAL: "critical",
+}
+
+
 @dataclass(frozen=True)
 class EmulationProfile:
-    """One memory + CPU emulation combo."""
+    """One memory + CPU emulation combo.
+
+    ``js_heap_limit_bytes`` describes the profile only: Chromium has no CDP command that limits the JS
+    heap of a running page, so ``cdp_payloads`` sends nothing for it. A heap limit is a launch argument
+    (``--js-flags=--max-old-space-size=<megabytes>``).
+    """
 
     name: str
     hardware_concurrency: int = 2
@@ -71,6 +86,9 @@ def cdp_payloads(profile: EmulationProfile) -> list[dict[str, Any]]:
     """
     Render the CDP commands a user's CDP-send callable should execute.
     Each entry is ``{"method": ..., "params": ...}``.
+
+    The memory-pressure notification is sent as Chromium's level: ``fair`` and ``serious`` as
+    ``moderate``, ``critical`` as ``critical``, and none for ``nominal``.
     """
     if not isinstance(profile, EmulationProfile):
         raise MemoryPressureError("profile must be EmulationProfile")
@@ -79,17 +97,52 @@ def cdp_payloads(profile: EmulationProfile) -> list[dict[str, Any]]:
          "params": {"hardwareConcurrency": profile.hardware_concurrency}},
         {"method": "Emulation.setCPUThrottlingRate",
          "params": {"rate": profile.cpu_throttle_rate}},
-        # ``Memory.simulatePressureNotification`` is the Chrome experimental
-        # endpoint; older builds use ``Memory.setPressureNotificationsSuppressed``.
-        {"method": "Memory.simulatePressureNotification",
-         "params": {"level": profile.pressure_level.value}},
     ]
-    if profile.js_heap_limit_bytes is not None:
-        commands.append({
-            "method": "HeapProfiler.setSamplingHeapProfiler",
-            "params": {"samplingInterval": profile.js_heap_limit_bytes},
-        })
+    level = _CDP_PRESSURE_LEVEL.get(profile.pressure_level)
+    if level is not None:
+        # ``Memory.simulatePressureNotification`` is an experimental Chrome endpoint.
+        commands.append({"method": "Memory.simulatePressureNotification", "params": {"level": level}})
     return commands
+
+
+def restore_payloads(hardware_concurrency: int | None = None) -> list[dict[str, Any]]:
+    """
+    Render the CDP commands that undo a profile.
+
+    The CPU throttle goes back to 1. Chromium has no command that clears the core-count override (it
+    refuses 0), so the override is set to ``hardware_concurrency``, the value the page had before the
+    profile (``original_hardware_concurrency`` reads it); without it the override is left in place. A
+    memory-pressure notification is a single signal and has nothing to undo.
+    """
+    commands: list[dict[str, Any]] = [
+        {"method": "Emulation.setCPUThrottlingRate", "params": {"rate": 1}},
+    ]
+    if hardware_concurrency is not None:
+        if isinstance(hardware_concurrency, bool) or not isinstance(hardware_concurrency, int) \
+                or hardware_concurrency <= 0:
+            raise MemoryPressureError("hardware_concurrency must be a positive integer")
+        commands.append({"method": "Emulation.setHardwareConcurrencyOverride",
+                         "params": {"hardwareConcurrency": hardware_concurrency}})
+    return commands
+
+
+def original_hardware_concurrency(cdp_send: Callable[[str, dict[str, Any]], Any]) -> int | None:
+    """
+    Ask the page for ``navigator.hardwareConcurrency`` through ``cdp_send`` (``Runtime.evaluate``).
+    Call it before a profile is applied. Returns None when ``cdp_send`` does not return the answer.
+    """
+    try:
+        answer = cdp_send("Runtime.evaluate", {
+            "expression": "navigator.hardwareConcurrency", "returnByValue": True,
+        })
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort read, logged
+        _LOGGER.warning("reading navigator.hardwareConcurrency failed: %r", error)
+        return None
+    result = answer.get("result") if isinstance(answer, dict) else None
+    value = result.get("value") if isinstance(result, dict) else None
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return None
+    return value
 
 
 # ---------- runner ------------------------------------------------------
@@ -103,6 +156,17 @@ class PressureRunOutcome:
     error: str | None = None
 
 
+def _restore(cdp_send: Callable[[str, dict[str, Any]], Any], original_cores: int | None) -> None:
+    """Best-effort restore: a failure is logged, so it neither masks nor downgrades the test result."""
+    if original_cores is None:
+        _LOGGER.warning("core count before the profile is unknown; its override stays in place")
+    try:
+        for cmd in restore_payloads(original_cores):
+            cdp_send(cmd["method"], cmd["params"])
+    except Exception as restore_err:  # pylint: disable=broad-exception-caught  # best-effort restore, logged
+        _LOGGER.warning("CDP pressure restore failed: %r", restore_err)
+
+
 def run_under_profile(
     profile: EmulationProfile,
     cdp_send: Callable[[str, dict[str, Any]], Any],
@@ -111,12 +175,17 @@ def run_under_profile(
     """
     Apply ``profile`` via ``cdp_send``, run ``test_callable()``, restore
     defaults, return outcome.
+
+    ``cdp_send(method, params)`` must return the CDP result (as Selenium's ``execute_cdp_cmd`` and
+    Playwright's ``CDPSession.send`` do) for the core count to be restored: it is read from the page
+    before the profile is applied, see ``restore_payloads``.
     """
     if not callable(cdp_send):
         raise MemoryPressureError("cdp_send must be callable")
     if not callable(test_callable):
         raise MemoryPressureError("test_callable must be callable")
     import time
+    original_cores = original_hardware_concurrency(cdp_send)
     try:
         for cmd in cdp_payloads(profile):
             cdp_send(cmd["method"], cmd["params"])
@@ -131,15 +200,7 @@ def run_under_profile(
         passed = False
         error_msg = repr(exc)
     duration = round(time.monotonic() - started, 4)
-    # Best-effort restore — don't mask the test failure if restore raises.
-    try:
-        cdp_send("Emulation.setHardwareConcurrencyOverride", {"hardwareConcurrency": 0})
-        cdp_send("Emulation.setCPUThrottlingRate", {"rate": 1.0})
-        cdp_send("Memory.simulatePressureNotification", {"level": "nominal"})
-    except Exception as restore_err:  # pylint: disable=broad-exception-caught  # best-effort restore, logged
-        # Don't mask the test result by re-raising here; CDP restore failure
-        # is logged-only so a successful run isn't downgraded to error.
-        _LOGGER.warning("CDP pressure restore failed: %r", restore_err)
+    _restore(cdp_send, original_cores)
     return PressureRunOutcome(
         profile=profile.name,
         passed=passed,

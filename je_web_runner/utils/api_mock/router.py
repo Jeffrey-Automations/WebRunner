@@ -170,9 +170,14 @@ def register_route(
     body: str | dict[str, Any] | list[Any] = "",
     status: int = 200,
     times: int | None = None,
+    *,
+    headers: dict[str, str] | None = None,
+    content_type: str = "application/json",
 ) -> MockRoute:
-    """Register a route on the module-level singleton."""
-    return _GLOBAL.add(method, url_pattern, body=body, status=status, times=times)
+    """Register a route on the module-level singleton; ``headers`` and ``content_type`` go on its response."""
+    return _GLOBAL.add(
+        method, url_pattern, body=body, status=status, headers=headers, content_type=content_type, times=times,
+    )
 
 
 def reset_global_router() -> None:
