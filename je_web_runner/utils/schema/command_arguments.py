@@ -39,7 +39,9 @@ def _annotation_text(annotation: Any) -> str | None:
         return None
     if isinstance(annotation, str):
         return annotation
-    return getattr(annotation, "__name__", None) or str(annotation)
+    # A class has its name; anything else (``int | None``, ``list[str]``) prints as it is written. Asking
+    # every object for ``__name__`` would turn a union into "Union" on Python 3.14.
+    return annotation.__name__ if isinstance(annotation, type) else str(annotation)
 
 
 def _union_members(text: str) -> list[str]:

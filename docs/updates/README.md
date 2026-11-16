@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-39 | 2026-11-16 | Correct the note on MCP reports; state where the expansion plan stands | #correction #status | [2026-11](2026-11.md) |
 | U-20261116-38 | 2026-11-16 | Check arguments in the schema; add failure bundles, file isolation and recorded assertions | #feature #schema #cli #recorder #fix | [2026-11](2026-11.md) |
 | U-20261116-37 | 2026-11-16 | Clear the Sphinx warnings and give Pylint the project line limit | #quality #docs #lint | [2026-11](2026-11.md) |
 | U-20261116-36 | 2026-11-16 | Offer MCP resources, prompts and three authoring tools | #feature #mcp #done | [2026-11](2026-11.md) |
@@ -217,7 +218,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 42 |
+| [2026-11.md](2026-11.md) | 2026-11 | 43 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

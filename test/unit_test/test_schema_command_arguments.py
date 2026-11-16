@@ -1,5 +1,6 @@
 """The action schema checks an action's arguments object against its command's signature."""
 import glob
+import inspect
 import json
 import re
 import unittest
@@ -12,6 +13,7 @@ from je_web_runner.utils.schema.command_arguments import (
     PLACEHOLDER_REF,
     arguments_schema,
     command_argument_rules,
+    value_schema,
 )
 
 try:
@@ -61,6 +63,20 @@ class TestArgumentsSchema(unittest.TestCase):
     def test_unknown_annotations_put_no_constraint(self):
         self.assertEqual(self.properties["anything"], {})
         self.assertEqual(self.properties["callback"], {})
+
+    def test_annotations_that_are_objects_read_like_their_source(self):
+        # A module with ``from __future__ import annotations`` carries text, one without carries objects.
+        # Both must give the same schema on every Python version (3.14 names a union "Union").
+        cases = {
+            "str": str, "float": float, "bool": bool, "int | None": int | None,
+            "list[str] | None": list[str] | None, "dict[str, Any]": dict[str, Any], "str | dict[str, Any]": str | dict,
+        }
+        for written, annotation in cases.items():
+            with self.subTest(annotation=written):
+                as_text = inspect.Parameter("x", inspect.Parameter.KEYWORD_ONLY, annotation=written)
+                as_object = inspect.Parameter("x", inspect.Parameter.KEYWORD_ONLY, annotation=annotation)
+                self.assertEqual(value_schema(as_object), value_schema(as_text))
+                self.assertNotEqual(value_schema(as_object), {})
 
     def test_keyword_catch_all_allows_other_names(self):
         schema = arguments_schema(open_ended)
