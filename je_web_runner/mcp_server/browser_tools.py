@@ -24,7 +24,7 @@ import io
 from contextlib import redirect_stdout
 from typing import Any
 
-from je_web_runner.mcp_server._policy import checked_path, denied_commands
+from je_web_runner.mcp_server._policy import checked_path, denied_commands, write_fence
 from je_web_runner.mcp_server._types import DRIVES_BROWSER, READ_ONLY, McpServerError, Tool, ToolResult
 
 
@@ -48,7 +48,7 @@ def _tool_run_actions(arguments: dict[str, Any]) -> ToolResult:
     if not isinstance(actions, list):
         raise McpServerError("'actions' must be a list of [name, params] entries")
     buffer = io.StringIO()
-    with redirect_stdout(buffer), executor.restricted(denied_commands()):
+    with redirect_stdout(buffer), executor.restricted(denied_commands()), write_fence():
         record, failed = executor.collect_action_results(actions)
     return ToolResult(
         {"stdout": buffer.getvalue(), "record": _serialize_record(record), "failed": failed},
@@ -67,7 +67,7 @@ def _tool_run_action_files(arguments: dict[str, Any]) -> ToolResult:
     paths = [checked_path(path) for path in files]
     buffer = io.StringIO()
     records, failed = [], []
-    with redirect_stdout(buffer), executor.restricted(denied_commands()):
+    with redirect_stdout(buffer), executor.restricted(denied_commands()), write_fence():
         for path in paths:
             record, file_failed = executor.collect_action_results(read_action_json(path))
             records.append(_serialize_record(record))

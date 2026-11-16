@@ -185,3 +185,4 @@ def generate_html_report(html_name: str = "default_name"):
             file_to_write.write(new_html_string)
     except OSError as error:
         web_runner_logger.error(f"generate_html_report write failed: {error!r}")
+        raise

@@ -71,6 +71,7 @@ def generate_xml_report(xml_file_name: str = "default_name"):
             file_to_write.write(failure_xml)
     except OSError as error:
         web_runner_logger.error(f"generate_xml_report, xml_file_name: {xml_file_name}, failed: {error!r}")
+        raise
 
     # 輸出成功報告
     # Write success report
@@ -81,3 +82,4 @@ def generate_xml_report(xml_file_name: str = "default_name"):
             file_to_write.write(success_xml)
     except OSError as error:
         web_runner_logger.error(f"generate_xml_report, xml_file_name: {xml_file_name}, failed: {error!r}")
+        raise

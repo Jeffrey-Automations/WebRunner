@@ -1081,7 +1081,7 @@ serve_stdio(server=server)
 - stdio 一律是 UTF-8、行尾 `\n`，與主控台字碼頁無關。行程寫到 stdout 的其他內容（`print`、子行程）都改走 stderr，所以客戶端只會收到協定訊息。
 - 工具執行失敗時回傳 `isError: true` 與錯誤訊息，讓客戶端能修正呼叫。`webrunner_run_actions` 與 `webrunner_run_action_files` 在有動作失敗時也會設 `isError`，並把失敗的紀錄鍵列在 `failed`。
 - 未知的工具或不是物件的 `arguments` 回 JSON-RPC `-32602` 錯誤。通知（notification）一律不回應，批次請求以 `-32600` 拒絕。
-- 執行工具會拒絕 `WR_add_package_to_executor`、`WR_add_package_to_callback_executor`、`WR_set_allow_arbitrary_script` 與操作或讀取桌面的 `WR_ac_*` 命令（`WR_ac_available`、`WR_ac_list_commands` 以外的全部），巢狀的動作清單也一樣：模型不應能載入 `os`、重新打開操作者關掉的腳本閘門，或透過 AutoControl 碰到桌面。設 `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` 可解除。設了 `WEBRUNNER_MCP_ROOT` 時，`webrunner_run_action_files` 與 `webrunner_compute_trend` 只讀取該目錄內的檔案。
+- 執行工具會拒絕 `WR_add_package_to_executor`、`WR_add_package_to_callback_executor`、`WR_set_allow_arbitrary_script` 與操作或讀取桌面的 `WR_ac_*` 命令（`WR_ac_available`、`WR_ac_list_commands` 以外的全部），巢狀的動作清單也一樣：模型不應能載入 `os`、重新打開操作者關掉的腳本閘門，或透過 AutoControl 碰到桌面。設 `WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1` 可解除。設了 `WEBRUNNER_MCP_ROOT` 時，`webrunner_run_action_files`、`webrunner_compute_trend` 與 `webrunner_lint_action_file` 只讀取該目錄內的檔案，而且透過 `webrunner_run_actions` 或 `webrunner_run_action_files` 執行的動作清單無法把檔案寫到該目錄之外（報告、匯出、截圖：任何由 Python 開啟寫入的檔案；系統暫存目錄仍可寫入）。這是針對檔案引數的圍欄，不是沙箱：瀏覽器自己下載的檔案，或 Playwright driver 行程寫出的檔案不在其範圍內。
 - 每個工具都有 `title` 與 `annotations`：離線工具與 `webrunner_list_commands` 是 `readOnlyHint: true`，兩個執行工具是 `destructiveHint: true`、`openWorldHint: true`。輸入 schema 說明每個參數並拒絕未知參數；參數不符時回傳 `isError` 結果並指出問題。結果是 JSON 物件時也會以 `structuredContent` 送出，兩個執行工具另外宣告 `outputSchema`。
 
 除了工具之外，伺服器在它支援的每個協定版本都提供 **resources** 與 **prompts**：

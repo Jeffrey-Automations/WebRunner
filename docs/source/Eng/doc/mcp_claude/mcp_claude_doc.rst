@@ -328,9 +328,18 @@ Two environment variables, set in the client's server entry (``env``):
 
 * ``WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1`` lifts the refusal, for a trusted
   client that needs to load its own helper package.
-* ``WEBRUNNER_MCP_ROOT=<dir>`` limits ``webrunner_run_action_files`` and
-  ``webrunner_compute_trend`` to files inside ``<dir>`` (``..`` and symlinks
-  are resolved first). Unset, they read any path the process can.
+* ``WEBRUNNER_MCP_ROOT=<dir>`` limits ``webrunner_run_action_files``,
+  ``webrunner_compute_trend`` and ``webrunner_lint_action_file`` to files inside
+  ``<dir>`` (``..`` and symlinks are resolved first). Unset, they read any path
+  the process can.
+* With the same variable set, an action list run through ``webrunner_run_actions``
+  or ``webrunner_run_action_files`` cannot write a file outside ``<dir>``: opening
+  one for writing fails with a ``PermissionError`` that names the variable, and the
+  action fails. That covers what Python writes in the server process (reports,
+  exports, Selenium screenshots, recordings, ledgers); the system temporary
+  directory stays writable. It is a fence for file arguments, not a sandbox: a
+  download by the browser, or a file written by Playwright's driver process, is
+  not seen by it.
 
 ----
 

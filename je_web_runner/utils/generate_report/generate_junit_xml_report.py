@@ -165,3 +165,4 @@ def generate_junit_xml_report(junit_file_name: str = "default_name") -> None:
         web_runner_logger.error(
             f"generate_junit_xml_report, junit_file_name: {junit_file_name}, failed: {error!r}"
         )
+        raise

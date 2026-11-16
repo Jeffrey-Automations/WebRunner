@@ -97,6 +97,7 @@ def generate_json_report(json_file_name: str = "default_name"):
             json.dump(dict(success_dict), file_to_write, indent=4)
     except (OSError, TypeError, ValueError) as error:
         web_runner_logger.error(f"generate_json_report, json_file_name: {json_file_name}, failed: {error!r}")
+        raise
 
     # 輸出失敗紀錄
     # Write failure records
@@ -107,3 +108,4 @@ def generate_json_report(json_file_name: str = "default_name"):
             json.dump(dict(failure_dict), file_to_write, indent=4)
     except (OSError, TypeError, ValueError) as error:
         web_runner_logger.error(f"generate_json_report, json_file_name: {json_file_name}, failed: {error!r}")
+        raise

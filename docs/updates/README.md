@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-47 | 2026-11-16 | Fence MCP runs to their root for writes; report writers fail on a failed write | #fix #security #mcp #reports | [2026-11](2026-11.md) |
 | U-20261116-46 | 2026-11-16 | Use the downloaded driver; fail option builders and element screenshots properly | #fix #webdriver | [2026-11](2026-11.md) |
 | U-20261116-45 | 2026-11-16 | Run the library commands on either backend | #feature #backends #playwright | [2026-11](2026-11.md) |
 | U-20261116-44 | 2026-11-16 | Remove the duplicated blocks; Pylint, mypy and flake8 report nothing | #quality #lint #typing #fix #done | [2026-11](2026-11.md) |
@@ -225,7 +226,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 50 |
+| [2026-11.md](2026-11.md) | 2026-11 | 51 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

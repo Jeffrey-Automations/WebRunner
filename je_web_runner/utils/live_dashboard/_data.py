@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.flake_detector.detector import (
@@ -22,8 +22,11 @@ from je_web_runner.utils.trend_dashboard.trend import compute_trend_from_runs
 
 
 def _path(configured: str | Path | None) -> Path | None:
-    """A ``DashboardConfig`` path as its ``__post_init__`` left it: a ``Path`` or None."""
-    return cast("Path | None", configured)
+    """
+    A ``DashboardConfig`` path as a ``Path``, or None. ``__post_init__`` converts what the constructor was
+    given; a path assigned to the configuration afterwards may still be text.
+    """
+    return None if configured is None else Path(configured)
 
 
 def _read_ledger_runs(ledger_path: Path | None) -> list[dict[str, Any]]:

@@ -394,8 +394,7 @@ def _generate_reports(base_name: str, formats: Sequence[str] = _DEFAULT_REPORT_F
     """
     Write the reports of ``formats`` under ``base_name``. The directory is created when it is missing.
 
-    :raises WebRunnerExecuteException: when a requested report is not there afterwards. The writers log a
-        failure and return, so without this check a run would end with exit code 0 and no report.
+    :raises WebRunnerExecuteException: when a report cannot be written, or is not there afterwards.
     """
     expected = _report_files(base_name, formats)
     for target in expected:
@@ -403,7 +402,10 @@ def _generate_reports(base_name: str, formats: Sequence[str] = _DEFAULT_REPORT_F
             target.parent.mkdir(parents=True, exist_ok=True)
         except OSError as error:
             web_runner_logger.error(f"--report: cannot create {target.parent}: {error!r}")
-    _write_reports(base_name, formats)
+    try:
+        _write_reports(base_name, formats)
+    except OSError as error:
+        raise WebRunnerExecuteException(f"--report: not written: {error}") from error
     missing = [str(target) for target in expected if not target.is_file()]
     if missing:
         raise WebRunnerExecuteException("--report: not written: " + ", ".join(missing))

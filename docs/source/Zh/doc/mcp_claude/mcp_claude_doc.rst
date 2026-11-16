@@ -287,9 +287,15 @@ MCP 客戶端是依讀到的文字行動的模型,所以執行工具會拒絕能
 
 * ``WEBRUNNER_MCP_ALLOW_UNSAFE_COMMANDS=1``:解除上述拒絕,給需要載入自家
   helper 套件的可信客戶端用。
-* ``WEBRUNNER_MCP_ROOT=<dir>``:``webrunner_run_action_files`` 與
-  ``webrunner_compute_trend`` 只能讀 ``<dir>`` 內的檔案(先解析 ``..`` 與
-  symlink)。未設定時可讀行程能讀的任何路徑。
+* ``WEBRUNNER_MCP_ROOT=<dir>``:``webrunner_run_action_files``、
+  ``webrunner_compute_trend`` 與 ``webrunner_lint_action_file`` 只能讀 ``<dir>`` 內的
+  檔案(先解析 ``..`` 與 symlink)。未設定時可讀行程能讀的任何路徑。
+* 設定同一個變數後，透過 ``webrunner_run_actions`` 或 ``webrunner_run_action_files``
+  執行的動作清單無法把檔案寫到 ``<dir>`` 之外：開啟寫入時會以指出該變數的
+  ``PermissionError`` 失敗，動作隨之失敗。範圍是伺服器行程中由 Python 寫出的檔案
+  （報告、匯出、Selenium 截圖、錄製、ledger）；系統暫存目錄仍可寫入。這是針對檔案
+  引數的圍欄，不是沙箱：瀏覽器自己的下載，或 Playwright driver 行程寫出的檔案，
+  不在它的範圍內。
 
 ----
 
