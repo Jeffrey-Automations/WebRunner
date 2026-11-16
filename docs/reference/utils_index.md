@@ -297,7 +297,7 @@ then the other feature subpackages.
 | `bidi` | W3C WebDriver BiDi Network 模組薄包裝 (Selenium 4.16+)。 |
 | `cdp` | 原生 Chrome DevTools Protocol (CDP) 命令直通，給進階情境用。 |
 | `chrome_profile` | 持久化 Chrome profile：snapshot → 跑 → sync-back 模式 + SingletonLock 清理 + stealth flag。 |
-| `cli` | WebRunner CLI 進入點，提供執行、驗證、平行、報告等子命令。 |
+| `cli` | WebRunner CLI: the ``python -m je_web_runner`` entry point, its arguments, run settings and tool flags. |
 | `cloud_grid` | Self-hosted Selenium Grid connection helpers. |
 | `download_verify` | 下載檔案驗證:PDF/CSV/Excel/JSON/檔名/SHA256 比對,給 E2E 測試用。 |
 | `driver_dispatch` | Shared Selenium / Playwright JS execution dispatch. |
