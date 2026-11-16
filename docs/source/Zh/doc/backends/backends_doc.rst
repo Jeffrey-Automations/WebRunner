@@ -182,6 +182,34 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
      - ``WR_pw_scroll``、``WR_pw_scroll_to_top``、``WR_pw_scroll_to_bottom``、
        ``WR_pw_drag_and_drop_offset``
      - Playwright 的拖曳收 selector；Selenium 的拖曳傳給它的元素。
+   * - 啟動單一瀏覽器
+     - ``WR_set_driver``
+     - ``WR_pw_launch``
+     - 下載 driver 與 BiDi 的引數在 Playwright 沒有對應，也不需要。
+   * - 標題斷言、重新載入
+     - ``WR_assert_title``、``WR_reload``\ （``ignore_cache``）
+     - ``WR_pw_check_current_page``\ （``title``）、``WR_pw_refresh``
+     - 略過快取的重新載入兩邊都走 DevTools（``Page.reload``），所以只支援
+       Chromium。
+   * - 鍵盤
+     - ``WR_press_keys``；``WR_send_keys``、``WR_press_key``、
+       ``WR_release_key`` 之後接 ``WR_perform``
+     - ``WR_pw_keyboard_press`` / ``_type`` / ``_down`` / ``_up``
+     - 按鍵名稱不同（``ENTER`` 與 ``Enter``）。按住 Shift 時 Selenium 會輸入
+       大寫，Playwright 不會。
+   * - 在游標位置操作滑鼠、鏈中的暫停
+     - ``WR_left_click``、``WR_right_click``、``WR_left_double_click``、
+       ``WR_left_click_and_hold``、``WR_release``\ （不帶元素）、
+       ``WR_pause``，之後接 ``WR_perform``
+     - ``WR_pw_mouse_down`` / ``WR_pw_mouse_up``、``WR_pw_wait_for_timeout``
+     - Selenium 的也可以帶已記錄的 ``TestObject`` 名稱；Playwright 的作用在
+       游標所在位置。Selenium 用秒，Playwright 用毫秒。
+   * - Origin 的 storage；一次設定位置、時區與語系
+     - ``WR_clear_origin_storage``、``WR_geo_locale_apply``
+     - ``WR_pw_cdp``\ （``Storage.clearDataForOrigin``）；
+       ``WR_pw_set_geolocation``、``WR_pw_set_timezone``、``WR_pw_set_locale``
+     - 清除 origin 的 storage 兩邊都只支援 Chromium。Playwright 每個設定各用
+       一個動作。
    * - Init script、封鎖 URL
      - ``WR_add_script_to_evaluate_on_new_document``、``WR_block_urls`` /
        ``WR_unblock_urls``\ （CDP）

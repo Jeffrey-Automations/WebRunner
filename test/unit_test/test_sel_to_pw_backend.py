@@ -15,6 +15,7 @@ from je_web_runner.utils.sel_to_pw import (
     untranslatable_commands,
 )
 from je_web_runner.utils.sel_to_pw import backend_rules as rules
+from je_web_runner.utils.sel_to_pw.backend_binding import SELENIUM, backend_of
 from je_web_runner.utils.sel_to_pw.backend_rules import Rule
 
 _ARGUMENT_RULES = {"unknown_command", "unknown_argument", "missing_argument", "too_many_arguments"}
@@ -23,6 +24,16 @@ _LOCATOR = rules.TRANSLATED_LOCATOR
 # Keyword arguments for each row of the table that has a required parameter (Selenium parameter names).
 SAMPLES = {
     "WR_new_driver": {"webdriver_name": "chrome", "options": ["--headless=new", "--lang=en"]},
+    "WR_set_driver": {"webdriver_name": "chrome", "options": ["--headless=new", "--disable-gpu"]},
+    "WR_assert_title": {"value": "Home"},
+    "WR_press_keys": {"keys": ["Control", "a", "Enter"]},
+    "WR_send_keys": {"keys_to_send": "ab"},
+    "WR_press_key": {"keycode_on_key_class": ""},
+    "WR_release_key": {"keycode_on_key_class": ""},
+    "WR_pause": {"seconds": 1},
+    "WR_clear_origin_storage": {"origin": "https://example.test"},
+    "WR_touch_gesture_dispatch": {"frames": [{"type": "touchStart", "touchPoints": [{"x": 1, "y": 2}]}]},
+    "WR_geo_locale_apply": {"latitude": 25.0, "longitude": 121.5, "timezone": "Asia/Taipei", "locale": "zh-TW"},
     "WR_change_index_of_webdriver": {"index_of_webdriver": 1},
     "WR_attach_to_existing_browser": {"debugger_address": "127.0.0.1:9222"},
     "WR_to_url": {"url": "https://example.test/"},
@@ -204,21 +215,10 @@ class TestConversions(unittest.TestCase):
         self.assertEqual(self._one(["WR_wait_for_url", ["/home"]]),
                          [["WR_pw_wait_for_url", {"url": "**/home**", "timeout": 10000}]])
 
-    def test_a_raw_selector_lookup_keeps_making_the_match_the_current_element(self):
-        self.assertEqual(self._one(["WR_find_element_by", ["go", "id"]]), [
-            ["WR_save_locator", {"name": _LOCATOR, "value": "go", "by": "ID"}],
-            ["WR_pw_find_element_with_test_object_record", {"element_name": _LOCATOR}],
-        ])
-
-    def test_wait_for_element_converts_selector_timeout_and_state(self):
+    def test_wait_for_hidden_converts_selector_timeout_and_state(self):
         translated = self._one(["WR_wait_for_element", {"selector": "//a", "by": "xpath", "state": "hidden"}])
         self.assertEqual(translated, [
             ["WR_pw_wait_for_selector", {"selector": "xpath=//a", "timeout": 10000, "state": "hidden"}]])
-        visible = self._one(["WR_wait_for_element", ["#go"]])
-        self.assertEqual(visible[0], ["WR_pw_wait_for_selector",
-                                      {"selector": "#go", "timeout": 10000, "state": "visible"}])
-        self.assertEqual([action[0] for action in visible[1:]],
-                         ["WR_save_locator", "WR_pw_find_element_with_test_object_record"])
 
     def test_a_script_body_becomes_a_function_that_gets_the_arguments(self):
         (name, arguments), = self._one(["WR_execute_script", ["return arguments[0] + arguments[1]", 1, 2]])
@@ -350,10 +350,15 @@ class TestRefusals(unittest.TestCase):
         self.assertEqual(raised.exception.backend, "playwright")
 
     def test_a_selenium_command_outside_the_table_is_refused_not_passed_through(self):
-        for command in ("WR_reload", "WR_get_window_rect", "WR_press_key", "WR_explicit_wait", "WR_assert_title"):
+        reasons = set(untranslatable_commands().values())  # a listed command, under any of its names
+        outside = [name for name in executor.event_dict
+                   if backend_of(name) == SELENIUM and how_translated(name)[0] != "translated"
+                   and how_translated(name)[1] not in reasons]
+        for command in outside:
             with self.subTest(command=command):
                 problem, = self._problems([[command]])
                 self.assertIn("selenium backend", problem.reason)
+        self.assertNotIn("WR_to_url", outside)
 
     def test_arguments_without_an_equivalent_are_refused(self):
         cases = [
@@ -364,7 +369,8 @@ class TestRefusals(unittest.TestCase):
             ["WR_wait_for_element", {"selector": "#go", "timeout": "${seconds}"}],
             ["WR_wait_for_url", ["/a*b"]],
             ["WR_new_driver", ["safari"]],
-            ["WR_new_driver", {"webdriver_name": "chrome", "enable_bidi": True}],
+            ["WR_new_driver", {"webdriver_name": "chrome", "experimental_options": {"detach": True}}],
+            ["WR_set_driver", {"webdriver_name": "chrome", "extension_paths": ["a.crx"]}],
             ["WR_add_cookie", [{"name": "a", "value": "b"}]],
             ["WR_check_current_webdriver", [{"page_source": "<html>"}]],
             ["WR_element_assert", [{"size": {"width": 1, "height": 1}}]],
@@ -454,12 +460,12 @@ class TestBlocksAndDocuments(unittest.TestCase):
             translate_for_backend([
                 ["WR_if", {"condition": {"not": {"succeeds": ["WR_alert_text"]}},
                            "then": [["WR_back"], ["WR_try", {"do": [["WR_maximize_window"]]}]]}],
-                ["WR_capture", {"name": "element", "action": ["WR_find_element_by", ["#a"]]}],
+                ["WR_capture", {"name": "frame", "action": ["WR_iframe_switch_chain", [["#a"]]]}],
             ])
         self.assertEqual([(problem.location, problem.command) for problem in raised.exception.problems], [
             ("action[0].then[1].do[0]", "WR_maximize_window"),
             ("action[0].condition.not.succeeds", "WR_alert_text"),
-            ("action[1].action", "WR_find_element_by"),
+            ("action[1].action", "WR_iframe_switch_chain"),
         ])
 
     def test_a_document_keeps_its_shape_and_translates_its_hooks(self):
@@ -489,7 +495,8 @@ class TestDescriptions(unittest.TestCase):
                          ("translated", "WR_save_full_page_screenshot / WR_save_screenshot"))
         self.assertEqual(how_translated("WR_perform")[0], "translated")
         self.assertEqual(how_translated("WR_maximize_window")[0], "untranslatable")
-        self.assertEqual(how_translated("WR_reload")[0], "untranslatable")
+        self.assertEqual(how_translated("WR_explicit_wait")[0], "untranslatable")
+        self.assertEqual(how_translated("WR_reset_actions")[0], "translated")
         self.assertEqual(how_translated("WR_set_var"), ("unchanged", "backend-neutral"))
         self.assertEqual(how_translated("WR_pw_click"), ("unchanged", "already a playwright command"))
 

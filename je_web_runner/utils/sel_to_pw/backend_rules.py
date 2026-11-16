@@ -17,83 +17,60 @@ Two kinds of entry:
 
 Argument names and defaults are not repeated here: they are read from the signatures of the registered
 commands, so positional arguments are mapped by the source command's parameter order.
+
+A few builders give one Playwright action when the Playwright backend has the twin command and several
+when it does not (:func:`available`): ``WR_find_element_by`` is ``WR_pw_find_element_by`` where that is
+registered, and otherwise stores the selector as a locator, finds it by name and checks that an element
+was found. The keyboard and pointer rows are in
+:mod:`~je_web_runner.utils.sel_to_pw.backend_input`, the refusals in
+:mod:`~je_web_runner.utils.sel_to_pw.backend_refusals`.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import inspect
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
 from je_web_runner.utils.device_emulation.presets import DeviceEmulationError, playwright_kwargs
+from je_web_runner.utils.sel_to_pw.backend_binding import registered_command
+from je_web_runner.utils.sel_to_pw.backend_input import INPUT_RULES, QUEUED_INPUT
+from je_web_runner.utils.sel_to_pw.backend_refusals import CANNOT_TRANSLATE
+from je_web_runner.utils.sel_to_pw.backend_types import (
+    SECONDS,
+    Action,
+    Builder,
+    Conversion,
+    Rule,
+    Untranslatable,
+    seconds_to_ms,
+)
+from je_web_runner.utils.sel_to_pw.backend_types import text as _text
 from je_web_runner.utils.test_object.locator_file import LocatorFileError, strategy_name
 from je_web_runner.utils.test_object.test_object_class import TestObject
 from je_web_runner.utils.time_freezer.freezer import TimeFreezerError, to_epoch_ms
 from je_web_runner.webdriver.playwright_locator import test_object_to_selector
 
-Action = list[Any]
-Builder = Callable[[dict[str, Any]], list[Action]]
+__all__ = [
+    "Action", "Builder", "CANNOT_TRANSLATE", "Conversion", "QUEUED_COMMANDS", "Rule", "SELENIUM_TO_PLAYWRIGHT",
+    "SEQUENCE_COMMANDS", "TRANSLATED_LOCATOR", "Untranslatable", "available", "playwright_selector",
+]
 
-# The logical locator name a translated raw-selector lookup is stored under (see ``_find_by``).
+# The logical locator name a translated raw-selector lookup is stored under (see ``_stored_lookup``).
 TRANSLATED_LOCATOR = "sel_to_pw.selector"
+# Playwright twins of ``WR_find_element_by`` / ``WR_find_elements_by``; used once they are registered.
+FIND_TWIN = "WR_pw_find_element_by"
+FIND_ALL_TWIN = "WR_pw_find_elements_by"
 
 
-class Untranslatable(Exception):
-    """One action cannot be translated; the message is the reason."""
-
-
-@dataclass(frozen=True)
-class Conversion:
-    """How an argument value changes: ``forward`` to Playwright, ``backward`` to Selenium."""
-
-    forward: Callable[[Any], Any]
-    backward: Callable[[Any], Any] | None = None
-
-
-@dataclass(frozen=True)
-class Rule:
-    """One Selenium command that becomes one Playwright command (see the module docstring)."""
-
-    target: str
-    rename: Mapping[str, str] = field(default_factory=dict)
-    convert: Mapping[str, Conversion] = field(default_factory=dict)
-    add: Mapping[str, Any] = field(default_factory=dict)
-    defaults: Mapping[str, Any] = field(default_factory=dict)
-    # Selenium arguments filled when a Playwright action leaves them out (the other direction of ``defaults``).
-    inverse_defaults: Mapping[str, Any] = field(default_factory=dict)
-    inverse: bool = True
+def available(command: str, parameter: str | None = None) -> bool:
+    """Whether the executor registers ``command`` (and, with ``parameter``, whether it takes that argument)."""
+    registered = registered_command(command)
+    if registered is None:
+        return False
+    return parameter is None or parameter in inspect.signature(registered).parameters
 
 
 # ----- value conversions -------------------------------------------------------------------------
-
-def _number(value: Any, what: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise Untranslatable(f"{what} must be a literal number to be converted, got {value!r}")
-    return value
-
-
-def _tidy(number: float) -> float:
-    rounded = round(number, 6)
-    return int(rounded) if float(rounded).is_integer() else rounded
-
-
-def seconds_to_ms(value: Any) -> float:
-    """Selenium waits in seconds, Playwright in milliseconds."""
-    return _tidy(_number(value, "a time in seconds") * 1000)
-
-
-def ms_to_seconds(value: Any) -> float:
-    """The other direction of :func:`seconds_to_ms`."""
-    return _tidy(_number(value, "a time in milliseconds") / 1000)
-
-
-SECONDS = Conversion(seconds_to_ms, ms_to_seconds)
-
-
-def _text(value: Any, what: str) -> str:
-    if not isinstance(value, str):
-        raise Untranslatable(f"{what} must be text, got {value!r}")
-    return value
-
 
 def _fields(allowed: Mapping[str, str], other_backend: str) -> Callable[[Any], dict[str, Any]]:
     """A converter for a ``check_dict``: keeps the fields both backends have, renamed by ``allowed``."""
@@ -166,25 +143,39 @@ _BROWSERS: dict[str, dict[str, Any]] = {
 _HEADLESS_OPTIONS = ("--headless", "-headless")
 
 
-def _new_driver(args: dict[str, Any]) -> list[Action]:
-    """``WR_new_driver`` -> ``WR_pw_new_browser`` (it also starts the first browser, like ``WR_new_driver``)."""
-    if args.get("kwargs"):
-        raise Untranslatable(f"Selenium driver arguments {sorted(args['kwargs'])} have no Playwright equivalent")
-    name = args.get("webdriver_name")
-    launch = _BROWSERS.get(name.lower() if isinstance(name, str) else "")
-    if launch is None:
-        raise Untranslatable(
-            f"Playwright runs {', '.join(sorted(_BROWSERS))}, not {name!r} (its WebKit is not Safari)")
-    options = list(args.get("options") or [])
-    flags = [option for option in options if not str(option).startswith(_HEADLESS_OPTIONS)]
-    # Selenium opens a window unless told otherwise; Playwright is headless unless told otherwise.
-    arguments = {**launch, "headless": len(flags) != len(options)}
-    if flags:
-        arguments["args"] = flags
-    return [["WR_pw_new_browser", arguments]]
+# Arguments about Selenium's driver binary and its BiDi channel: Playwright has no driver to download and
+# captures console and network events without a switch, so leaving them out changes nothing.
+_DRIVER_ONLY = ("install_driver", "webdriver_manager_option_dict", "enable_bidi")
+_BROWSER_ARGUMENTS = ("webdriver_name", "options", "kwargs", *_DRIVER_ONLY)
+
+
+def _start(command: str) -> Builder:
+    """
+    Start a browser. ``WR_new_driver`` adds one (``WR_pw_new_browser`` does too, also for the first);
+    ``WR_set_driver`` makes a new browser the wrapper's only one, as ``WR_pw_launch`` does.
+    """
+    def build(args: dict[str, Any]) -> list[Action]:
+        given = {**args, **(args.get("kwargs") or {})}
+        extra = sorted(key for key, value in given.items() if key not in _BROWSER_ARGUMENTS and value)
+        if extra:
+            raise Untranslatable(f"Selenium driver arguments {extra} have no Playwright equivalent")
+        name = given.get("webdriver_name")
+        launch = _BROWSERS.get(name.lower() if isinstance(name, str) else "")
+        if launch is None:
+            raise Untranslatable(
+                f"Playwright runs {', '.join(sorted(_BROWSERS))}, not {name!r} (its WebKit is not Safari)")
+        options = list(given.get("options") or [])
+        flags = [option for option in options if not str(option).startswith(_HEADLESS_OPTIONS)]
+        # Selenium opens a window unless told otherwise; Playwright is headless unless told otherwise.
+        arguments = {**launch, "headless": len(flags) != len(options)}
+        if flags:
+            arguments["args"] = flags
+        return [[command, arguments]]
+    return build
 
 
 def _attach(args: dict[str, Any]) -> list[Action]:
+    """``WR_attach_to_existing_browser`` takes ``host:port``; Playwright takes the DevTools URL."""
     extra = sorted(key for key in ("options", "experimental_options", "kwargs") if args.get(key))
     if extra:
         raise Untranslatable(f"{', '.join(extra)} cannot be given to a browser Playwright attaches to")
@@ -195,27 +186,42 @@ def _attach(args: dict[str, Any]) -> list[Action]:
     return [["WR_pw_connect_over_cdp", {"endpoint_url": endpoint}]]
 
 
-def _find_by(command: str) -> Builder:
+def _stored_lookup(command: str, args: dict[str, Any]) -> list[Action]:
     """
-    ``WR_find_element_by`` makes the match the current element; ``WR_pw_find_element`` does not. The
-    selector is stored as a locator instead and found by name, which sets the current element.
+    ``WR_pw_find_element`` does not make the match the current element, as ``WR_find_element_by`` does.
+    The selector is stored as a locator instead and found by name with ``command``, which sets it.
     """
+    selector = _text(args.get("selector"), "selector")
+    return [
+        ["WR_save_locator", {"name": TRANSLATED_LOCATOR, "value": selector,
+                             "by": strategy_name(args.get("by", "css selector"))}],
+        [command, {"element_name": TRANSLATED_LOCATOR}],
+    ]
+
+
+def _find_by(twin: str, command: str, must_match: bool) -> Builder:
+    """A raw-selector lookup: the Playwright twin when it is registered, else the stored lookup."""
     def build(args: dict[str, Any]) -> list[Action]:
-        selector = _text(args.get("selector"), "selector")
-        by = args.get("by", "css selector")
-        playwright_selector(selector, by)  # refuses a strategy Playwright has no selector for
-        return [
-            ["WR_save_locator", {"name": TRANSLATED_LOCATOR, "value": selector, "by": strategy_name(by)}],
-            [command, {"element_name": TRANSLATED_LOCATOR}],
-        ]
+        playwright_selector(args.get("selector"), args.get("by", "css selector"))  # refuses what has no selector
+        if available(twin):
+            return [[twin, {key: args[key] for key in ("selector", "by") if key in args}]]
+        lookup = _stored_lookup(command, args)
+        # Selenium fails when nothing matches; the lookup by name does not, and this check does.
+        return [*lookup, ["WR_pw_element_assert", {"check_dict": {}}]] if must_match else lookup
     return build
 
 
-_find_one = _find_by("WR_pw_find_element_with_test_object_record")
+_find_one = _find_by(FIND_TWIN, "WR_pw_find_element_with_test_object_record", must_match=True)
 _WAIT_STATES = {"present": "attached", "visible": "visible", "hidden": "hidden"}
+_WAIT, _MAKE_CURRENT = "WR_pw_wait_for_selector", "make_current"
 
 
 def _wait_for_element(args: dict[str, Any]) -> list[Action]:
+    """
+    ``WR_wait_for_element`` -> ``WR_pw_wait_for_selector``. Selenium's wait also makes the element the
+    current one (except for ``hidden``): with ``make_current`` where the Playwright command takes it,
+    otherwise with a lookup after the wait.
+    """
     state = args.get("state", "visible")
     if state == "clickable":
         raise Untranslatable(
@@ -223,16 +229,64 @@ def _wait_for_element(args: dict[str, Any]) -> list[Action]:
             "Playwright waits for an enabled element before it clicks")
     if state not in _WAIT_STATES:
         raise Untranslatable(f"unknown wait state {state!r}")
-    wait = ["WR_pw_wait_for_selector", {
+    arguments = {
         "selector": playwright_selector(args.get("selector"), args.get("by", "css selector")),
         "timeout": seconds_to_ms(args.get("timeout", 10.0)),
         "state": _WAIT_STATES[state],
-    }]
-    # Selenium's wait makes the element the current one, except for "hidden".
-    return [wait] if state == "hidden" else [wait, *_find_one(args)]
+    }
+    if state == "hidden":
+        return [[_WAIT, arguments]]
+    if available(_WAIT, _MAKE_CURRENT):
+        return [[_WAIT, {**arguments, _MAKE_CURRENT: True}]]
+    if available(FIND_TWIN):
+        return [[_WAIT, arguments], *_find_one(args)]
+    return [[_WAIT, arguments], *_stored_lookup("WR_pw_find_element_with_test_object_record", args)]
+
+
+def _assert_title(args: dict[str, Any]) -> list[Action]:
+    """``WR_assert_title`` -> the ``title`` field of ``WR_pw_check_current_page``; both name the title found."""
+    return [["WR_pw_check_current_page", {"check_dict": {"title": args.get("value")}}]]
+
+
+def _reload(args: dict[str, Any]) -> list[Action]:
+    """``WR_reload``: a refresh, or the DevTools reload Selenium's wrapper sends to skip the cache."""
+    if args.get("ignore_cache"):
+        return [["WR_pw_cdp", {"method": "Page.reload", "params": {"ignoreCache": True}}]]
+    return [["WR_pw_refresh"]]
+
+
+def _clear_origin_storage(args: dict[str, Any]) -> list[Action]:
+    """The same DevTools command Selenium's wrapper sends, through the Playwright page's CDP session."""
+    params = {"origin": args.get("origin"), "storageTypes": "all"}
+    return [["WR_pw_cdp", {"method": "Storage.clearDataForOrigin", "params": params}]]
+
+
+def _geo_locale(args: dict[str, Any]) -> list[Action]:
+    """``WR_geo_locale_apply`` sets up to three overrides; each has its own Playwright command."""
+    latitude, longitude = args.get("latitude"), args.get("longitude")
+    if (latitude is None) != (longitude is None):
+        raise Untranslatable("latitude and longitude must be set together")
+    actions: list[Action] = []
+    if latitude is not None:
+        actions.append(["WR_pw_set_geolocation", {
+            "latitude": latitude, "longitude": longitude, "accuracy": args.get("accuracy_meters", 50.0)}])
+    if args.get("timezone") is not None:
+        actions.append(["WR_pw_set_timezone", {"timezone_id": args["timezone"]}])
+    if args.get("locale") is not None:
+        actions.append(["WR_pw_set_locale", {"locale": args["locale"]}])
+    return actions
+
+
+def _touch_frames(args: dict[str, Any]) -> list[Action]:
+    """``WR_touch_gesture_dispatch`` sends one DevTools touch event per frame; so does this."""
+    frames = args.get("frames")
+    if not isinstance(frames, list) or not all(isinstance(frame, dict) for frame in frames):
+        raise Untranslatable(f"frames must be a literal list of touch frames to be translated, got {frames!r}")
+    return [["WR_pw_cdp", {"method": "Input.dispatchTouchEvent", "params": frame}] for frame in frames]
 
 
 def _wait_for_url(args: dict[str, Any]) -> list[Action]:
+    """Selenium waits for a URL that contains the pattern; Playwright for one that matches a glob."""
     pattern = _text(args.get("pattern"), "pattern")
     if any(character in pattern for character in _GLOB_CHARACTERS):
         raise Untranslatable(
@@ -342,13 +396,15 @@ def _same(*names: str) -> dict[str, Rule]:
 
 SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     # start / stop, several browsers, attach
-    "WR_new_driver": _new_driver,
+    "WR_new_driver": _start("WR_pw_new_browser"),
+    "WR_set_driver": _start("WR_pw_launch"),
     "WR_quit_all": Rule("WR_pw_quit"),
     "WR_quit_current": Rule("WR_pw_close_browser"),
     "WR_change_index_of_webdriver": Rule("WR_pw_switch_browser", rename={"index_of_webdriver": "index"}),
     "WR_attach_to_existing_browser": _attach,
     # navigation, page info
     **_same("to_url", "back", "forward", "refresh"),
+    "WR_reload": _reload,
     "WR_get_current_url": Rule("WR_pw_url"),
     "WR_get_title": Rule("WR_pw_title"),
     "WR_get_page_source": Rule("WR_pw_content"),
@@ -356,7 +412,8 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_find_recorded_element": Rule("WR_pw_find_element_with_test_object_record"),
     "WR_find_recorded_elements": Rule("WR_pw_find_elements_with_test_object_record"),
     "WR_find_element_by": _find_one,
-    "WR_find_elements_by": _find_by("WR_pw_find_elements_with_test_object_record"),
+    "WR_find_elements_by": _find_by(FIND_ALL_TWIN, "WR_pw_find_elements_with_test_object_record",
+                                    must_match=False),
     # the current element
     **_same("element_click", "element_check", "element_uncheck", "element_hover", "element_inner_text",
             "element_inner_html", "element_submit", "element_value_of_css_property", "element_clear",
@@ -398,6 +455,7 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_delete_all_cookies": Rule("WR_pw_clear_cookies"),
     # assertions
     "WR_check_current_webdriver": Rule("WR_pw_check_current_page", convert={"check_dict": _PAGE_FIELDS}),
+    "WR_assert_title": _assert_title,
     # tabs
     "WR_new_window": Rule("WR_pw_new_page"),
     "WR_switch": _switch,
@@ -405,8 +463,8 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_switch_to_window_by_title": Rule("WR_pw_switch_to_page_by_title"),
     "WR_close_window": Rule("WR_pw_close_page"),
     "WR_bring_to_front": Rule("WR_pw_bring_to_front"),
-    # scrolling
-    "WR_scroll": Rule("WR_pw_scroll", inverse=False),  # one of QUEUED_COMMANDS
+    # keyboard, pointer, scrolling (the ActionChains commands are in backend_input)
+    **INPUT_RULES,
     **_same("scroll_to_top", "scroll_to_bottom"),
     # init script, blocked URLs
     "WR_add_script_to_evaluate_on_new_document": Rule("WR_pw_add_init_script"),
@@ -422,6 +480,9 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_set_geolocation": Rule("WR_pw_set_geolocation", defaults={"accuracy": 100},
                                inverse_defaults={"accuracy": 0}),
     "WR_clear_geolocation_override": Rule("WR_pw_clear_geolocation"),
+    "WR_geo_locale_apply": _geo_locale,
+    "WR_clear_origin_storage": _clear_origin_storage,
+    "WR_touch_gesture_dispatch": _touch_frames,
     # visual regression, recorder
     **_same("visual_capture_baseline", "visual_compare", "recorder_start", "recorder_stop",
             "recorder_pull_events", "recorder_save"),
@@ -446,58 +507,15 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
 
 # ActionChains commands of the table: Selenium runs them at the next ``WR_perform``, so the translator
 # places their translation there.
-QUEUED_COMMANDS = frozenset({"WR_scroll"})
+QUEUED_COMMANDS = QUEUED_INPUT
 # The commands whose translation depends on the actions around them; the translator handles them itself.
 PERFORM = "WR_perform"
+RESET_ACTIONS = "WR_reset_actions"
 HAR_START, HAR_STOP = "WR_start_har_recording", "WR_stop_har_recording"
 PW_HAR_START, PW_HAR_STOP = "WR_pw_start_har_recording", "WR_pw_stop_har_recording"
 SEQUENCE_COMMANDS = {
     PERFORM: "runs the ActionChains commands queued before it; the translated ones are placed here",
+    RESET_ACTIONS: "forgets the ActionChains commands queued before it; so does the translation",
     HAR_START: f"{PW_HAR_START}, with the path the following {HAR_STOP} gives",
     HAR_STOP: PW_HAR_STOP,
-}
-
-_RECORDED_NAME = (
-    "it acts on a recorded TestObject without making it the current element, and no Playwright command takes "
-    "a recorded name that way; use WR_find_recorded_element and then {instead}")
-_WINDOW = "Playwright controls the viewport, not the OS window (WR_set_window_size becomes the viewport size)"
-
-# Selenium commands with no faithful Playwright translation, and why. A Selenium command that is neither
-# here nor in the table is refused too, with a general reason.
-CANNOT_TRANSLATE: dict[str, str] = {
-    "WR_start_remote_driver": "Selenium Grid speaks the WebDriver protocol, which Playwright does not",
-    "WR_appium_start": "Appium sessions are WebDriver sessions; Playwright has no mobile-app backend",
-    "WR_appium_quit": "Appium sessions are WebDriver sessions; Playwright has no mobile-app backend",
-    "WR_maximize_window": _WINDOW,
-    "WR_minimize_window": _WINDOW,
-    "WR_fullscreen_window": _WINDOW,
-    "WR_set_window_position": _WINDOW,
-    "WR_set_window_rect": _WINDOW,
-    "WR_chrome_options_with_extension":
-        "it builds Selenium ChromeOptions; on Playwright an extension needs WR_pw_launch_persistent with "
-        "extension_paths and a profile directory",
-    "WR_alert_accept": "Selenium answers the dialog that is open; Playwright needs WR_pw_set_dialog_policy "
-                       "before the action that opens it",
-    "WR_alert_dismiss": "Selenium answers the dialog that is open; Playwright needs WR_pw_set_dialog_policy "
-                        "before the action that opens it",
-    "WR_alert_text": "Selenium reads the dialog that is open; Playwright has handled it by then "
-                     "(WR_pw_last_dialog reads it afterwards)",
-    "WR_list_devices": "the device names differ: WebRunner's presets on Selenium, Playwright's descriptors there",
-    "WR_left_click": _RECORDED_NAME.format(instead="WR_element_click"),
-    "WR_move_to_element": _RECORDED_NAME.format(instead="WR_element_hover"),
-    "WR_drag_and_drop_offset": "it drags a recorded TestObject by name; WR_pw_drag_and_drop_offset needs the "
-                               "selector, which is known only when the file runs",
-    "WR_implicitly_wait": "Playwright's element lookup does not wait; wait with WR_wait_for_element, which translates",
-    "WR_wait_for_title": "Playwright has no wait for the page title",
-    "WR_set_script_timeout": "WR_pw_evaluate has no timeout",
-    "WR_save_cookies": "the file differs: Selenium saves a cookie list, WR_pw_save_storage_state saves cookies "
-                       "and localStorage, and nothing loads it into an open Playwright context",
-    "WR_load_cookies": "Playwright loads saved state only when a context is created (the storage_state option)",
-    "WR_element_select_by_index": "WR_pw_element_select_option takes a value only; an index needs "
-                                  "WR_pw_select_option with a selector and index=",
-    "WR_element_select_by_visible_text": "WR_pw_element_select_option takes a value only; a label needs "
-                                         "WR_pw_select_option with a selector and label=",
-    "WR_set_download_directory": "Playwright saves a download with WR_pw_download(selector, save_to), in one step",
-    "WR_wait_for_download": "Playwright keeps a download in its own directory until WR_pw_download saves it",
-    "WR_dom_mutations": "DOM mutation capture exists only on Selenium (BiDi)",
 }

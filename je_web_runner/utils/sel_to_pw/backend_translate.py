@@ -27,14 +27,19 @@ What happens to an action, in this order:
 Some translations depend on the actions around them, and are done per list of actions:
 
 * Selenium's ActionChains commands wait for ``WR_perform``; Playwright acts at once. A translated queued
-  command (``WR_scroll``) is therefore placed where its ``WR_perform`` is. One that no ``WR_perform``
+  command (``WR_scroll``, ``WR_send_keys``, ``WR_left_click`` …) is therefore placed where its
+  ``WR_perform`` is, and ``WR_reset_actions`` forgets the ones before it. One that no ``WR_perform``
   follows in the same list is reported.
 * Selenium names the HAR file when recording stops, Playwright when it starts, so the path moves between
   the two actions; they have to be in the same list.
 
-One action can become several (``WR_find_element_by`` stores a locator and finds it by name, so the match
-becomes the current element as on Selenium). Where the file holds exactly one action (``WR_capture``,
-``succeeds``) such a command is reported.
+One action can become several (``WR_iframe_switch_chain`` goes to the top document first, then into the
+frames) or none (``WR_perform`` with nothing queued). Where the file holds exactly one action:
+
+* in a ``succeeds`` condition only success or failure counts, so the actions are put in one ``WR_try``
+  with nothing but ``do``, which fails exactly when one of them does;
+* in ``WR_capture`` the value of the action is kept, so a command that does not become exactly one action
+  is reported.
 """
 from __future__ import annotations
 
@@ -195,10 +200,11 @@ def _translate_command(direction: _Direction, action: Action) -> tuple[list[Acti
         wanted = " or ".join(", ".join(f"{key}={value!r}" for key, value in item.requires.items())
                              for item in candidates)
         raise Untranslatable(f"it translates only with {wanted}")
+    queued = direction.source == SELENIUM and name in rules.QUEUED_COMMANDS
     if not isinstance(candidate.rule, Rule):
-        return candidate.rule(args), False
+        return candidate.rule(args), queued
     remaining = {key: value for key, value in args.items() if key not in candidate.requires}
-    return [_apply_rule(name, candidate.rule, remaining)], name in rules.QUEUED_COMMANDS
+    return [_apply_rule(name, candidate.rule, remaining)], queued
 
 
 @lru_cache(maxsize=None)
@@ -218,10 +224,23 @@ def _canonical(direction: _Direction, name: str) -> str | None:
     return _canonical_name(direction.target, name)
 
 
+@lru_cache(maxsize=None)
+def _listed_reason(backend: str, name: str) -> str | None:
+    """The reason listed for ``name``, or for another name of the same callable (``WR_explict_wait``)."""
+    cannot = _direction(backend).cannot
+    if name in cannot:
+        return cannot[name]
+    command = registered_command(name)
+    if command is None:
+        return None
+    return next((reason for other, reason in cannot.items() if registered_command(other) == command), None)
+
+
 def _refusal(direction: _Direction, name: str) -> str | None:
     """Why the command ``name`` cannot be translated, or None when it is copied unchanged."""
-    if name in direction.cannot:
-        return direction.cannot[name]
+    listed = _listed_reason(direction.target, name)
+    if listed is not None:
+        return listed
     if backend_of(name) == direction.source:
         return f"it drives the {direction.source} backend and has no {direction.target} translation"
     return None
@@ -281,8 +300,12 @@ class _Translator:
         state.queued_at.append(where)
         return []
 
-    def _single(self, action: Any, location: str) -> Any:
-        """Translate an action that sits where the file holds exactly one."""
+    def _single(self, action: Any, location: str, only_outcome: bool = False) -> Any:
+        """
+        Translate an action that sits where the file holds exactly one. With ``only_outcome`` (a
+        ``succeeds`` condition) several actions, or none, become one ``WR_try`` that just runs them.
+        """
+        known = len(self.problems)
         produced = self.actions([action], location)
         inside = f"{location}[0]"  # the one-action list above; the file has no index here
         self.problems = [
@@ -292,9 +315,12 @@ class _Translator:
         ]
         if len(produced) == 1:
             return produced[0]
-        if produced:
-            self._problem(location, str(action[0]),
-                          f"it becomes {len(produced)} actions, and only one action fits here")
+        if len(self.problems) > known:
+            return copy.deepcopy(action)  # already reported
+        if only_outcome:
+            return ["WR_try", {"do": produced}]
+        self._problem(location, str(action[0]),
+                      f"it becomes {len(produced)} actions, and a captured action has to be exactly one")
         return copy.deepcopy(action)
 
     def _condition(self, condition: Any, location: str) -> Any:
@@ -302,7 +328,7 @@ class _Translator:
             return condition
         result = dict(condition)
         if "succeeds" in result:
-            result["succeeds"] = self._single(result["succeeds"], f"{location}.succeeds")
+            result["succeeds"] = self._single(result["succeeds"], f"{location}.succeeds", only_outcome=True)
         if "not" in result:
             result["not"] = self._condition(result["not"], f"{location}.not")
         for kind in ("all", "any"):
@@ -332,6 +358,11 @@ class _Translator:
 def _perform(_args: dict[str, Any], state: _ListState) -> list[Action]:
     produced, state.queued, state.queued_at = state.queued, [], []
     return produced
+
+
+def _reset_actions(_args: dict[str, Any], state: _ListState) -> list[Action]:
+    state.queued, state.queued_at = [], []
+    return []
 
 
 def _har_start_for_playwright(_args: dict[str, Any], state: _ListState) -> list[Action]:
@@ -398,6 +429,7 @@ def _directions() -> dict[str, _Direction]:
     return {
         PLAYWRIGHT: _Direction(SELENIUM, PLAYWRIGHT, forward, rules.CANNOT_TRANSLATE, {
             rules.PERFORM: _perform,
+            rules.RESET_ACTIONS: _reset_actions,
             rules.HAR_START: _har_start_for_playwright,
             rules.HAR_STOP: _har_stop_for_playwright,
         }),

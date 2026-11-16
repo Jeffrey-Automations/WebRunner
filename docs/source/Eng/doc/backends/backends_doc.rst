@@ -193,6 +193,36 @@ Equivalent commands
        ``WR_pw_drag_and_drop_offset``
      - Playwright's drag takes a selector; Selenium's drags the element
        passed to it.
+   * - Start one browser
+     - ``WR_set_driver``
+     - ``WR_pw_launch``
+     - The driver-download and BiDi arguments have no Playwright counterpart
+       and are not needed there.
+   * - Title assertion, reload
+     - ``WR_assert_title``, ``WR_reload`` (``ignore_cache``)
+     - ``WR_pw_check_current_page`` (``title``), ``WR_pw_refresh``
+     - Reloading without the cache goes through DevTools (``Page.reload``) on
+       both, so it is Chromium only.
+   * - Keyboard
+     - ``WR_press_keys``; ``WR_send_keys``, ``WR_press_key``,
+       ``WR_release_key`` then ``WR_perform``
+     - ``WR_pw_keyboard_press`` / ``_type`` / ``_down`` / ``_up``
+     - Key names differ (``ENTER`` and ``Enter``). Selenium shifts the keys
+       typed while Shift is held; Playwright does not.
+   * - Mouse at the pointer, pause in a chain
+     - ``WR_left_click``, ``WR_right_click``, ``WR_left_double_click``,
+       ``WR_left_click_and_hold``, ``WR_release`` (without an element),
+       ``WR_pause``, then ``WR_perform``
+     - ``WR_pw_mouse_down`` / ``WR_pw_mouse_up``, ``WR_pw_wait_for_timeout``
+     - Selenium's also take the name of a recorded ``TestObject``;
+       Playwright's act where the pointer is. Seconds on Selenium,
+       milliseconds on Playwright.
+   * - Origin storage; location, timezone and locale in one call
+     - ``WR_clear_origin_storage``, ``WR_geo_locale_apply``
+     - ``WR_pw_cdp`` (``Storage.clearDataForOrigin``);
+       ``WR_pw_set_geolocation``, ``WR_pw_set_timezone``, ``WR_pw_set_locale``
+     - Clearing an origin's storage is Chromium only on both. Playwright sets
+       each override with its own action.
    * - Init script, blocked URLs
      - ``WR_add_script_to_evaluate_on_new_document``, ``WR_block_urls`` /
        ``WR_unblock_urls`` (CDP)

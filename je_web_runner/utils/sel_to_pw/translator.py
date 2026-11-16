@@ -32,6 +32,8 @@ class SelToPwError(WebRunnerException):
 
 @dataclass
 class Translation:
+    """One translated source line: its number, the Selenium text, the Playwright draft and what changed."""
+
     line: int
     original: str
     translated: str
@@ -173,8 +175,10 @@ def translate_action_list(actions: list[Any]) -> list[list[Any]]:
 
 
 def supported_python_patterns() -> list[str]:
+    """The regular expressions :func:`translate_python_source` rewrites, as text."""
     return [pat.pattern for pat, _replacement, _note in _PYTHON_PATTERNS]
 
 
 def supported_action_commands() -> list[str]:
+    """The Selenium commands :func:`translate_action_list` rewrites or drops, sorted."""
     return sorted(_ACTION_COMMAND_MAP.keys())
