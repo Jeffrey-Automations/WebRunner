@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
 from je_web_runner.utils.device_emulation.presets import DeviceEmulationError, playwright_kwargs
+from je_web_runner.utils.driver_dispatch.selenium_script import as_async_function, as_function
 from je_web_runner.utils.sel_to_pw.backend_binding import registered_command
 from je_web_runner.utils.sel_to_pw.backend_input import INPUT_RULES, QUEUED_INPUT
 from je_web_runner.utils.sel_to_pw.backend_refusals import CANNOT_TRANSLATE
@@ -261,30 +262,6 @@ def _clear_origin_storage(args: dict[str, Any]) -> list[Action]:
     return [["WR_pw_cdp", {"method": "Storage.clearDataForOrigin", "params": params}]]
 
 
-def _geo_locale(args: dict[str, Any]) -> list[Action]:
-    """``WR_geo_locale_apply`` sets up to three overrides; each has its own Playwright command."""
-    latitude, longitude = args.get("latitude"), args.get("longitude")
-    if (latitude is None) != (longitude is None):
-        raise Untranslatable("latitude and longitude must be set together")
-    actions: list[Action] = []
-    if latitude is not None:
-        actions.append(["WR_pw_set_geolocation", {
-            "latitude": latitude, "longitude": longitude, "accuracy": args.get("accuracy_meters", 50.0)}])
-    if args.get("timezone") is not None:
-        actions.append(["WR_pw_set_timezone", {"timezone_id": args["timezone"]}])
-    if args.get("locale") is not None:
-        actions.append(["WR_pw_set_locale", {"locale": args["locale"]}])
-    return actions
-
-
-def _touch_frames(args: dict[str, Any]) -> list[Action]:
-    """``WR_touch_gesture_dispatch`` sends one DevTools touch event per frame; so does this."""
-    frames = args.get("frames")
-    if not isinstance(frames, list) or not all(isinstance(frame, dict) for frame in frames):
-        raise Untranslatable(f"frames must be a literal list of touch frames to be translated, got {frames!r}")
-    return [["WR_pw_cdp", {"method": "Input.dispatchTouchEvent", "params": frame}] for frame in frames]
-
-
 def _wait_for_url(args: dict[str, Any]) -> list[Action]:
     """Selenium waits for a URL that contains the pattern; Playwright for one that matches a glob."""
     pattern = _text(args.get("pattern"), "pattern")
@@ -294,11 +271,10 @@ def _wait_for_url(args: dict[str, Any]) -> list[Action]:
     return [["WR_pw_wait_for_url", {"url": f"**{pattern}**", "timeout": seconds_to_ms(args.get("timeout", 10.0))}]]
 
 
-def _script(wrapper: str) -> Builder:
+def _script(wrap: Callable[[str], str]) -> Builder:
     """Selenium runs a function body with ``arguments``; Playwright calls a function with one argument."""
     def build(args: dict[str, Any]) -> list[Action]:
-        body = _text(args.get("script"), "script")
-        expression = wrapper.replace("BODY", "(function () {\n" + body + "\n})")
+        expression = wrap(_text(args.get("script"), "script"))
         return [["WR_pw_evaluate", {"expression": expression, "arg": list(args.get("args") or ())}]]
     return build
 
@@ -440,8 +416,8 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_set_page_load_timeout": Rule("WR_pw_set_default_navigation_timeout",
                                      rename={"time_to_wait": "timeout_ms"}, convert={"time_to_wait": SECONDS}),
     # JavaScript
-    "WR_execute_script": _script("(args) => BODY.apply(null, args)"),
-    "WR_execute_async_script": _script("(args) => new Promise((resolve) => BODY.apply(null, [...args, resolve]))"),
+    "WR_execute_script": _script(as_function),
+    "WR_execute_async_script": _script(as_async_function),
     # screenshots, PDF
     "WR_save_screenshot": Rule("WR_pw_screenshot", rename={"file_path": "path"}),
     "WR_save_full_page_screenshot": Rule("WR_pw_screenshot", rename={"file_path": "path"},
@@ -480,9 +456,7 @@ SELENIUM_TO_PLAYWRIGHT: dict[str, Rule | Builder] = {
     "WR_set_geolocation": Rule("WR_pw_set_geolocation", defaults={"accuracy": 100},
                                inverse_defaults={"accuracy": 0}),
     "WR_clear_geolocation_override": Rule("WR_pw_clear_geolocation"),
-    "WR_geo_locale_apply": _geo_locale,
     "WR_clear_origin_storage": _clear_origin_storage,
-    "WR_touch_gesture_dispatch": _touch_frames,
     # visual regression, recorder
     **_same("visual_capture_baseline", "visual_compare", "recorder_start", "recorder_stop",
             "recorder_pull_events", "recorder_save"),

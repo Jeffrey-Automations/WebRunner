@@ -1238,6 +1238,7 @@ my_checks = "my_package.webrunner_commands:COMMANDS"   # {"WR_my_check": functio
 - **驱动固定器** —— `driver_pin.install_for_browser(".webrunner/drivers.json", "firefox")` 读取一个 JSON pin 文件（`name` / `version` / `url` / `archive_format` / `binary_inside`），下载 + 解压一次，然后从缓存提供。绕过 webdriver-manager 在 CI 中命中的 GitHub API 速率限制。
 - **Selenium → Playwright 翻译器** —— `sel_to_pw.translate_python_source(text)` 将 `driver.find_element(By.ID, "x")` 重写为 `page.locator("#x")` 之类；`translate_action_list(actions)` 将 `WR_*` 动作 JSON 重写为其 `WR_pw_*` 等价物（丢弃 `WR_implicitly_wait`，因为 Playwright 会自动等待）。
 - **一份动作文件，两种后端** —— `--backend playwright`（或 `selenium`；项目配置文件的 `backend = "playwright"`；Python 的 `executor.set_backend(...)`）会在运行前翻译每个动作文件，包含它用 `WR_call_file` 调用的文件、区块内的动作以及 `meta.setup` / `meta.teardown`。翻译是严格的：参数会转换（秒转毫秒、`by` + 值转成 selector、`WR_execute_script` 的内容会包装让 `arguments[i]` 仍可用），不操作任一浏览器的命令原样通过，而含有没有忠实对应命令的文件（窗口最大化、alert、`WR_implicitly_wait`、Appium、远程 Grid……）会整份被拒绝，并列出每个这样的命令、位置与原因；不会默默丢掉任何东西。同一套翻译也是 Python 的 `sel_to_pw.translate_for_backend(actions, backend)`、命令 `WR_sel_to_pw_translate_for_backend` 与 MCP 工具 `webrunner_translate_backend`。两点须知：`WR_new_driver` 的选项没有 `--headless` 时会翻成有窗口的 Playwright 浏览器；翻译后的原始 selector 查找会把定位器存在保留名称 `sel_to_pw.selector` 之下。
+- **库命令两个后端通用** —— 为 `utils` 库读取或改变页面的命令（审计、`_install` / `_harvest` 成对命令、预算、模拟，共数百个）不绑定后端：它们使用当前打开的浏览器，两者都打开时依 `--backend` 决定。需要 Selenium 才有的功能（window handle、浏览器 log、BiDi）的命令，在 Playwright 上会失败并指出缺少什么。
 
 ### 测试编写
 

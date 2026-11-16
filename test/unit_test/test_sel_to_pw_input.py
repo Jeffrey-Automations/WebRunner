@@ -3,9 +3,14 @@ import unittest
 from unittest import mock
 
 from je_web_runner.utils.executor.action_executor import executor
-from je_web_runner.utils.sel_to_pw import BackendTranslationError, translate_for_backend, untranslatable_commands
+from je_web_runner.utils.sel_to_pw import (
+    BackendTranslationError,
+    how_translated,
+    translate_for_backend,
+    untranslatable_commands,
+)
 from je_web_runner.utils.sel_to_pw import backend_rules as rules
-from je_web_runner.utils.sel_to_pw.backend_binding import SELENIUM, backend_of
+from je_web_runner.utils.sel_to_pw.backend_binding import NEUTRAL, PLAYWRIGHT, SELENIUM, backend_of, backends_reached
 
 _LOCATOR = rules.TRANSLATED_LOCATOR
 _SAVE_GO = ["WR_save_locator", {"name": _LOCATOR, "value": "#go", "by": "CSS_SELECTOR"}]
@@ -229,19 +234,38 @@ class TestOtherBuilders(unittest.TestCase):
             "method": "Storage.clearDataForOrigin",
             "params": {"origin": "https://example.test", "storageTypes": "all"}}]])
 
-    def test_geo_locale_becomes_one_action_per_override(self):
-        self.assertEqual(_one(["WR_geo_locale_apply", {"latitude": 25.0, "longitude": 121.5, "locale": "zh-TW"}]), [
-            ["WR_pw_set_geolocation", {"latitude": 25.0, "longitude": 121.5, "accuracy": 50.0}],
-            ["WR_pw_set_locale", {"locale": "zh-TW"}]])
-        self.assertEqual(_one(["WR_geo_locale_apply", {"timezone": "Asia/Taipei"}]),
-                         [["WR_pw_set_timezone", {"timezone_id": "Asia/Taipei"}]])
-        self.assertTrue(_reason(["WR_geo_locale_apply", {"latitude": 25.0}]))
 
-    def test_touch_frames_are_sent_one_devtools_event_each(self):
-        frames = [{"type": "touchStart", "touchPoints": [{"x": 1, "y": 2}]}, {"type": "touchEnd", "touchPoints": []}]
-        self.assertEqual(_one(["WR_touch_gesture_dispatch", [frames]]), [
-            ["WR_pw_cdp", {"method": "Input.dispatchTouchEvent", "params": frame}] for frame in frames])
-        self.assertTrue(_reason(["WR_touch_gesture_dispatch", ["${frames}"]]))
+class TestCommandsThatRunOnEitherBrowser(unittest.TestCase):
+    """The adapters take the browser from ``browser_driver``, which serves both backends."""
+
+    _ADAPTERS = (
+        ["WR_geo_locale_apply", {"latitude": 25.0, "longitude": 121.5, "locale": "zh-TW"}],
+        ["WR_touch_gesture_dispatch", {"frames": "${frames}"}],
+        ["WR_webauthn_enable"],
+        ["WR_cross_browser_capture", {"browser": "chromium"}],
+        ["WR_pii_scanner_scan_page"],
+        ["WR_state_diff_capture"],
+        ["WR_failure_bundle_capture", {"test_name": "t", "error_repr": "e", "output_path": "bundle.zip"}],
+        ["WR_console_error_budget_page"],
+    )
+
+    def test_they_pass_unchanged_in_both_directions(self):
+        actions = [list(action) for action in self._ADAPTERS]
+        self.assertEqual(translate_for_backend(actions), actions)
+        self.assertEqual(translate_for_backend(actions, "selenium"), actions)
+
+    def test_they_are_neutral_because_they_reach_both_backends(self):
+        for action in self._ADAPTERS:
+            with self.subTest(command=action[0]):
+                self.assertEqual(backend_of(action[0]), NEUTRAL)
+                self.assertEqual(backends_reached(executor.event_dict[action[0]]), {SELENIUM, PLAYWRIGHT})
+
+    def test_no_selenium_command_is_left_with_only_the_general_refusal(self):
+        reasons = set(untranslatable_commands().values())
+        general = [name for name in executor.event_dict
+                   if isinstance(name, str) and backend_of(name) == SELENIUM
+                   and how_translated(name)[0] != "translated" and how_translated(name)[1] not in reasons]
+        self.assertEqual(general, [])
 
 
 class TestRefusalList(unittest.TestCase):
@@ -254,8 +278,9 @@ class TestRefusalList(unittest.TestCase):
                         "WR_set_webdriver_options_capability", "WR_move_by_offset", "WR_drag_and_drop",
                         "WR_move_to_element_with_offset", "WR_send_keys_to_element", "WR_dismiss_cookie_consent",
                         "WR_multi_tab_open", "WR_enable_fetch_interception", "WR_fetch_fulfill_request",
-                        "WR_webauthn_enable", "WR_cdp_tap_start", "WR_bidi_backend_subscribe",
-                        "WR_cross_browser_capture"):
+                        "WR_multi_tab_register", "WR_multi_tab_switch", "WR_multi_tab_close",
+                        "WR_cdp_tap_start", "WR_bidi_backend_subscribe", "WR_ac_fill_native_file_dialog",
+                        "WR_ac_assert_image_on_screen", "WR_ac_click_element_native", "WR_ac_basic_auth"):
             with self.subTest(command=command):
                 self.assertEqual(_reason([command]), listed[command])
                 self.assertNotIn("has no playwright translation", listed[command])

@@ -14,7 +14,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any, Callable
 
-from je_web_runner.utils.executor._command_helpers import selenium_driver, to_plain
+from je_web_runner.utils.executor._command_helpers import selenium_driver, selenium_only_driver, to_plain
 
 # What the stateful commands keep between actions: the BiDi bridge with the events it received, and the
 # CDP recording in progress.
@@ -258,7 +258,7 @@ def bidi_backend_subscribe(event: str = "console") -> dict[str, Any]:
     :raises BidiBackendError: when the browser does not offer the event.
     """
     subscription = _bidi_bridge().subscribe(
-        selenium_driver("WR_bidi_backend_subscribe"), event,
+        selenium_only_driver("WR_bidi_backend_subscribe", "Selenium's BiDi connection"), event,
         lambda received: _BIDI["events"].append(to_plain(received)),
     )
     return {
@@ -301,7 +301,7 @@ def cdp_tap_start(output_path: str) -> bool:
     from je_web_runner.utils.cdp_tap.tap import CdpRecorder, CdpTapError
     if _TAP:
         raise CdpTapError("a CDP recording is already running; call WR_cdp_tap_stop first")
-    driver = selenium_driver("WR_cdp_tap_start")
+    driver = selenium_only_driver("WR_cdp_tap_start", "it records what Selenium's driver is sent")
     recorder = CdpRecorder(output_path)
     _TAP.update(recorder=recorder, driver=driver, original=recorder.attach(driver))
     return True

@@ -21,8 +21,10 @@ _TAB_NAMES = "the WR_multi_tab_* commands keep tab names for Selenium window han
              "pages by index, URL or title"
 _FETCH = "it drives Chromium's Fetch domain through Selenium, which would fight Playwright's own request " \
          "interception; mock responses with WR_route_mock, which translates"
-_WEBAUTHN = "the virtual authenticator is set up through Selenium and returns WebRunner's own result; over " \
-            "WR_pw_cdp the WebAuthn.* methods return the raw DevTools result, so a captured value differs"
+_SCREEN = "AutoControl acts on this machine's screen, and the command checks that the Selenium browser's " \
+          "window is visible there; it has no such check for a Playwright window"
+_NATIVE = "AutoControl sends real mouse and keyboard input to the Selenium browser's window, which it finds " \
+          "and checks through the Selenium driver"
 
 CANNOT_TRANSLATE: dict[str, str] = {
     # sessions that are WebDriver's own
@@ -104,12 +106,11 @@ CANNOT_TRANSLATE: dict[str, str] = {
     "WR_fetch_continue_request": _FETCH,
     "WR_fetch_fail_request": _FETCH,
     "WR_fetch_fulfill_request": _FETCH,
-    "WR_webauthn_enable": _WEBAUTHN,
-    "WR_webauthn_add_credential": _WEBAUTHN,
-    "WR_webauthn_list_credentials": _WEBAUTHN,
-    "WR_webauthn_remove": _WEBAUTHN,
     "WR_dismiss_cookie_consent": "it looks for consent buttons through the Selenium driver, and there is no "
                                  "Playwright command that does",
-    "WR_cross_browser_capture": "it reads the title and the HTML from the Selenium driver into one result; "
-                                "capture WR_get_title and WR_get_page_source, which translate",
+    # real input through AutoControl
+    "WR_ac_fill_native_file_dialog": _SCREEN,
+    "WR_ac_assert_image_on_screen": _SCREEN,
+    "WR_ac_click_element_native": _NATIVE,
+    "WR_ac_basic_auth": _NATIVE,
 }

@@ -223,12 +223,17 @@ Equivalent commands
      - Selenium's also take the name of a recorded ``TestObject``;
        Playwright's act where the pointer is. Seconds on Selenium,
        milliseconds on Playwright.
-   * - Origin storage; location, timezone and locale in one call
-     - ``WR_clear_origin_storage``, ``WR_geo_locale_apply``
-     - ``WR_pw_cdp`` (``Storage.clearDataForOrigin``);
-       ``WR_pw_set_geolocation``, ``WR_pw_set_timezone``, ``WR_pw_set_locale``
-     - Clearing an origin's storage is Chromium only on both. Playwright sets
-       each override with its own action.
+   * - Origin storage
+     - ``WR_clear_origin_storage``
+     - ``WR_pw_cdp`` (``Storage.clearDataForOrigin``)
+     - Chromium only on both.
+   * - Commands that read the page (audits, harvests, budgets, mocks …)
+     - Named after their library, such as ``WR_sri_verify_page``,
+       ``WR_inp_tracker_install``, ``WR_geo_locale_apply``,
+       ``WR_touch_gesture_dispatch``
+     - The same commands
+     - They act on whichever browser is open (see "Commands for either
+       backend" below).
    * - Init script, blocked URLs
      - ``WR_add_script_to_evaluate_on_new_document``, ``WR_block_urls`` /
        ``WR_unblock_urls`` (CDP)
@@ -370,3 +375,29 @@ iOS (XCUITest).
 ``swipe`` / ``scroll`` / ``long_press`` / ``pinch`` / ``double_tap``
 prefer Appium's ``mobile:`` named extensions and fall back to W3C Actions
 sequences.
+
+Commands for either backend
+---------------------------
+
+The commands that come from the ``utils`` libraries and read or change the page (the audits, the
+``_install`` / ``_harvest`` pairs, the budgets, the device and API mocks) are not tied to a backend. Each
+takes the browser that is open:
+
+* only a Selenium browser is open: that one, as before;
+* only a Playwright page is open: that page;
+* both are open: the Playwright page when the run was started with ``--backend playwright`` (or
+  ``Executor.set_backend("playwright")``), otherwise the Selenium browser.
+
+On Playwright they work through a stand-in that offers the part of the Selenium driver they use
+(``execute_script`` with ``arguments[i]``, ``execute_async_script``, the page source, URL and title, cookies,
+screenshots, DevTools calls, ``get`` and ``set_window_size``) on the current page and frame. Differences
+to know: an async script has no 30-second timeout there, ``set_window_size`` sets the viewport, and the
+commands built on DevTools are Chromium only, as they are on Selenium.
+
+A command that needs something only Selenium has fails on Playwright with a message that says so, never
+by doing nothing: either ``<command> uses the Selenium driver's '<member>', which the Playwright backend
+does not have; run it with a Selenium browser`` or ``<command> needs the Selenium backend (<what>); start a
+Selenium browser first``. Those are the ``WR_multi_tab_*`` commands (they name Selenium window handles),
+``WR_bidi_backend_subscribe``, ``WR_cdp_tap_start``, ``WR_console_error_budget_page`` (the browser log),
+``WR_dismiss_cookie_consent`` and the ``WR_ac_*`` commands that act on the real Selenium window.
+

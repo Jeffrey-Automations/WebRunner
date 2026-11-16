@@ -32,8 +32,6 @@ SAMPLES = {
     "WR_release_key": {"keycode_on_key_class": ""},
     "WR_pause": {"seconds": 1},
     "WR_clear_origin_storage": {"origin": "https://example.test"},
-    "WR_touch_gesture_dispatch": {"frames": [{"type": "touchStart", "touchPoints": [{"x": 1, "y": 2}]}]},
-    "WR_geo_locale_apply": {"latitude": 25.0, "longitude": 121.5, "timezone": "Asia/Taipei", "locale": "zh-TW"},
     "WR_change_index_of_webdriver": {"index_of_webdriver": 1},
     "WR_attach_to_existing_browser": {"debugger_address": "127.0.0.1:9222"},
     "WR_to_url": {"url": "https://example.test/"},

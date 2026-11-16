@@ -13,9 +13,17 @@ callable reaches one of those objects:
   runner), or through a function of this package it calls (``WR_local_storage_set`` calls a helper that
   reads the driver). The search follows calls :data:`_DEPTH` levels deep.
 
-Everything else is backend-neutral: variables, control flow, reports, HTTP, files, data. So is a command
-that reaches both backends, since it does not depend on which one a file is written for. Nothing here is a
-list of command names, so a command added to the executor is classified without touching this module.
+Everything else is backend-neutral: variables, control flow, reports, HTTP, files, data.
+
+So is a command that reaches both backends: it drives whichever browser is open, so it does not depend on
+which backend a file is written for. That is how the adapter commands that read the page are neutral:
+they take the browser from ``browser_driver`` (``utils/executor/_command_helpers.py``), which refers to
+the Selenium wrapper and to the Playwright one and answers with the Selenium driver or with a stand-in
+for it over the Playwright page. An adapter that needs what only Selenium has takes it from
+``selenium_only_driver``, which refers to the Selenium wrapper alone, so that command stays Selenium's.
+
+Nothing here is a list of command names, so a command added to the executor is classified without
+touching this module.
 """
 from __future__ import annotations
 

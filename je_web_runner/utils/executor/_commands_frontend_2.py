@@ -14,7 +14,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
-from je_web_runner.utils.executor._command_helpers import page_source, selenium_driver, to_plain
+from je_web_runner.utils.executor._command_helpers import (
+    page_source,
+    selenium_driver,
+    selenium_only_driver,
+    to_plain,
+)
 from je_web_runner.utils.executor._commands_frontend import _harvest, _problems
 
 _STATE: dict[str, Any] = {}
@@ -249,24 +254,29 @@ def _tabs() -> Any:
     return _STATE["tabs"]
 
 
+def _tab_driver(command: str) -> Any:
+    """The Selenium driver: the tab names stand for its window handles."""
+    return selenium_only_driver(command, "Selenium window handles")
+
+
 def multi_tab_register(alias: str) -> dict[str, Any]:
     """Give the current browser tab a name, so later commands can switch back to it."""
-    return dict(to_plain(_tabs().register_current(selenium_driver("WR_multi_tab_register"), alias)))
+    return dict(to_plain(_tabs().register_current(_tab_driver("WR_multi_tab_register"), alias)))
 
 
 def multi_tab_open(alias: str) -> dict[str, Any]:
     """Open a blank tab, switch to it and name it ``alias`` (follow with ``WR_to_url`` to load a page)."""
-    return dict(to_plain(_tabs().open_new(selenium_driver("WR_multi_tab_open"), alias)))
+    return dict(to_plain(_tabs().open_new(_tab_driver("WR_multi_tab_open"), alias)))
 
 
 def multi_tab_switch(alias: str) -> dict[str, Any]:
     """Switch the browser to the tab named ``alias``."""
-    return dict(to_plain(_tabs().switch_to(selenium_driver("WR_multi_tab_switch"), alias)))
+    return dict(to_plain(_tabs().switch_to(_tab_driver("WR_multi_tab_switch"), alias)))
 
 
 def multi_tab_close(alias: str) -> list[str]:
     """Close the tab named ``alias``; returns the names still known."""
-    _tabs().close(selenium_driver("WR_multi_tab_close"), alias)
+    _tabs().close(_tab_driver("WR_multi_tab_close"), alias)
     return list(_tabs().aliases())
 
 

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from je_web_runner.utils.executor.action_executor import executor
 from je_web_runner.utils.sel_to_pw import how_translated, untranslatable_commands
+from je_web_runner.utils.sel_to_pw.backend_binding import PLAYWRIGHT, SELENIUM, backends_reached, registered_command
 
 _PAGE = Path(__file__).resolve().parents[2] / "docs" / "source" / "Eng" / "doc" / "backends" / "backends_doc.rst"
 _TABLE_START = "Equivalent commands"
@@ -66,7 +67,9 @@ class TestTableAgainstTheBackendsPage(unittest.TestCase):
         undecided = []
         for command, task in sorted(selenium_commands_of_the_table().items()):
             status, _detail = how_translated(command)
-            if status != "translated" and not listed.get(command, "").strip():
+            # A command that drives whichever browser is open is the same command on both backends.
+            runs_on_both = backends_reached(registered_command(command)) == {SELENIUM, PLAYWRIGHT}
+            if status != "translated" and not runs_on_both and not listed.get(command, "").strip():
                 undecided.append(f"{command} (row: {task})")
         self.assertEqual(
             undecided, [],

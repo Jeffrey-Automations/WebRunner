@@ -209,12 +209,16 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
      - ``WR_pw_mouse_down`` / ``WR_pw_mouse_up``、``WR_pw_wait_for_timeout``
      - Selenium 的也可以帶已記錄的 ``TestObject`` 名稱；Playwright 的作用在
        游標所在位置。Selenium 用秒，Playwright 用毫秒。
-   * - Origin 的 storage；一次設定位置、時區與語系
-     - ``WR_clear_origin_storage``、``WR_geo_locale_apply``
-     - ``WR_pw_cdp``\ （``Storage.clearDataForOrigin``）；
-       ``WR_pw_set_geolocation``、``WR_pw_set_timezone``、``WR_pw_set_locale``
-     - 清除 origin 的 storage 兩邊都只支援 Chromium。Playwright 每個設定各用
-       一個動作。
+   * - Origin 的 storage
+     - ``WR_clear_origin_storage``
+     - ``WR_pw_cdp``\ （``Storage.clearDataForOrigin``）
+     - 兩邊都只支援 Chromium。
+   * - 讀取頁面的命令（稽核、擷取、預算、模擬……）
+     - 以函式庫命名，例如 ``WR_sri_verify_page``、
+       ``WR_inp_tracker_install``、``WR_geo_locale_apply``、
+       ``WR_touch_gesture_dispatch``
+     - 同一批命令
+     - 它們作用在目前開著的瀏覽器上（見下方「兩個後端通用的命令」）。
    * - Init script、封鎖 URL
      - ``WR_add_script_to_evaluate_on_new_document``、``WR_block_urls`` /
        ``WR_unblock_urls``\ （CDP）
@@ -346,3 +350,28 @@ Appium（行動）
 ``appium_integration.gestures`` 提供高階手勢：``swipe`` / ``scroll`` /
 ``long_press`` / ``pinch`` / ``double_tap``，優先用 ``mobile:`` 擴充
 否則退回 W3C Actions。
+
+兩個後端通用的命令
+------------------
+
+來自 ``utils`` 各函式庫、會讀取或改變頁面的命令（各種稽核、``_install`` / ``_harvest`` 成對命令、預算、
+裝置與 API 的模擬）不綁定後端，會使用目前開著的瀏覽器：
+
+* 只開著 Selenium 瀏覽器：就用它，與以往相同；
+* 只開著 Playwright 頁面：用該頁面；
+* 兩者都開著：以 ``--backend playwright``\ （或 ``Executor.set_backend("playwright")``）啟動的執行使用
+  Playwright 頁面，否則使用 Selenium 瀏覽器。
+
+在 Playwright 上，它們透過一個替身運作，替身在目前的頁面與 frame 上提供這些命令用到的 Selenium driver
+功能（支援 ``arguments[i]`` 的 ``execute_script``、``execute_async_script``、頁面原始碼、URL 與標題、
+cookie、截圖、DevTools 呼叫、``get`` 與 ``set_window_size``）。需要知道的差異：非同步腳本在那裡沒有 30 秒
+逾時，``set_window_size`` 設定的是 viewport，以 DevTools 為基礎的命令只支援 Chromium（在 Selenium 上
+也是如此）。
+
+需要 Selenium 才有的功能的命令，在 Playwright 上會以明確的訊息失敗，不會默默什麼都不做：訊息為
+``<command> uses the Selenium driver's '<member>', which the Playwright backend does not have; run it
+with a Selenium browser`` 或 ``<command> needs the Selenium backend (<what>); start a Selenium browser first``。這些命令是
+``WR_multi_tab_*``\ （它們指的是 Selenium 的 window handle）、``WR_bidi_backend_subscribe``、
+``WR_cdp_tap_start``、``WR_console_error_budget_page``\ （瀏覽器 log）、``WR_dismiss_cookie_consent``，
+以及對真實 Selenium 視窗操作的 ``WR_ac_*`` 命令。
+

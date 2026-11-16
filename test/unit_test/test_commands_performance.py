@@ -88,7 +88,8 @@ def _driver():
     fake.page_source = HEAD_HTML
     with patch.object(perf, "selenium_driver", return_value=fake), \
             patch.object(perf, "page_source", return_value=HEAD_HTML), \
-            patch.object(perf2, "selenium_driver", return_value=fake):
+            patch.object(perf2, "selenium_driver", return_value=fake), \
+            patch.object(perf2, "selenium_only_driver", return_value=fake):
         yield fake
 
 
