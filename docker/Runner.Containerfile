@@ -23,12 +23,12 @@
 #   - install_driver false: the image already has chromedriver; the default downloads another one.
 #   - --no-sandbox: Chromium's sandbox needs privileges an unprivileged container does not have.
 #
-# Not verified, because this file was written without building it:
-#   - that the image builds at all, and its size;
-#   - that the Debian chromium / chromium-driver pair starts under the uid below with the options above;
-#   - that SE_CHROMEDRIVER makes Selenium use /usr/bin/chromedriver for every Selenium release pip may
-#     resolve (read from Selenium 4.41 sources: a driver path from the environment skips Selenium Manager);
-#   - the RUN --mount line and --build-context under builders other than BuildKit.
+# Checked by .github/workflows/runner_distribution.yml on every change to this file: the image builds
+# (about 350 MB), the CLI starts as uid 65532, examples/ci/image/smoke.json runs in Chromium with the
+# options above and writes its reports, and a failing action file makes the container exit non-zero.
+# Not checked:
+#   - --build-context wheels=<dir> (the workflow installs the dev package from PyPI);
+#   - builders other than Docker's BuildKit.
 
 # ---- Stage "wheels": empty. `--build-context wheels=<dir>` replaces it with a directory of local wheels.
 FROM scratch AS wheels

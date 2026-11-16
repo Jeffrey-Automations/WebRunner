@@ -1163,7 +1163,7 @@ docker run --rm --shm-size=1g -v "$PWD:/work" webrunner-runner -d actions --repo
 - 容器以 uid 65532 在 `/work` 執行；把動作檔掛載到那裡並確保可寫入（Linux 上必要時加 `--user "$(id -u):$(id -g)"`）。
 - 在映像檔中，啟動瀏覽器時要用 `"install_driver": false` 與選項 `--headless=new`、`--no-sandbox`、`--disable-dev-shm-usage`。
 - `--build-arg WEBRUNNER_PACKAGE=je_web_runner==<版本>`（或 `je_web_runner_dev`）選擇套件；`--build-context wheels=dist --build-arg WEBRUNNER_PACKAGE=/wheels/<wheel>` 安裝本機的 wheel。需要 BuildKit。
-- 本專案沒有發佈這個映像檔。`k8s_runner.RUNNER_IMAGE`（`ghcr.io/integration-automation/webrunner-runner:latest`，`ShardJobConfig` 的預設映像）只是一個名稱：請自行建置並以該名稱推送，或傳入自己的 `image`。這個映像檔並未在本儲存庫的檢查中實際建置或執行過。
+- 本專案沒有發佈這個映像檔。`k8s_runner.RUNNER_IMAGE`（`ghcr.io/integration-automation/webrunner-runner:latest`，`ShardJobConfig` 的預設映像）只是一個名稱：請自行建置並以該名稱推送，或傳入自己的 `image`。每當這些檔案變更時，workflow `.github/workflows/runner_distribution.yml` 會建置映像檔、在其中執行 `examples/ci/image/smoke.json`，並在 Linux 與 Windows runner 上執行 composite action。
 
 ### 命令外掛
 

@@ -1180,7 +1180,7 @@ docker run --rm --shm-size=1g -v "$PWD:/work" webrunner-runner -d actions --repo
 - The container runs as uid 65532 in `/work`; mount your action files there and make it writable (on Linux add `--user "$(id -u):$(id -g)"` if needed).
 - In the image, start the browser with `"install_driver": false` and the options `--headless=new`, `--no-sandbox`, `--disable-dev-shm-usage`.
 - `--build-arg WEBRUNNER_PACKAGE=je_web_runner==<version>` (or `je_web_runner_dev`) picks the package; `--build-context wheels=dist --build-arg WEBRUNNER_PACKAGE=/wheels/<wheel>` installs a local wheel. BuildKit is required.
-- The project does not publish this image. `k8s_runner.RUNNER_IMAGE` (`ghcr.io/integration-automation/webrunner-runner:latest`, the default image of `ShardJobConfig`) is only a name: build and push the image under it, or pass your own `image`. The image has not been built or run as part of this repository's checks.
+- The project does not publish this image. `k8s_runner.RUNNER_IMAGE` (`ghcr.io/integration-automation/webrunner-runner:latest`, the default image of `ShardJobConfig`) is only a name: build and push the image under it, or pass your own `image`. The workflow `.github/workflows/runner_distribution.yml` builds the image, runs `examples/ci/image/smoke.json` in it and runs the composite action on Linux and Windows runners whenever these files change.
 
 ### Command plugins
 
