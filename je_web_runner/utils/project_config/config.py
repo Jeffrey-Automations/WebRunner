@@ -65,9 +65,11 @@ _KEYS: dict[str, tuple[Callable[[Any], bool], str]] = {
     "env": (_text, "an environment name"),
     "env_dir": (_text, "a directory"),
     "fail_fast": (lambda value: isinstance(value, bool), "true or false"),
+    "isolate_files": (lambda value: isinstance(value, bool), "true or false"),
     "retries": (_whole(0, MAX_RETRIES), f"an integer from 0 to {MAX_RETRIES}"),
     "retry_backoff": (_seconds, "a number of seconds"),
     "failure_screenshot_dir": (_text, "a directory"),
+    "failure_bundle_dir": (_text, "a directory"),
     "report": (_text, "a report base name"),
     "ledger": (_text, "a file path"),
     "parallel": (_whole(1, 256), "an integer from 1 to 256"),
@@ -89,9 +91,11 @@ class ProjectConfig:
     env: str | None = None
     env_dir: str = "."
     fail_fast: bool | None = None
+    isolate_files: bool | None = None
     retries: int | None = None
     retry_backoff: float = 0.0
     failure_screenshot_dir: str | None = None
+    failure_bundle_dir: str | None = None
     report: str | None = None
     ledger: str | None = None
     parallel: int | None = None

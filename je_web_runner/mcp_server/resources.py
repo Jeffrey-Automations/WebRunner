@@ -126,7 +126,9 @@ def _read_command_reference() -> str:
 
 def _read_action_schema() -> str:
     from je_web_runner.utils.schema.action_schema import build_action_schema
-    return json.dumps(build_action_schema(), indent=2, ensure_ascii=False)
+    # Without the per-command argument rules: they make the schema about twenty times longer, and a
+    # model reads one command's arguments from webrunner://commands/{name}.
+    return json.dumps(build_action_schema(arguments=False), indent=2, ensure_ascii=False)
 
 
 def _signature_of(command: Any) -> str:

@@ -46,11 +46,57 @@ def _every_event_type() -> list[dict]:
         {"type": "key", "key": "Enter", "selector": "#coupon", "url": PAGE, "time": 9},
         {"type": "input", "selector": "#note", "value": "hi", "masked": False, "url": OTHER_PAGE, "time": 10},
         {"type": "navigate", "url": PAGE, "time": 11},
+        {"type": "assert", "selector": "#total", "text": "Total: 42", "masked": False, "url": PAGE, "time": 12},
     ]
 
 
 def _names(actions: list[list]) -> list[str]:
     return [action[0] for action in actions]
+
+
+class TestAssertEvents(unittest.TestCase):
+
+    EVENT = {"type": "assert", "selector": "#total", "text": "Total: 42", "masked": False}
+
+    def test_selenium_looks_the_element_up_and_asserts_its_text(self):
+        self.assertEqual(events_to_actions([self.EVENT]), [
+            ["WR_save_test_object", {"test_object_name": "#total", "object_type": "CSS_SELECTOR"}],
+            ["WR_find_recorded_element", {"element_name": "#total"}],
+            ["WR_element_assert", {"check_dict": {"text": "Total: 42"}}],
+        ])
+
+    def test_playwright_looks_the_element_up_too(self):
+        self.assertEqual(events_to_actions([self.EVENT], "playwright"), [
+            ["WR_save_test_object", {"test_object_name": "#total", "object_type": "CSS_SELECTOR"}],
+            ["WR_pw_find_element_with_test_object_record", {"element_name": "#total"}],
+            ["WR_pw_element_assert", {"check_dict": {"text": "Total: 42"}}],
+        ])
+
+    def test_an_assert_without_text_is_dropped(self):
+        for text in ("", None, 5):
+            with self.subTest(text=text):
+                self.assertEqual(events_to_actions([{"type": "assert", "selector": "#total", "text": text}]), [])
+
+    def test_an_assert_is_not_taken_to_cause_the_next_address_change(self):
+        events = [{"type": "navigate", "url": PAGE}, {**self.EVENT, "url": PAGE},
+                  {"type": "click", "selector": "#go", "url": OTHER_PAGE}]
+        self.assertEqual(_names(events_to_actions(events, "playwright")).count("WR_pw_to_url"), 2)
+
+    def test_sensitive_text_is_masked_on_the_python_side(self):
+        card = {"type": "assert", "selector": "#card", "text": "4111 1111 1111 1111"}
+        secret = {"type": "assert", "selector": "#api_key", "text": "abc"}
+        plain = dict(self.EVENT)
+        masked = mask_sensitive_events([card, secret, plain])
+        self.assertEqual([event["text"] for event in masked], [MASKED_VALUE, MASKED_VALUE, "Total: 42"])
+        self.assertTrue(masked[0]["masked"] and masked[1]["masked"])
+
+    def test_the_script_keeps_an_alt_click_from_the_page(self):
+        script = browser_recorder._RECORDER_JS
+        marked = script[script.index("if (ev.altKey)"):script.index("var kind = kindOf(ev.target);", script.index(
+            "if (ev.altKey)"))]
+        for call in ("ev.preventDefault()", "ev.stopPropagation()", "recordAssert(ev.target)", "return;"):
+            with self.subTest(call=call):
+                self.assertIn(call, marked)
 
 
 class TestEmittedCommandsGuard(unittest.TestCase):
@@ -62,7 +108,9 @@ class TestEmittedCommandsGuard(unittest.TestCase):
                     self.assertIn(name, executor.event_dict)
 
     def test_playwright_commands_carry_the_playwright_prefix(self):
-        self.assertTrue(all(name.startswith("WR_pw_") for name in emitted_commands("playwright")))
+        # The locator table is shared by both backends, so saving a locator has one name.
+        playwright = emitted_commands("playwright") - {"WR_save_test_object"}
+        self.assertTrue(all(name.startswith("WR_pw_") for name in playwright))
         self.assertFalse(any(name.startswith("WR_pw_") for name in emitted_commands("selenium")))
 
     def test_translation_emits_only_declared_commands_and_uses_them_all(self):
@@ -336,7 +384,7 @@ class TestScriptsAreFixed(unittest.TestCase):
 
     def test_script_and_python_agree_on_event_types_and_keys(self):
         script = browser_recorder._RECORDER_JS
-        for event_type in ("navigate", "click", "check", "key", "select", "input"):
+        for event_type in ("navigate", "click", "check", "key", "select", "input", "assert"):
             with self.subTest(event_type=event_type):
                 self.assertIn(f"'{event_type}'", script)
         for key in browser_recorder._KEY_NAMES:
@@ -344,7 +392,7 @@ class TestScriptsAreFixed(unittest.TestCase):
                 self.assertIn(f"'{key}'", script)
 
     def test_every_documented_event_type_translates(self):
-        documented = {"navigate", "click", "input", "select", "check", "key"}
+        documented = {"navigate", "click", "input", "select", "check", "key", "assert"}
         self.assertEqual(set(browser_recorder._OPERATIONS) | {"navigate"}, documented)
         for event_type in documented:
             with self.subTest(event_type=event_type):

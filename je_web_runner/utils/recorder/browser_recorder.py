@@ -28,11 +28,14 @@ secrets masked) and ``time`` (``Date.now()``); the other keys depend on ``type``
 ``check``     ``selector``, ``checked``, ``input_type``       a checkbox / radio button changed
 ``key``       ``key`` (a name of ``_KEY_NAMES``),             a named key went down with no
               ``selector`` (the focused element, or null)     modifier held
+``assert``    ``selector``, ``text``, ``masked``              Alt+click on an element that shows
+                                                              text: the text it should show. The
+                                                              click does not reach the page.
 ============  ==============================================  ==================================
 
 ``url`` and ``time`` are optional on the Python side, so event logs written by
 older versions (``click`` / ``input`` with ``selector`` only) still translate.
-A sensitive ``value`` arrives as ``***MASKED***`` with ``masked: true``. A
+A sensitive ``value`` or ``text`` arrives as ``***MASKED***`` with ``masked: true``. A
 ``key`` event never carries a typed character: the script records the named
 keys only, and the Python side drops any other key.
 
@@ -187,7 +190,22 @@ _RECORDER_JS = r"""
     record({type: type, selector: sel, value: masked ? MASK : value, masked: masked});
   }
 
+  function recordAssert(target) {
+    var sel = cssPath(target);
+    var text = String(target.innerText || target.textContent || '').trim();
+    if (!sel || !text) return;
+    var masked = looksSensitive(target, text);
+    record({type: 'assert', selector: sel, text: masked ? MASK : text, masked: masked});
+  }
+
   document.addEventListener('click', function(ev) {
+    if (ev.altKey) {
+      // Alt+click marks what the page should show: it is recorded as an assertion and kept from the page.
+      ev.preventDefault();
+      ev.stopPropagation();
+      recordAssert(ev.target);
+      return;
+    }
     var kind = kindOf(ev.target);
     if (kind === 'select' || kind === 'option' || kind === 'check') return;
     if (enterDown && ev.detail === 0) return;
@@ -264,6 +282,8 @@ class _Backend:
     value_arguments: Mapping[str, str]
     key_names: Mapping[str, str]
     by_selector: bool
+    # Operations whose command acts on the current element even where the others take a selector.
+    on_current_element: frozenset[str] = frozenset()
 
 
 _BACKENDS: dict[str, _Backend] = {
@@ -278,8 +298,10 @@ _BACKENDS: dict[str, _Backend] = {
             "check": "WR_element_check",
             "uncheck": "WR_element_uncheck",
             "key": "WR_press_keys",
+            "assert": "WR_element_assert",
         },
-        value_arguments={"navigate": "url", "input": "input_value", "select": "value", "key": "keys"},
+        value_arguments={"navigate": "url", "input": "input_value", "select": "value", "key": "keys",
+                         "assert": "check_dict"},
         key_names=_KEY_NAMES,
         by_selector=False,
     ),
@@ -292,10 +314,17 @@ _BACKENDS: dict[str, _Backend] = {
             "check": "WR_pw_check",
             "uncheck": "WR_pw_uncheck",
             "key": "WR_pw_keyboard_press",
+            # The assertion reads the current element, so it is looked up first. The locator table is
+            # shared by both backends, hence the one command here without the ``WR_pw_`` prefix.
+            "save": "WR_save_test_object",
+            "find": "WR_pw_find_element_with_test_object_record",
+            "assert": "WR_pw_element_assert",
         },
-        value_arguments={"navigate": "url", "input": "value", "select": "value", "key": "key"},
+        value_arguments={"navigate": "url", "input": "value", "select": "value", "key": "key",
+                         "assert": "check_dict"},
         key_names={name: name for name in _KEY_NAMES},
         by_selector=True,
+        on_current_element=frozenset({"assert"}),
     ),
 }
 
@@ -342,7 +371,7 @@ def mask_sensitive_events(events: Iterable[dict]) -> list[dict]:
     Defensive Python-side masking pass; mainly useful when consuming raw
     events that bypassed the JS-side masking (e.g. loaded from disk).
 
-    Masks the value of ``input`` / ``select`` events, the secrets in every
+    Masks the value of ``input`` / ``select`` events, the text of ``assert`` events, the secrets in every
     event's ``url``, and the ``key`` of a ``key`` event that is not a named key
     (a typed character must never be kept).
     """
@@ -353,6 +382,10 @@ def mask_sensitive_events(events: Iterable[dict]) -> list[dict]:
             value = copy.get("value", "")
             if _looks_sensitive(copy.get("selector", ""), value):
                 copy["value"] = MASKED_VALUE
+                copy["masked"] = True
+        if copy.get("type") == "assert" and not copy.get("masked"):
+            if _looks_sensitive(copy.get("selector", ""), copy.get("text", "")):
+                copy["text"] = MASKED_VALUE
                 copy["masked"] = True
         if copy.get("type") == "key" and _named_key(copy.get("key"), _KEY_NAMES) is None:
             copy["key"] = MASKED_VALUE
@@ -437,7 +470,16 @@ def _key_operation(event: dict, backend: _Backend) -> _Operation | None:
     return "key", None, name
 
 
+def _assert_operation(event: dict, _backend_names: _Backend) -> _Operation | None:
+    text = event.get("text")
+    if not isinstance(text, str) or not text:
+        web_runner_logger.warning("recorder: assert event skipped, it has no text")
+        return None
+    return "assert", event["selector"], {"text": text}
+
+
 _OPERATIONS: dict[str, Callable[[dict, _Backend], "_Operation | None"]] = {
+    "assert": _assert_operation,
     "click": _click_operation,
     "input": _value_operation,
     "select": _value_operation,
@@ -454,7 +496,7 @@ def _render(backend: _Backend, operation: str, selector: str | None, value: Any)
         arguments[backend.value_arguments[operation]] = value
     if selector is None:
         return [[command, arguments]]
-    if backend.by_selector:
+    if backend.by_selector and operation not in backend.on_current_element:
         return [[command, {"selector": selector, **arguments}]]
     return [
         [backend.commands["save"], {"test_object_name": selector, "object_type": "CSS_SELECTOR"}],

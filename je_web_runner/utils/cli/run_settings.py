@@ -32,10 +32,12 @@ class RunSettings:
     retries: int | None = None
     retry_backoff: float = 0.0
     failure_screenshot_dir: str | None = None
+    failure_bundle_dir: str | None = None
     dataset: str | None = None
     locators: tuple[str, ...] = ()
     plugins: tuple[str, ...] = ()
     backend: str | None = None
+    isolate_files: bool = False
     variables: dict[str, Any] = field(default_factory=dict)
 
 
@@ -67,9 +69,11 @@ def build_run_settings(config: ProjectConfig, report: str | None, fail_fast: boo
         retries=config.retries,
         retry_backoff=config.retry_backoff,
         failure_screenshot_dir=config.failure_screenshot_dir,
+        failure_bundle_dir=config.failure_bundle_dir,
         locators=tuple(config.locators),
         plugins=tuple(config.plugins),
         backend=config.backend,
+        isolate_files=bool(config.isolate_files),
         variables=merged,
     )
 
@@ -82,6 +86,8 @@ def _apply_executor_settings(settings: RunSettings) -> None:
         executor.set_retry_policy(settings.retries, settings.retry_backoff)
     if settings.failure_screenshot_dir is not None:
         executor.set_failure_screenshot_dir(settings.failure_screenshot_dir)
+    if settings.failure_bundle_dir is not None:
+        executor.set_failure_bundle_dir(settings.failure_bundle_dir)
     if settings.plugins:
         # Commands the operator chose to add; loaded before anything that could name them.
         load_command_plugins(settings.plugins)
@@ -108,3 +114,5 @@ def apply_run_settings(settings: RunSettings) -> None:
         executor.default_dataset = read_rows_file(settings.dataset)
     for name, value in settings.variables.items():
         executor.variables.set(name, executor.variables.expand(value))
+    # Last: the files then start from the variables and locators set up above.
+    executor.isolate_files = settings.isolate_files

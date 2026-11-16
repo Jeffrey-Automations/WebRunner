@@ -18,6 +18,11 @@ keys are masked by default. The buffer lives in the page, so after a
 navigation to a new document the events must be pulled and the recorder
 started again.
 
+Alt+click on an element records an assertion instead of a click: the text
+the element shows, replayed as ``WR_element_assert`` (``WR_pw_element_assert``
+on Playwright) after the element is looked up. The click is kept from the
+page, and text that looks sensitive is masked like a typed value.
+
 CI / integrations
 =================
 

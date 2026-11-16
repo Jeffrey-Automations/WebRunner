@@ -1949,7 +1949,7 @@ recorder_save_recording(
 
 录制器注入一个静态 JS 监听器（无 CDP、无 eval），因此它在 Chrome / Firefox / Edge 上同样有效。**敏感字段默认被掩码** —— `type=password`、名称匹配 `password / card_number / cvv / ssn / secret / token / api_key / otp / passcode` 的字段，以及 13–19 位数字值，会被替换为 `***MASKED***`。
 
-它会录下点击、输入的值、`<select>` 的选择、复选框与单选按钮的变更、具名按键（Enter、Escape、Tab、方向键……），以及开始录制时的页面与之后不是由点击或 Enter 造成的网址变更。输出使用现行的命令名称（`WR_save_test_object`、`WR_find_recorded_element`、`WR_element_click`、`WR_element_input`、`WR_element_select_by_value`、`WR_element_check`、`WR_press_keys`、`WR_to_url`），`recorder_save_recording(..., backend="playwright")` 则改写出 `WR_pw_*` 命令；`WR_pw_recorder_save` 默认就是如此。网址里的密码、敏感的查询参数，以及具名按键以外的输入字符也会被遮罩。事件缓冲区存在页面里：导航到新文档之后，请先取回事件再重新启动录制器。
+它会录下点击、输入的值、`<select>` 的选择、复选框与单选按钮的变更、具名按键（Enter、Escape、Tab、方向键……），以及开始录制时的页面与之后不是由点击或 Enter 造成的网址变更。输出使用现行的命令名称（`WR_save_test_object`、`WR_find_recorded_element`、`WR_element_click`、`WR_element_input`、`WR_element_select_by_value`、`WR_element_check`、`WR_press_keys`、`WR_to_url`），`recorder_save_recording(..., backend="playwright")` 则改写出 `WR_pw_*` 命令；`WR_pw_recorder_save` 默认就是如此。网址里的密码、敏感的查询参数，以及具名按键以外的输入字符也会被遮罩。事件缓冲区存在页面里：导航到新文档之后，请先取回事件再重新启动录制器。对元素 **Alt+点击** 会记录一个断言而不是点击：录下它显示的文字，重播时成为 `WR_element_assert`（Playwright 为 `WR_pw_element_assert`），而且这次点击不会传到页面。
 
 ## CI / 集成
 
@@ -1966,7 +1966,7 @@ from je_web_runner.utils.ci_annotations.github_annotations import (
 
 `docker/docker-compose.yml` 提供一个 Selenium Grid 4 栈（hub + Chrome + Firefox 节点）；`docker/.env.example` 暴露版本固定和并发设置。
 
-[`docs/ide/`](../docs/ide/) 下的 IDE 配置示例将 VS Code 和 JetBrains 接线到由 `WR_export_action_schema` 产出的动作 JSON schema；[`docs/ide/action-lsp.md`](../docs/ide/action-lsp.md) 说明如何把动作 JSON 语言服务器接到编辑器。
+[`docs/ide/`](../docs/ide/) 下的 IDE 配置示例将 VS Code 和 JetBrains 接线到由 `WR_export_action_schema` 产出的动作 JSON schema；[`docs/ide/action-lsp.md`](../docs/ide/action-lsp.md) 说明如何把动作 JSON 语言服务器接到编辑器。这份 schema 不只检查命令名称：对写成 `["WR_x", {...}]` 的动作，它知道该命令接受哪些参数名称、哪些必填，以及宽松的类型，所以编辑器会在你输入时标出拼错或漏掉的参数。任何参数都可以写成 `${placeholder}`。
 
 ## 桌面控制（AutoControl）
 
@@ -2080,6 +2080,8 @@ python -m je_web_runner -d ./actions --var base=https://staging.example --var re
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # 供 ${ENV.KEY} 使用的 .env.staging
 python -m je_web_runner -d ./actions --dataset users.csv     # 每个文件对每一行执行一次，以 ${ROW.column} 读取
 python -m je_web_runner -d ./actions --fail-fast             # 文件与目录都在第一个失败处停止
+python -m je_web_runner -d ./actions --failure-bundle ./bundles  # 每个失败的动作一个 zip：动作、错误、截图、页面 HTML
+python -m je_web_runner -d ./actions --isolate-files          # 每个文件有自己的变量与已存的定位器
 python -m je_web_runner -d ./actions --backend playwright    # 用 Playwright 运行以 Selenium 命令写的文件（或反过来）
 python -m je_web_runner -e ./actions/login.json --step       # 每个动作前暂停：n 执行、c 继续、v 看变量、q 停止
 python -m je_web_runner -d ./actions --plugin my_checks      # 加载已安装插件的命令；--list-plugins 列出名称
@@ -2102,6 +2104,8 @@ fail_fast = true
 retries = 1
 retry_backoff = 0.5
 failure_screenshot_dir = "artifacts/failures"
+failure_bundle_dir = "artifacts/bundles"
+isolate_files = true
 report = "reports/run"
 ledger = ".webrunner/ledger.json"
 parallel = 4

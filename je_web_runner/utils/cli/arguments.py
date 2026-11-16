@@ -67,6 +67,16 @@ def _add_project_args(parser: argparse.ArgumentParser) -> None:
              "elements by name; repeatable",
     )
     parser.add_argument(
+        "--isolate-files", action="store_true", dest="isolate_files",
+        help="give every file its own variables and saved locators, so no file depends on what an earlier "
+             "one left behind (one file at a time; --parallel-mode process already isolates)",
+    )
+    parser.add_argument(
+        "--failure-bundle", type=str, default=None, dest="failure_bundle", metavar="DIR",
+        help="write one zip per failed action into DIR: the action, the error and, with a browser open, "
+             "a screenshot and the page's HTML",
+    )
+    parser.add_argument(
         "--backend", choices=BACKENDS, default=None,
         help="run every action file on this backend: its commands are translated before they run, and "
              "a file with a command that has no faithful equivalent there is refused",

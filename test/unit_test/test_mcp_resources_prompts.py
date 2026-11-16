@@ -140,7 +140,9 @@ class TestResourceRead(unittest.TestCase):
         from je_web_runner.utils.schema.action_schema import build_action_schema
         content = _read(self.server, "webrunner://schema/action")
         self.assertEqual(content["mimeType"], "application/json")
-        self.assertEqual(json.loads(content["text"]), build_action_schema())
+        # The form without per-command argument rules: the full one is about twenty times longer.
+        self.assertEqual(json.loads(content["text"]), build_action_schema(arguments=False))
+        self.assertLess(len(content["text"]), 150_000)
 
     def test_guide(self):
         content = _read(self.server, "webrunner://guide/action-language")

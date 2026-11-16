@@ -39,8 +39,9 @@ from je_web_runner.utils.exception.exceptions import (
 )
 from je_web_runner.utils.executor._event_table import build_event_dict
 from je_web_runner.utils.executor._flow_commands import DEFERRED_EXPANSION
+from je_web_runner.utils.executor._isolation import file_isolation
 from je_web_runner.utils.flow.dataset import load_rows, per_row_actions
-from je_web_runner.utils.flow.debugger import Stepper
+from je_web_runner.utils.flow.debugger import ABORTED_TEXT, Stepper
 from je_web_runner.utils.flow.document import (
     dataset_source,
     fail_fast_setting,
@@ -50,7 +51,7 @@ from je_web_runner.utils.flow.document import (
     skip_reason,
     teardown_count,
 )
-from je_web_runner.utils.flow.failfast import FailFast
+from je_web_runner.utils.flow.failfast import SKIPPED_TEXT, FailFast
 from je_web_runner.utils.flow.subflow import FileStack
 from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.json.json_file.json_file import read_action_json
@@ -91,6 +92,10 @@ _ARBITRARY_SCRIPT_COMMANDS = frozenset({
     "WR_add_script_to_evaluate_on_new_document",
     "WR_pw_add_init_script",
 })
+
+
+# What an action that never ran is recorded with; it has no failure to capture artifacts of.
+_NOT_RUN_TEXTS = (SKIPPED_TEXT, ABORTED_TEXT)
 
 
 def _try_selenium_screenshot() -> bytes | None:
@@ -208,6 +213,9 @@ class Executor(ActionExecutor):
         # 失敗時自動截圖目錄；None 代表停用
         # Output directory for auto-captured failure screenshots; None disables it.
         self.failure_screenshot_dir: str | None = None
+        self.failure_bundle_dir: str | None = None
+        # 循序執行時每個檔案是否各自隔離 / Whether each file of a sequential run is isolated (_isolation.py).
+        self.isolate_files: bool = False
         # 全域重試策略 (預設關閉)
         # Global retry policy. retries == 0 disables retry; backoff is in
         # seconds and is multiplied by the (1-based) attempt number.
@@ -360,6 +368,31 @@ class Executor(ActionExecutor):
             Path(path).mkdir(parents=True, exist_ok=True)
         self.failure_screenshot_dir = path
 
+    def set_failure_bundle_dir(self, path: str | None) -> None:
+        """
+        設定 (或停用) 動作失敗時的 failure bundle 目錄
+        Write one zip per failed action into ``path``: the action as written, the error, the file it
+        came from and, when a browser is open, a screenshot and the page's HTML. ``None`` turns it off.
+        """
+        if path:
+            Path(path).mkdir(parents=True, exist_ok=True)
+        self.failure_bundle_dir = path
+
+    def _write_failure_bundle(self, action, error_text: str) -> str | None:
+        """The bundle of a failed action, when a bundle directory is set. Returns its path or None."""
+        if not self.failure_bundle_dir:
+            return None
+        from je_web_runner.utils.failure_bundle import auto
+        target = self._failure_artifact_path(action, ".zip", self.failure_bundle_dir)
+        if target is None:
+            return None
+        current = self.files.current
+        return auto.write_action_failure_bundle(
+            target, action, error_text, source_file=str(current) if current else None,
+            screenshot=_try_selenium_screenshot() or _try_playwright_screenshot(),
+            page_html=auto.selenium_page_html() or auto.playwright_page_html(),
+        )
+
     def _capture_failure_screenshot(self, action) -> str | None:
         """Best-effort screenshot save when an action raises. Returns path or None."""
         if not self.failure_screenshot_dir:
@@ -391,15 +424,18 @@ class Executor(ActionExecutor):
             web_runner_logger.error(f"failure trace save failed: {error!r}")
             return None
 
-    def _failure_artifact_path(self, action, suffix: str) -> Path | None:
-        """``<failure dir>/<timestamp>_<command><suffix>``, or None if it would leave the directory."""
+    def _failure_artifact_path(self, action, suffix: str, directory: str | None = None) -> Path | None:
+        """
+        ``<directory>/<timestamp>_<command><suffix>`` (the screenshot directory unless one is given),
+        or None if it would leave the directory.
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         raw_name = str(action[0] if isinstance(action, list) and action else "unknown")
         # Strip any path separators and limit to safe characters; otherwise an
         # action JSON could ship a command name like ``../../etc/passwd`` and
         # cause a path traversal write (SonarCloud S2083).
         safe_name = "".join(ch for ch in raw_name if ch.isalnum() or ch in "-_")[:64] or "unknown"
-        base_dir = Path(self.failure_screenshot_dir or "").resolve()  # callers checked it is set
+        base_dir = Path(directory or self.failure_screenshot_dir or "").resolve()  # callers checked it is set
         target = (base_dir / f"{timestamp}_{safe_name}{suffix}").resolve()
         # Belt-and-braces: confirm the resolved path stays inside the
         # configured directory before writing.
@@ -610,6 +646,10 @@ class Executor(ActionExecutor):
             return super().collect_action_results(action_list)
 
     def _failure_text(self, action, error: Exception) -> str:
+        described = describe_error(error)
+        if str(error) in _NOT_RUN_TEXTS:
+            # The action did not run (fail-fast, or the operator stopped): there is nothing to capture.
+            return described
         artifacts = []
         screenshot_path = self._capture_failure_screenshot(action)
         if screenshot_path:
@@ -617,7 +657,9 @@ class Executor(ActionExecutor):
         trace_path = self._capture_failure_trace(action)
         if trace_path:
             artifacts.append(f"trace: {trace_path}")
-        described = describe_error(error)
+        bundle_path = self._write_failure_bundle(action, described)
+        if bundle_path:
+            artifacts.append(f"failure bundle: {bundle_path}")
         return f"{described} ({'; '.join(artifacts)})" if artifacts else described
 
     def execute_files(self, execute_files_list: list) -> list:
@@ -632,9 +674,10 @@ class Executor(ActionExecutor):
         """
         載入並執行一個動作檔
         Run the action file at ``path`` and return its records. While it runs it is the current file,
-        so a ``WR_call_file`` inside it takes a relative path from its directory.
+        so a ``WR_call_file`` inside it takes a relative path from its directory. With ``isolate_files``
+        on, the variables it sets and the locators it saves end with it.
         """
-        with self.files.scope(path):
+        with file_isolation(self), self.files.scope(path):
             return self.execute_action(self.settings.read_json(path))
 
 

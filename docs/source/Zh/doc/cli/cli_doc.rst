@@ -104,6 +104,8 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
     retries = 1
     retry_backoff = 0.5
     failure_screenshot_dir = "artifacts/failures"
+    failure_bundle_dir = "artifacts/bundles"
+    isolate_files = true
     report = "reports/run"
     ledger = ".webrunner/ledger.json"
     parallel = 4
@@ -121,6 +123,26 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
 之前設定好執行器，``--parallel-mode process`` 的每個工作行程也一樣。未知的鍵或型別錯誤的值
 會在任何動作執行之前拋出 ``ProjectConfigError``。沒有該表格、或無法解析的
 ``pyproject.toml`` 不算設定檔，會被忽略。
+
+Failure bundle
+--------------
+
+``--failure-bundle DIR``\ （專案設定檔的 ``failure_bundle_dir``、Python 的
+``executor.set_failure_bundle_dir``）會為每個失敗的動作寫一個 zip：動作本身、錯誤文字、它來自
+哪個檔案，以及瀏覽器開著時的截圖與頁面 HTML。失敗動作的紀錄會寫出 zip 的路徑。動作以檔案中
+的寫法保存，``${placeholders}`` 不會被代換；錯誤文字、截圖與 HTML 則是執行當下的內容，所以請把
+bundle 當成日誌看待。只是被跳過（fail-fast）或沒有執行（``--step`` 的 ``q``）的動作不會產生
+bundle，也不會產生失敗截圖。
+
+檔案隔離
+--------
+
+預設情況下，一次執行中的檔案共用執行器的變數與已存定位器的表，所以某個檔案可能只因為前一個
+檔案留下了東西才通過。``--isolate-files``\ （專案設定檔的 ``isolate_files``）讓每個檔案各有
+一份：它從這次執行設定好的內容開始（``--var``、設定檔、``--locators``），它設定或儲存的東西隨
+檔案結束而消失。用 ``WR_call_file`` 呼叫的檔案仍與呼叫者共用；瀏覽器不在隔離範圍內，前一個
+檔案沒關的 driver 對下一個檔案仍是開著的。它適用於循序執行與 ``--parallel-mode process`` 的
+工作行程；執行緒池與 ``--parallel-mode async`` 會拒絕它，因為檔案同時共用一個行程。
 
 選擇後端
 --------
@@ -161,7 +183,8 @@ entry point，其值為 ``WR_*`` 名稱對應函式的 dict，或回傳這種 di
 * ``--init DIR`` 把 ``utils/bootstrapper`` 的起始工作區寫進 ``DIR``；既有檔案會保留。
 * ``--format PATH`` 把一個動作檔，或目錄底下的每個 ``.json`` 檔，改寫成標準排版，並印出
   有變動的檔案。加上 ``--format-check`` 時不寫入任何東西，有檔案會變動就以 1 結束。
-* ``--export-schema FILE`` 寫出動作檔的 JSON schema；``--export-command-reference FILE``
+* ``--export-schema FILE`` 寫出動作檔的 JSON schema（指令名稱，以及關鍵字形式的動作其指令
+  接受的引數名稱、必填引數與寬鬆的型別）；``--export-command-reference FILE``
   寫出所有 ``WR_*`` 指令的 Markdown 表格。兩者都反映這份安裝中已註冊的指令。
 
 報告

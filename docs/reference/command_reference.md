@@ -701,9 +701,9 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_pw_clear_geolocation` | `() -> 'None'` |  |
 | `WR_pw_clear_permissions` | `() -> 'None'` |  |
 | `WR_pw_click` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_clock_install` | `(fake_now_ms: 'float | None' = None) -> 'None'` |  |
+| `WR_pw_clock_install` | `(fake_now_ms: 'float | str | None' = None) -> 'None'` |  |
 | `WR_pw_clock_run_for` | `(duration_ms: 'float') -> 'None'` |  |
-| `WR_pw_clock_set_time` | `(time_ms: 'float') -> 'None'` |  |
+| `WR_pw_clock_set_time` | `(time_ms: 'float | str') -> 'None'` |  |
 | `WR_pw_close_browser` | `() -> 'None'` |  |
 | `WR_pw_close_page` | `(index: 'int | None' = None) -> 'None'` |  |
 | `WR_pw_connect` | `(ws_endpoint: 'str', browser: 'str' = 'chromium', context_options: 'dict | None' = None) -> 'None'` |  |
@@ -735,7 +735,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_pw_element_scroll_into_view` | `() -> 'None'` |  |
 | `WR_pw_element_select_option` | `(value: 'str | list | dict') -> 'list[str]'` |  |
 | `WR_pw_element_submit` | `() -> 'None'` | 送出目前元素所在的表單（元素本身是表單時送出它） |
-| `WR_pw_element_type_text` | `(input_value: 'str', delay: 'float' = 0) -> 'None'` | Type text key-by-key (analogue of Selenium ``send_keys``). |
+| `WR_pw_element_type_text` | `(input_value: 'str', delay: 'float' = 0) -> 'None'` | Type text key-by-key after the text the field already has, like Selenium ``send_keys``. Playwright |
 | `WR_pw_element_uncheck` | `() -> 'None'` |  |
 | `WR_pw_element_value_of_css_property` | `(property_name: 'str') -> 'str | None'` | The computed value of CSS ``property_name`` on the current element. |
 | `WR_pw_emulate` | `(device_name: 'str') -> 'None'` |  |
@@ -1117,8 +1117,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_visual_ai_assert_similar` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Fail when two image files look less alike than ``threshold`` (arguments as ``WR_visual_ai_compare``). |
 | `WR_visual_ai_compare` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Score how alike two image files look (three perceptual hashes and a structural score, 0-1). |
 | `WR_visual_ai_hash` | `(image_path: 'str', kind: 'str' = 'dhash', crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, str]'` | Compute a perceptual hash of an image file. |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001540EA1D9E0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001540EA1D9E0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001EB806F1EE0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001EB806F1EE0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_visual_review_accept` | `(baseline_dir: 'str', current_dir: 'str', name: 'str') -> 'str'` | Accept a changed screenshot: copy ``current_dir/name`` over the baseline; returns the baseline path. |
 | `WR_visual_review_assert_no_diffs` | `(baseline_dir: 'str', current_dir: 'str') -> 'int'` | Fail when a screenshot differs from, or is missing on either side of, its baseline; returns the count. |
 | `WR_visual_review_list` | `(baseline_dir: 'str', current_dir: 'str') -> 'list[dict[str, str]]'` | Pair the PNG files of a baseline and a current directory by name and say how each pair stands. |

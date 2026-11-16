@@ -1973,7 +1973,7 @@ recorder_save_recording(
 
 The recorder injects a static JS listener (no CDP, no eval), so it works on Chrome / Firefox / Edge alike. **Sensitive fields are masked by default** — `type=password`, names matching `password / card_number / cvv / ssn / secret / token / api_key / otp / passcode`, and 13–19-digit numeric values are replaced with `***MASKED***`.
 
-It records clicks, typed values, `<select>` choices, checkbox and radio changes, presses of named keys (Enter, Escape, Tab, arrows …) and the page it started on plus later address changes that a click or Enter did not cause. The output uses the current command names (`WR_save_test_object`, `WR_find_recorded_element`, `WR_element_click`, `WR_element_input`, `WR_element_select_by_value`, `WR_element_check`, `WR_press_keys`, `WR_to_url`), and `recorder_save_recording(..., backend="playwright")` writes `WR_pw_*` commands instead; `WR_pw_recorder_save` does that by default. Passwords in URLs, sensitive query parameters and typed characters other than named keys are masked too. The buffer lives in the page: after a navigation to a new document, pull the events and start the recorder again.
+It records clicks, typed values, `<select>` choices, checkbox and radio changes, presses of named keys (Enter, Escape, Tab, arrows …) and the page it started on plus later address changes that a click or Enter did not cause. The output uses the current command names (`WR_save_test_object`, `WR_find_recorded_element`, `WR_element_click`, `WR_element_input`, `WR_element_select_by_value`, `WR_element_check`, `WR_press_keys`, `WR_to_url`), and `recorder_save_recording(..., backend="playwright")` writes `WR_pw_*` commands instead; `WR_pw_recorder_save` does that by default. Passwords in URLs, sensitive query parameters and typed characters other than named keys are masked too. The buffer lives in the page: after a navigation to a new document, pull the events and start the recorder again. **Alt+click** an element to record an assertion instead of a click: the text it shows is recorded and replayed as `WR_element_assert` (`WR_pw_element_assert` on Playwright), and the click does not reach the page.
 
 ## CI / Integrations
 
@@ -1990,7 +1990,7 @@ For GitHub Actions inline annotations, run `emit_from_junit_xml("run_junit.xml")
 
 `docker/docker-compose.yml` ships a Selenium Grid 4 stack (hub + Chrome + Firefox nodes); `docker/.env.example` exposes the version pin and concurrency settings.
 
-The IDE config examples under [`docs/ide/`](docs/ide/) wire VS Code and JetBrains to the action JSON schema produced by `WR_export_action_schema`; [`docs/ide/action-lsp.md`](docs/ide/action-lsp.md) shows how to attach the action JSON language server to an editor.
+The IDE config examples under [`docs/ide/`](docs/ide/) wire VS Code and JetBrains to the action JSON schema produced by `WR_export_action_schema`; [`docs/ide/action-lsp.md`](docs/ide/action-lsp.md) shows how to attach the action JSON language server to an editor. The schema checks more than the command name: for an action written as `["WR_x", {...}]` it knows the argument names the command takes, which are required, and loose types, so an editor flags a misspelt or missing argument as you type. A `${placeholder}` is accepted for any argument.
 
 ## Desktop control (AutoControl)
 
@@ -2104,6 +2104,8 @@ python -m je_web_runner -d ./actions --var base=https://staging.example --var re
 python -m je_web_runner -d ./actions --env staging --env-dir ./config                     # .env.staging for ${ENV.KEY}
 python -m je_web_runner -d ./actions --dataset users.csv     # every file runs once per row, reading ${ROW.column}
 python -m je_web_runner -d ./actions --fail-fast             # stop a file, and the directory, at the first failure
+python -m je_web_runner -d ./actions --failure-bundle ./bundles  # a zip per failed action: action, error, screenshot, page HTML
+python -m je_web_runner -d ./actions --isolate-files          # each file gets its own variables and saved locators
 python -m je_web_runner -d ./actions --backend playwright    # run Selenium-command files on Playwright (or the reverse)
 python -m je_web_runner -e ./actions/login.json --step       # pause before each action: n run it, c continue, v variables, q stop
 python -m je_web_runner -d ./actions --plugin my_checks      # commands from an installed plugin; --list-plugins shows the names
@@ -2126,6 +2128,8 @@ fail_fast = true
 retries = 1
 retry_backoff = 0.5
 failure_screenshot_dir = "artifacts/failures"
+failure_bundle_dir = "artifacts/bundles"
+isolate_files = true
 report = "reports/run"
 ledger = ".webrunner/ledger.json"
 parallel = 4

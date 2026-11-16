@@ -125,6 +125,8 @@ the file over the built-in default; without a file nothing changes.
     retries = 1
     retry_backoff = 0.5
     failure_screenshot_dir = "artifacts/failures"
+    failure_bundle_dir = "artifacts/bundles"
+    isolate_files = true
     report = "reports/run"
     ledger = ".webrunner/ledger.json"
     parallel = 4
@@ -144,6 +146,31 @@ before the first action, in every worker of ``--parallel-mode process`` too. An
 unknown key or a value of the wrong type raises ``ProjectConfigError`` before
 anything runs. A ``pyproject.toml`` without the table, or one that cannot be
 parsed, is not a configuration and is ignored.
+
+Failure bundles
+---------------
+
+``--failure-bundle DIR`` (``failure_bundle_dir`` in the project configuration,
+``executor.set_failure_bundle_dir`` from Python) writes one zip for every action that fails:
+the action, the error text, the file it came from and, when a browser is open, a screenshot
+and the page's HTML. The record of the failed action names the zip. The action is stored as
+it is written, with ``${placeholders}`` not replaced; the error text, the screenshot and
+the HTML show whatever the run produced, so treat a bundle like a log. An action that was
+only skipped (fail-fast) or not run (``--step``, ``q``) writes no bundle and no failure
+screenshot.
+
+Isolating files
+---------------
+
+By default the files of a run share the executor's variables and the table of saved
+locators, so a file can pass only because an earlier one left something behind.
+``--isolate-files`` (``isolate_files`` in the project configuration) gives every file its
+own: it starts with what the run set up (``--var``, the configuration, ``--locators``) and
+what it sets or saves ends with it. A file called with ``WR_call_file`` still shares with
+its caller, and the browser is not part of it: a driver one file leaves open is open for the
+next. It applies to sequential runs and inside the workers of ``--parallel-mode process``;
+it is refused with the thread pool and ``--parallel-mode async``, where files share one
+process at the same time.
 
 Choosing the backend
 --------------------
@@ -191,7 +218,9 @@ These flags run no action file and can be combined with the others:
 * ``--format PATH`` rewrites one action file, or every ``.json`` file below a
   directory, in the canonical layout and prints the files it changed. With
   ``--format-check`` nothing is written and a file that would change exits 1.
-* ``--export-schema FILE`` writes the JSON schema of action files;
+* ``--export-schema FILE`` writes the JSON schema of action files (command
+  names, and for the keyword form of an action the argument names its
+  command takes, the required ones and loose types);
   ``--export-command-reference FILE`` writes the Markdown table of every
   ``WR_*`` command. Both reflect the commands registered in this installation.
 

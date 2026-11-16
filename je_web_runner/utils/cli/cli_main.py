@@ -19,6 +19,7 @@ from je_web_runner.utils.cli.failure_count import FailureCount, note_failed_file
 from je_web_runner.utils.cli.run_settings import RunSettings, apply_run_settings, build_run_settings
 from je_web_runner.utils.exception.exception_tags import argparse_get_wrong_data
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
+from je_web_runner.utils.executor._isolation import file_isolation
 from je_web_runner.utils.executor.action_executor import execute_action, execute_files, executor
 from je_web_runner.utils.file_process.get_dir_file_list import get_dir_files_as_list
 from je_web_runner.utils.json.json_file.json_file import read_action_json
@@ -70,7 +71,7 @@ def _run_one_file(path: str) -> bool:
     failure_baseline = thread_failure_count()
     failed = False
     try:
-        with executor.files.scope(path):
+        with file_isolation(executor), executor.files.scope(path):
             execute_action(read_action_json(path))
     except Exception:
         failed = True
@@ -103,7 +104,8 @@ def _run_one_file_isolated(path: str) -> tuple[str, bool, list]:
     baseline = len(_records.test_record_list)
     failed = False
     try:
-        with FailureCount() as failures, _executor.files.scope(path):
+        # A worker runs many files one after another, so the isolation between them applies here too.
+        with FailureCount() as failures, file_isolation(_executor), _executor.files.scope(path):
             _execute(_read_json(path))
         failed = bool(failures.failed)
     except Exception:  # pylint: disable=broad-except
@@ -444,7 +446,7 @@ def _validate_and_execute(args: argparse.Namespace, settings: RunSettings) -> No
     if args.validate_dir:
         _validate_dir(args.validate_dir, include_tags=include_tags, exclude_tags=exclude_tags)
     if args.execute_file:
-        with executor.files.scope(args.execute_file):
+        with file_isolation(executor), executor.files.scope(args.execute_file):
             execute_action(read_action_json(args.execute_file))
     if args.execute_dir:
         _dispatch_directory(args, include_tags, exclude_tags, settings)
@@ -461,10 +463,24 @@ def _run_settings(args: argparse.Namespace) -> RunSettings:
         settings = replace(settings, plugins=tuple(dict.fromkeys((*settings.plugins, *args.plugins))))
     if args.backend:
         settings = replace(settings, backend=args.backend)
+    if args.isolate_files:
+        settings = replace(settings, isolate_files=True)
+    _check_isolation(args, settings)
+    if args.failure_bundle:
+        # An absolute path, so a worker process writes to the same directory.
+        settings = replace(settings, failure_bundle_dir=str(Path(args.failure_bundle).resolve()))
     if args.locators:
         files = (*settings.locators, *args.locators)
         settings = replace(settings, locators=tuple(str(Path(name).resolve()) for name in files))
     return replace(settings, dataset=str(Path(args.dataset).resolve())) if args.dataset else settings
+
+
+def _check_isolation(args: argparse.Namespace, settings: RunSettings) -> None:
+    """File isolation swaps the process's locator table, so files must not share a process at one time."""
+    threads = args.parallel > 1 and args.parallel_mode == "thread"
+    if settings.isolate_files and (threads or args.parallel_mode == "async"):
+        raise WebRunnerExecuteException(
+            "isolate_files runs one file at a time per process: drop --parallel, or use --parallel-mode process")
 
 
 def _start_stepping(args: argparse.Namespace) -> None:
