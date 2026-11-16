@@ -1,0 +1,97 @@
+name: WebRunner Runner Distribution
+
+# Runs the two ways this repository offers to run WebRunner somewhere else, for real: the composite
+# action at the repository root and the runner image of docker/Runner.Containerfile. Nothing is
+# published: the image is built, used once and discarded with the job.
+
+on:
+  push:
+    branches: [ "dev" ]
+    paths:
+      - "action.yml"
+      - "docker/Runner.Containerfile"
+      - "examples/ci/**"
+      - ".github/workflows/runner_distribution.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composite-action:
+    name: Composite action (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15  # a first run; set to about 3x the slowest run once there are some
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Run the smoke action file through the action
+      id: webrunner
+      uses: ./
+      with:
+        actions-dir: examples/ci/smoke
+        channel: dev
+        report: reports/smoke
+        report-format: json,junit
+        fail-fast: "true"
+
+    - name: The action reported success and wrote the reports
+      shell: bash
+      env:
+        WR_EXIT_CODE: ${{ steps.webrunner.outputs.exit-code }}
+        WR_ARTIFACT: ${{ steps.webrunner.outputs.artifact-name }}
+      run: |
+        test "$WR_EXIT_CODE" = "0"
+        test "$WR_ARTIFACT" = "webrunner-reports"
+        test -s reports/smoke_success.json
+        test -s reports/smoke_junit.xml
+        python -c "import json; print(len(json.load(open('reports/smoke_success.json', encoding='utf-8'))), 'recorded steps')"
+
+  runner-image:
+    name: Runner image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # a first run; set to about 3x the slowest run once there are some
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Build the image with the dev package
+      run: |
+        docker build -f docker/Runner.Containerfile \
+          --build-arg WEBRUNNER_PACKAGE=je_web_runner_dev \
+          -t webrunner-runner:ci docker
+        docker image inspect webrunner-runner:ci --format 'size: {{.Size}} bytes, user: {{.Config.User}}'
+
+    - name: The image starts the CLI as a non-root user
+      run: |
+        docker run --rm webrunner-runner:ci --help > /dev/null
+        test "$(docker run --rm --entrypoint id webrunner-runner:ci -u)" = "65532"
+
+    - name: Run the smoke action file in the image
+      run: |
+        mkdir -p work/actions work/reports
+        cp examples/ci/image/smoke.json work/actions/
+        chmod -R a+rwX work
+        docker run --rm --shm-size=1g -v "$PWD/work:/work" webrunner-runner:ci \
+          -d actions --report reports/smoke --report-format json,junit --fail-fast
+        test -s work/reports/smoke_success.json
+        test -s work/reports/smoke_junit.xml
+        python3 -c "import json; print(len(json.load(open('work/reports/smoke_success.json', encoding='utf-8'))), 'recorded steps')"
+
+    - name: A failing action file fails the container
+      run: |
+        mkdir -p work/failing
+        printf '[["WR_fail", {"message": "meant to fail"}]]\n' > work/failing/fail.json
+        chmod -R a+rwX work
+        if docker run --rm -v "$PWD/work:/work" webrunner-runner:ci -d failing; then
+          echo "::error::a failing action file did not fail the container"; exit 1
+        fi

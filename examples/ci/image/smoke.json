@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "tags": [
+      "example",
+      "smoke"
+    ],
+    "setup": [
+      [
+        "WR_set_driver",
+        {
+          "webdriver_name": "chrome",
+          "install_driver": false,
+          "options": [
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-dev-shm-usage"
+          ]
+        }
+      ]
+    ],
+    "teardown": [
+      [
+        "WR_quit_all"
+      ]
+    ],
+    "fail_fast": true
+  },
+  "webdriver_wrapper": [
+    [
+      "WR_to_url",
+      {
+        "url": "data:text/html,<title>WebRunner smoke</title><h1 id='hello'>It runs</h1>"
+      }
+    ],
+    [
+      "WR_assert_title",
+      {
+        "value": "WebRunner smoke"
+      }
+    ],
+    [
+      "WR_find_element_by",
+      {
+        "selector": "#hello"
+      }
+    ],
+    [
+      "WR_element_assert",
+      {
+        "check_dict": {
+          "text": "It runs"
+        }
+      }
+    ]
+  ]
+}
