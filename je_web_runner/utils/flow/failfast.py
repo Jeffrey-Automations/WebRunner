@@ -6,11 +6,16 @@ By default a failed action is recorded and the next one runs. With fail-fast on,
 that list are recorded as skipped instead, except the ``meta.teardown`` actions, which still run. It applies
 to the actions of a list being run (``execute_action``, a file), not to a single ``execute_one`` call, and a
 block already stops at its first failure either way.
+
+The run that is in progress is kept per context (:mod:`contextvars`): each thread of ``--parallel`` and each
+list of ``--parallel-mode async`` has its own, and a worker thread started with ``asyncio.to_thread`` sees
+the run of the list that started it.
 """
 from __future__ import annotations
 
 import contextlib
-import threading
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Iterator
 
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
@@ -19,23 +24,28 @@ SKIPPED_TEXT = "skipped: an earlier action of this list failed (fail-fast)"
 _NO_TEARDOWN = 1 << 62
 
 
+@dataclass
+class _Run:
+    """One list being run: where it is, and whether one of its actions has failed."""
+
+    active: bool = False
+    enabled: bool = False
+    depth: int = 0
+    index: int = 0
+    tripped: bool = False
+    teardown_from: int = _NO_TEARDOWN
+
+
 class FailFast:
-    """Tracks, per thread, the list that is running and whether one of its actions has failed."""
+    """Tracks, per context, the list that is running and whether one of its actions has failed."""
 
     def __init__(self) -> None:
         self.enabled = False
-        self._local = threading.local()
+        self._current: ContextVar[_Run | None] = ContextVar(f"webrunner_fail_fast_{id(self)}", default=None)
 
-    def _state(self) -> threading.local:
-        state = self._local
-        if not hasattr(state, "depth"):
-            state.depth = 0
-            state.active = False
-            state.enabled = False
-            state.index = 0
-            state.tripped = False
-            state.teardown_from = _NO_TEARDOWN
-        return state
+    def _state(self) -> _Run:
+        """The run of this context, or an inactive one when no list is running here."""
+        return self._current.get() or _Run()
 
     @contextlib.contextmanager
     def run(self, enabled: bool | None = None) -> Iterator[None]:
@@ -47,15 +57,11 @@ class FailFast:
         if state.depth > 0 or state.active:
             yield
             return
-        state.active = True
-        state.enabled = self.enabled if enabled is None else bool(enabled)
-        state.index = 0
-        state.tripped = False
-        state.teardown_from = _NO_TEARDOWN
+        token = self._current.set(_Run(active=True, enabled=self.enabled if enabled is None else bool(enabled)))
         try:
             yield
         finally:
-            state.active = False
+            self._current.reset(token)
 
     def set_teardown_count(self, total: int, teardown: int) -> None:
         """Tell the running list that its last ``teardown`` of ``total`` actions run even after a failure."""

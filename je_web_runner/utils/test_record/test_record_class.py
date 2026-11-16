@@ -4,7 +4,7 @@ Test records: the outcome of every wrapper call, which the reports are built fro
 """
 import contextlib
 import datetime
-import threading
+from contextvars import ContextVar
 from typing import Iterator
 
 from je_web_runner.utils.exception.exceptions import describe_error
@@ -49,45 +49,42 @@ class TestRecord:
 
 
 NO_EXCEPTION = "None"
-_tracking = threading.local()
-
-
-def _tracked() -> list[list[dict]]:
-    if not hasattr(_tracking, "scopes"):
-        _tracking.scopes = []
-    return _tracking.scopes
+# Per context (a thread, or an asyncio task and the worker threads it starts): the lists collecting
+# records for a block, and the action file that is running.
+_scopes: ContextVar[tuple[list[dict], ...]] = ContextVar("webrunner_record_scopes", default=())
+_running_file: ContextVar[str | None] = ContextVar("webrunner_record_file", default=None)
 
 
 @contextlib.contextmanager
 def track_records() -> Iterator[list[dict]]:
     """
-    收集這個執行緒在區塊內新增的紀錄
-    Collect the records this thread adds during the ``with`` block (none while recording is off).
+    收集這個脈絡在區塊內新增的紀錄
+    Collect the records this context adds during the ``with`` block (none while recording is off).
     """
     mine: list[dict] = []
-    _tracked().append(mine)
+    token = _scopes.set((*_scopes.get(), mine))
     try:
         yield mine
     finally:
-        _tracked().pop()
+        _scopes.reset(token)
 
 
 @contextlib.contextmanager
 def record_file(path: str) -> Iterator[None]:
     """
     標記區塊內的紀錄屬於哪個動作檔
-    Mark the records this thread adds during the ``with`` block as belonging to the action file
+    Mark the records this context adds during the ``with`` block as belonging to the action file
     ``path`` (their ``file`` key), so a report can group them. A block inside another keeps the
     outer file: the file a run started from, not one it called.
     """
-    outermost = getattr(_tracking, "file", None) is None
-    if outermost:
-        _tracking.file = path
+    if _running_file.get() is not None:
+        yield
+        return
+    token = _running_file.set(path)
     try:
         yield
     finally:
-        if outermost:
-            _tracking.file = None
+        _running_file.reset(token)
 
 
 def mark_handled(records: list[dict]) -> int:
@@ -133,9 +130,9 @@ def record_action_to_list(function_name: str,
         "time": str(datetime.datetime.now()),
         "program_exception": describe_error(program_exception)
     }
-    running_file = getattr(_tracking, "file", None)
+    running_file = _running_file.get()
     if running_file is not None:
         record["file"] = running_file
     test_record_instance.test_record_list.append(record)
-    for scope in _tracked():
+    for scope in _scopes.get():
         scope.append(record)

@@ -590,7 +590,7 @@ An action can store a value and later actions can use it. The executor replaces 
 - An argument that is exactly one placeholder gets the value with its type (a number, a list …); inside a longer string the value is inserted as text.
 - A placeholder that names nothing known is left as it is, so `${ROW.col}` of a dataset and a JavaScript template literal in a script still work. A known variable with a path that does not exist fails the action.
 - The command name is never replaced. The record of an action shows it as written, not the expanded values.
-- Variables belong to the executor and stay until `WR_clear_vars`; in a directory run, later files see the variables of earlier ones (`--parallel-mode process` gives each worker its own).
+- Variables belong to the executor and stay until `WR_clear_vars`; in a directory run, later files see the variables of earlier ones (`--parallel-mode process` gives each worker its own, and `--parallel-mode async` each file a copy that ends with the file).
 
 ### Control flow
 
@@ -651,7 +651,7 @@ The first action that fails stops its block and fails the action that holds the 
 ```
 
 - `params` become variables of the called file and end with the call. The caller's other variables are visible too.
-- A relative `path` starts at the directory of the file making the call (the working directory for `--execute_str`, the socket server and the MCP tools).
+- A relative `path` starts at the directory of the file making the call (the working directory for `--execute_str`, the socket server and the MCP tools, which have no file).
 - The called file must be below the working directory or below the directory of the file the run started from; `..` cannot reach anything else. A file that is already running cannot be called again, and calls nest at most 20 deep.
 - The first action that fails stops the called file and fails the `WR_call_file` action. `WR_execute_files` is the older command: it takes no parameters, resolves paths from the working directory, and records a failure without failing its own action.
 
@@ -738,7 +738,7 @@ Every helper library under `je_web_runner/utils` can be used from an action file
 | `fail_fast` | `true` or `false` for this file, whatever the executor's setting. |
 | `dataset` | A `.csv` or `.json` file next to the action file, or the rows themselves (a list of objects). The file's actions run once per row and read the row as `${ROW.column}` and its position as `${ROW_INDEX}`; `setup` and `teardown` run once, around all rows. |
 
-**Fail-fast.** By default a failed action is recorded and the next one runs. `executor.set_fail_fast(True)`, `["WR_set_fail_fast"]` (from the next list on) or `meta.fail_fast` changes that: after the first failed action the remaining ones are recorded as skipped and not run, except `teardown`. It applies to the actions of a list or file, not to a single `execute_one` call, and not under `--parallel-mode async`.
+**Fail-fast.** By default a failed action is recorded and the next one runs. `executor.set_fail_fast(True)`, `["WR_set_fail_fast"]` (from the next list on) or `meta.fail_fast` changes that: after the first failed action the remaining ones are recorded as skipped and not run, except `teardown`. It applies to the actions of a list or file, not to a single `execute_one` call.
 
 ### Adding custom commands
 

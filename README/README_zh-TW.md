@@ -574,7 +574,7 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 - 參數剛好是一個佔位符時，會得到保留型別的值（數字、list……）；佔位符在較長的字串裡時，值會以文字插入。
 - 指向未知名稱的佔位符會原樣保留，所以資料集的 `${ROW.col}` 與腳本裡的 JavaScript 樣板字面值照常運作。變數存在但路徑不存在時，該動作失敗。
 - 命令名稱永遠不會被替換。動作的紀錄顯示的是原本寫的內容，不是展開後的值。
-- 變數屬於執行器，會一直保留到 `WR_clear_vars`；以目錄執行時，後面的檔案看得到前面檔案的變數（`--parallel-mode process` 讓每個工作行程各有一份）。
+- 變數屬於執行器，會一直保留到 `WR_clear_vars`；以目錄執行時，後面的檔案看得到前面檔案的變數（`--parallel-mode process` 讓每個工作行程各有一份，`--parallel-mode async` 則讓每個檔案各有一份隨檔案結束的副本）。
 
 ### 流程控制
 
@@ -722,7 +722,7 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 | `fail_fast` | 這個檔案用 `true` 或 `false`，不論執行器的設定為何。 |
 | `dataset` | 動作檔旁邊的 `.csv` 或 `.json` 檔，或直接寫出資料列（物件的清單）。檔案的動作會對每一列執行一次，以 `${ROW.column}` 讀取該列、以 `${ROW_INDEX}` 讀取其位置；`setup` 與 `teardown` 只在所有列的前後各執行一次。 |
 
-**Fail-fast。** 預設情況下，失敗的動作會被記錄，然後繼續執行下一個。`executor.set_fail_fast(True)`、`["WR_set_fail_fast"]`（從下一份清單起生效）或 `meta.fail_fast` 可以改變這點：第一個動作失敗之後，其餘動作會被記錄為已跳過而不執行，`teardown` 除外。它作用於一份清單或一個檔案的動作，不作用於單次的 `execute_one` 呼叫，在 `--parallel-mode async` 之下也不生效。
+**Fail-fast。** 預設情況下，失敗的動作會被記錄，然後繼續執行下一個。`executor.set_fail_fast(True)`、`["WR_set_fail_fast"]`（從下一份清單起生效）或 `meta.fail_fast` 可以改變這點：第一個動作失敗之後，其餘動作會被記錄為已跳過而不執行，`teardown` 除外。它作用於一份清單或一個檔案的動作，不作用於單次的 `execute_one` 呼叫。
 
 ### 新增自訂命令
 

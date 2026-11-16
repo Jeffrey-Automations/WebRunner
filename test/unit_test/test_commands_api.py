@@ -69,12 +69,18 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def _http(url: str, data: bytes | None = None, headers: dict | None = None) -> tuple[int, str]:
+    """One request to a loopback server of this test; a connection the OS drops under load is retried."""
     request = urllib.request.Request(url, data=data, headers=headers or {})
-    try:
-        with _OPENER.open(request, timeout=5) as response:
-            return response.status, response.read().decode("utf-8")
-    except urllib.error.HTTPError as error:
-        return error.code, error.read().decode("utf-8")
+    for attempt in range(3):
+        try:
+            with _OPENER.open(request, timeout=5) as response:
+                return response.status, response.read().decode("utf-8")
+        except urllib.error.HTTPError as error:
+            return error.code, error.read().decode("utf-8")
+        except (ConnectionError, urllib.error.URLError):
+            if attempt == 2:
+                raise
+    raise AssertionError("unreachable")
 
 
 @pytest.fixture(autouse=True)

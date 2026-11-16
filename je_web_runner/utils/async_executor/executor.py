@@ -20,6 +20,7 @@ runs lists concurrently with ``asyncio.gather``, at most ``concurrency`` at a ti
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any, Sequence
 
 from je_web_runner.utils.async_executor.commands import ARBITRARY_SCRIPT_COMMANDS, ASYNC_COMMANDS
@@ -79,15 +80,29 @@ class AsyncExecutor:
         record_action_to_list(name, kwargs or {"args": args}, None)
         return result
 
-    async def run(self, action_list: list | dict, context_options: dict[str, Any] | None = None
-                  ) -> tuple[dict[str, Any], list[str]]:
+    async def run(self, action_list: list | dict, context_options: dict[str, Any] | None = None,
+                  file: str | None = None) -> tuple[dict[str, Any], list[str]]:
         """
         依序執行一份動作清單
         Run one action list in order and return ``(record, failed)`` as
         ``Executor.collect_action_results`` does: a failed action is recorded and the next
         one runs. The list's browser context is closed at the end.
+
+        The list has its own variables (a copy of the executor's), its own fail-fast run and
+        ``meta.retries`` (for the commands the sync executor runs) and, when
+        ``file`` names the action file it came from, that file as the one ``WR_call_file`` and the
+        records refer to. Lists running at the same time do not see each other's.
         """
-        actions = self.sync.document_actions(action_list)
+        with contextlib.ExitStack() as scopes:
+            scopes.enter_context(self.sync.isolated_variables())
+            if file is not None:
+                scopes.enter_context(self.sync.files.scope(file))
+            scopes.enter_context(self.sync.document_run(action_list))  # meta.retries and fail-fast
+            return await self._run_list(self.sync.document_actions(action_list), context_options or {})
+
+    async def _run_list(self, actions: list, context_options: dict[str, Any]
+                        ) -> tuple[dict[str, Any], list[str]]:
+        """Run the planned actions of one list in order; see :meth:`run`."""
         record: dict[str, Any] = {}
         failed: list[str] = []
         state: dict[str, AsyncSession | None] = {"session": None}
@@ -95,7 +110,8 @@ class AsyncExecutor:
             for action in actions:
                 key = unique_record_key(record, "execute: " + str(action))
                 try:
-                    record[key] = await self._run_action(action, state, context_options or {})
+                    with self.sync.fail_fast.step():
+                        record[key] = await self._run_action(action, state, context_options)
                 except Exception as error:  # every action's own failure is recorded, not raised
                     web_runner_logger.error(f"async execute_action, action: {action}, failed: {error!r}")
                     record[key] = str(error) if isinstance(error, _RecordedFailure) else describe_error(error)
@@ -106,7 +122,8 @@ class AsyncExecutor:
         return record, failed
 
     async def run_many(self, action_lists: Sequence[list | dict], concurrency: int = 4,
-                       context_options: dict[str, Any] | None = None) -> list[tuple[dict[str, Any], list[str]]]:
+                       context_options: dict[str, Any] | None = None,
+                       files: Sequence[str | None] | None = None) -> list[tuple[dict[str, Any], list[str]]]:
         """
         同時執行多份動作清單
         Run ``action_lists`` concurrently, at most ``concurrency`` at a time, each in its own
@@ -116,10 +133,15 @@ class AsyncExecutor:
             raise WebRunnerExecuteException("concurrency must be at least 1")
         gate = asyncio.Semaphore(int(concurrency))
 
-        async def one(action_list: list | dict) -> tuple[dict[str, Any], list[str]]:
+        sources = list(files) if files is not None else [None] * len(action_lists)
+        if len(sources) != len(action_lists):
+            raise WebRunnerExecuteException("files must name one action file per action list")
+
+        async def one(action_list: list | dict, file: str | None) -> tuple[dict[str, Any], list[str]]:
             async with gate:
-                return await self.run(action_list, context_options)
-        return list(await asyncio.gather(*(one(action_list) for action_list in action_lists)))
+                return await self.run(action_list, context_options, file)
+        return list(await asyncio.gather(*(one(action_list, file)
+                                           for action_list, file in zip(action_lists, sources))))
 
     async def close(self) -> None:
         """Close the shared browser."""
@@ -140,17 +162,19 @@ async def async_execute_action(action_list: list | dict, browser: str = "chromiu
 
 
 async def async_execute_many(action_lists: Sequence[list | dict], concurrency: int = 4, browser: str = "chromium",
-                             headless: bool = True) -> list[tuple[dict[str, Any], list[str]]]:
-    """Run several action lists concurrently in one browser, one context each."""
+                             headless: bool = True, files: Sequence[str | None] | None = None
+                             ) -> list[tuple[dict[str, Any], list[str]]]:
+    """Run several action lists concurrently in one browser, one context each (``files``: where each came from)."""
     async with AsyncExecutor(browser, headless) as runner:
-        return await runner.run_many(action_lists, concurrency)
+        return await runner.run_many(action_lists, concurrency, files=files)
 
 
 def run_action_lists(action_lists: Sequence[list | dict], concurrency: int = 4, browser: str = "chromium",
-                     headless: bool = True) -> list[tuple[dict[str, Any], list[str]]]:
+                     headless: bool = True, files: Sequence[str | None] | None = None
+                     ) -> list[tuple[dict[str, Any], list[str]]]:
     """
     從同步程式碼執行（自行開啟事件迴圈）
     :func:`async_execute_many` for synchronous callers (the CLI): runs its own event loop,
     so it cannot be called from inside a running one.
     """
-    return asyncio.run(async_execute_many(action_lists, concurrency, browser, headless))
+    return asyncio.run(async_execute_many(action_lists, concurrency, browser, headless, files))

@@ -10,7 +10,7 @@ cannot be called again, which would never end.
 from __future__ import annotations
 
 import contextlib
-import threading
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -21,17 +21,16 @@ MAX_CALL_DEPTH = 20
 
 
 class FileStack:
-    """The action files that are running in this thread, outermost first."""
+    """The action files that are running in this context, outermost first."""
 
     def __init__(self) -> None:
-        # Per thread: ``--parallel`` runs files in a thread pool, and each has its own chain of calls.
-        self._local = threading.local()
+        # Per context: every thread of ``--parallel`` and every list of ``--parallel-mode async`` has
+        # its own chain of calls.
+        self._running: ContextVar[tuple[Path, ...]] = ContextVar(f"webrunner_files_{id(self)}", default=())
 
     @property
-    def _stack(self) -> list[Path]:
-        if not hasattr(self._local, "stack"):
-            self._local.stack = []
-        return self._local.stack
+    def _stack(self) -> tuple[Path, ...]:
+        return self._running.get()
 
     @property
     def current(self) -> Path | None:
@@ -42,12 +41,12 @@ class FileStack:
     def scope(self, path: str | Path) -> Iterator[Path]:
         """Mark ``path`` as the running file for the ``with`` block."""
         resolved = Path(path).resolve()
-        self._stack.append(resolved)
+        token = self._running.set((*self._stack, resolved))
         try:
             with record_file(str(resolved)):  # the reports group the records by this file
                 yield resolved
         finally:
-            self._stack.pop()
+            self._running.reset(token)
 
     def _roots(self) -> list[Path]:
         roots = [Path.cwd().resolve()]

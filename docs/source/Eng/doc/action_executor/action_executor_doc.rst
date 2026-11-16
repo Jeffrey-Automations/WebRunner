@@ -456,7 +456,8 @@ An action can store a value and later actions can use it. The executor replaces
 * Variables belong to the executor (``executor.variables``, a
   ``je_web_runner.utils.flow.VariableStore``) and stay until ``WR_clear_vars``.
   In a directory run, later files see the variables of earlier ones;
-  ``--parallel-mode process`` gives each worker its own.
+  ``--parallel-mode process`` gives each worker its own, and the async executor
+  gives each list a copy (``Executor.isolated_variables``) that ends with the list.
 
 Control Flow
 ------------
@@ -553,8 +554,8 @@ in place, so a shared flow is written once.
 * A relative ``path`` starts at the directory of the file making the call.
   ``execute_files``, ``Executor.execute_file`` and the CLI (``-e``, ``-d``) set
   that file; for ``--execute_str``, ``execute_action``, the socket server, the
-  MCP tools and ``--parallel-mode async`` there is none and the working
-  directory is used.
+  MCP tools there is none and the working directory is used.
+  ``--parallel-mode async`` passes each list's file to the async executor.
 * The called file must be below the working directory or below the directory
   of the file the run started from; ``..`` cannot reach anything else. A file
   that is already running cannot be called again, and calls nest at most 20
@@ -629,7 +630,13 @@ exit status.
 It applies to the actions of a list or file. A single ``execute_one`` call is
 never skipped, a list run from inside an action (``WR_execute_action``) belongs
 to that action, and a ``WR_try`` block that handles its failure does not trip
-it. ``--parallel-mode async`` does not use it.
+it. The async executor applies it per list.
+
+State that belongs to one run (the variables of an isolated list, the files that are
+running, the fail-fast run, a file's ``meta.retries``, the records being tracked) is
+kept per context with ``contextvars``: every thread of ``--parallel`` and every list of
+``--parallel-mode async`` has its own, and a worker thread the async executor starts for
+a sync command sees the state of the list that started it.
 
 Library Commands
 ----------------

@@ -284,7 +284,7 @@ def _run_with_asyncio(files, parallel: int, ledger_path: str | None) -> dict[str
         action_lists.append(actions)
     if not loaded_files:
         return outcome
-    results = run_action_lists(action_lists, concurrency=max(1, parallel))
+    results = run_action_lists(action_lists, concurrency=max(1, parallel), files=loaded_files)
     for path, (record, failed) in zip(loaded_files, results):
         for key, value in record.items():
             print(key)

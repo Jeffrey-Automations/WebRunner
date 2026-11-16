@@ -11,6 +11,7 @@ every action, through :meth:`Executor.attempt`), failure screenshots and traces 
 """
 import contextlib
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -186,7 +187,9 @@ class Executor(ActionExecutor):
             CommandRegistry(policy=CommandPolicy.FUNCTIONS_ONLY, rejection=_refuse_command),
         )
         # 動作清單的變數；${name} 由此展開 / The variables of the action lists; ${name} reads them.
-        self.variables = VariableStore()
+        self._shared_variables = VariableStore()
+        self._context_variables: ContextVar[VariableStore | None] = ContextVar(
+            f"webrunner_variables_{id(self)}", default=None)
         # 正在執行的動作檔；WR_call_file 的相對路徑由此而來
         # The action files that are running; a relative WR_call_file path starts from the current one.
         self.files = FileStack()
@@ -203,6 +206,9 @@ class Executor(ActionExecutor):
         # Global retry policy. retries == 0 disables retry; backoff is in
         # seconds and is multiplied by the (1-based) attempt number.
         self.retry_policy = {"retries": 0, "backoff": 0.0}
+        # A file's own policy (meta.retries) while that file runs in this context; None otherwise.
+        self._file_retry_policy: ContextVar[dict | None] = ContextVar(
+            f"webrunner_file_retries_{id(self)}", default=None)
         # 是否允許將任意 JS / CDP 字串透過 action 送到瀏覽器；預設 True 維持向下
         # 相容，但若 action JSON 來自不可信來源請改 False。
         # Default True for back-compat; flip to False when action JSON comes
@@ -221,6 +227,30 @@ class Executor(ActionExecutor):
         # 只把允許清單裡的內建函式加入事件字典
         # Register only the allowlisted builtins.
         self.event_dict.update(safe_builtin_commands())
+
+    @property
+    def variables(self) -> VariableStore:
+        """
+        動作清單的變數
+        The variables the action lists read and set: one store for the executor, or the store of
+        :meth:`isolated_variables` while its block runs in this context.
+        """
+        return self._context_variables.get() or self._shared_variables
+
+    @contextlib.contextmanager
+    def isolated_variables(self) -> Iterator[VariableStore]:
+        """
+        在區塊內使用一份獨立的變數
+        Give this context its own variables for the ``with`` block: a copy of the current ones, whose
+        changes end with the block. The async executor runs every list in one, so concurrent lists do
+        not see each other's variables.
+        """
+        store = self.variables.copy()
+        token = self._context_variables.set(store)
+        try:
+            yield store
+        finally:
+            self._context_variables.reset(token)
 
     def expand_placeholders(self, action: Any) -> Any:
         """
@@ -276,8 +306,9 @@ class Executor(ActionExecutor):
             return self._execute_with_retry(action)
 
     def _do_with_retry(self, action):
-        retries = int(self.retry_policy.get("retries", 0))
-        backoff = float(self.retry_policy.get("backoff", 0.0))
+        policy = self._file_retry_policy.get() or self.retry_policy
+        retries = int(policy.get("retries", 0))
+        backoff = float(policy.get("backoff", 0.0))
         for attempt in range(retries + 1):
             with track_records() as records:
                 try:
@@ -512,18 +543,24 @@ class Executor(ActionExecutor):
         return actions
 
     @contextlib.contextmanager
-    def _document_run(self, action_list: Any) -> Iterator[None]:
-        """The run of one list: ``meta.retries`` / ``retry_backoff`` and fail-fast apply for its duration."""
+    def document_run(self, action_list: Any) -> Iterator[None]:
+        """
+        一份清單的執行期間
+        The run of one list: its ``meta.retries`` / ``retry_backoff`` and fail-fast apply for the
+        ``with`` block, in this context only, so files running at the same time keep their own.
+        ``retry_policy`` itself is not changed.
+        """
         meta = read_meta(action_list)
         settings = retry_settings(meta)
-        previous = self.retry_policy
         with self.fail_fast.run(fail_fast_setting(meta)):
-            if settings is not None:
-                self.set_retry_policy(*settings)
+            if settings is None:
+                yield
+                return
+            token = self._file_retry_policy.set({"retries": settings[0], "backoff": settings[1]})
             try:
                 yield
             finally:
-                self.retry_policy = previous
+                self._file_retry_policy.reset(token)
 
     def execute_action(self, action_list: Any) -> dict:
         """
@@ -532,12 +569,12 @@ class Executor(ActionExecutor):
         ``webdriver_wrapper``), print and return the records. A failed action is recorded and the
         next one runs.
         """
-        with self._document_run(action_list):
+        with self.document_run(action_list):
             return super().execute_action(action_list)
 
     def collect_action_results(self, action_list: Any) -> tuple[dict, list]:
         """Run ``action_list`` like :meth:`execute_action` without printing; return ``(records, failed)``."""
-        with self._document_run(action_list):
+        with self.document_run(action_list):
             return super().collect_action_results(action_list)
 
     def _failure_text(self, action, error: Exception) -> str:

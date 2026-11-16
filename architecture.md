@@ -209,6 +209,11 @@ process share one driver (`--parallel-mode process` exists for isolation).
   (`utils/flow/failfast.py`, off by default) skips the actions of a list after a failed one, never `teardown`.
 - Tools that read an action file without running it (linter, validator) find the actions inside blocks through
   `utils/flow/structure.py`. A new block command must be added there as well as to `DEFERRED_EXPANSION`.
+- State of one run is per context (`contextvars`), not per process: `Executor.isolated_variables`, `executor.files`,
+  the fail-fast run, a file's `meta.retries` (`Executor.document_run`) and the record tracking of
+  `test_record_class`. A thread of `--parallel`, a list of the async executor and the worker thread it starts for a
+  sync command each see the right one. `executor.retry_policy`, `fail_fast.enabled` and the shared variable store are
+  still process-wide settings.
 - `WR_call_file` reads only files below the working directory or below the directory of the file the run started
   from (`executor.files`, a per-thread `FileStack`, set by `execute_files` / `execute_file` and the CLI), refuses a
   file that is already running and stops at 20 nested calls.

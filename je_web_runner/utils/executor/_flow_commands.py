@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from je_web_runner.utils.executor._bound import Bound
 from je_web_runner.utils.flow import blocks, dataset, subflow
+from je_web_runner.utils.flow.variables import VariableStore
 from je_web_runner.utils.test_object import locator_file
 
 # Commands whose arguments hold actions to run later. The executor leaves their placeholders alone: each
@@ -67,6 +68,26 @@ def _load_locators(executor: Any) -> Callable[..., Any]:
     return load_locators
 
 
+def _store_method(name: str) -> Bound:
+    """
+    A table entry for a method of the executor's variable store. The store is looked up at every call: a
+    list run by the async executor has its own (``Executor.isolated_variables``).
+    """
+    method = getattr(VariableStore, name)
+    signature = inspect.signature(method)
+    public = signature.replace(parameters=list(signature.parameters.values())[1:])
+
+    def factory(executor: Any) -> Callable[..., Any]:
+        @functools.wraps(method)
+        def command(*args: Any, **kwargs: Any) -> Any:
+            return getattr(executor.variables, name)(*args, **kwargs)
+
+        command.__signature__ = public  # type: ignore[attr-defined]  # without ``self``
+        return command
+
+    return Bound(factory)
+
+
 def _block(function: Callable[..., Any]) -> Bound:
     """A table entry for a block function whose first parameter is the executor."""
     signature = inspect.signature(function)
@@ -84,11 +105,11 @@ def _block(function: Callable[..., Any]) -> Bound:
 
 
 FLOW_COMMANDS: dict[str, Any] = {
-    "WR_set_var": Bound(lambda executor: executor.variables.set),
-    "WR_get_var": Bound(lambda executor: executor.variables.get),
-    "WR_unset_var": Bound(lambda executor: executor.variables.unset),
-    "WR_clear_vars": Bound(lambda executor: executor.variables.clear),
-    "WR_list_vars": Bound(lambda executor: executor.variables.names),
+    "WR_set_var": _store_method("set"),
+    "WR_get_var": _store_method("get"),
+    "WR_unset_var": _store_method("unset"),
+    "WR_clear_vars": _store_method("clear"),
+    "WR_list_vars": _store_method("names"),
     "WR_capture": Bound(_capture),
     "WR_use_row": Bound(_use_row),
     "WR_load_locators": Bound(_load_locators),

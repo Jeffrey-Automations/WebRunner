@@ -52,6 +52,13 @@ class VariableStore:
     def __init__(self) -> None:
         self._frames: list[dict[str, Any]] = [{}]
 
+    def copy(self) -> "VariableStore":
+        """A new store holding the variables visible now, in one frame; later changes are its own."""
+        duplicate = VariableStore()
+        for frame in self._frames:
+            duplicate._frames[0].update(frame)  # pylint: disable=protected-access
+        return duplicate
+
     def _frame_of(self, name: str) -> dict[str, Any] | None:
         for frame in reversed(self._frames):
             if name in frame:

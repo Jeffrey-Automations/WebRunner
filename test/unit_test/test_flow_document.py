@@ -146,6 +146,13 @@ class TestExecutorDocuments(unittest.TestCase):
         self.assertEqual((list(records.values()), failed), (["ready"], []))
         self.assertEqual(self.executor.retry_policy, {"retries": 0, "backoff": 0.0})
 
+    def test_meta_retries_do_not_touch_the_executors_policy(self):
+        seen = []
+        self.executor.event_dict["WR_policy"] = lambda: seen.append(dict(self.executor.retry_policy))
+        self.executor.set_retry_policy(1, 0.0)
+        self._run({"meta": {"retries": 5}, "webdriver_wrapper": [["WR_policy"]]})
+        self.assertEqual(seen, [{"retries": 1, "backoff": 0.0}])
+
     def test_retries_are_restored_when_the_document_is_invalid(self):
         self.executor.set_retry_policy(1, 0.0)
         with self.assertRaises(Exception):

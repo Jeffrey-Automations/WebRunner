@@ -72,6 +72,77 @@ class TestAsyncExecutor(unittest.TestCase):
         self.assertEqual(session.calls, [1, 2])
         self.assertTrue(session.closed)
 
+    def test_concurrent_lists_have_their_own_variables(self):
+        self.sync.variables.set("shared", "from-run")
+        lists = [[["WR_set_var", ["who", name]], ["WR_apw_echo", ["${who}/${shared}"]]] for name in "abcdef"]
+        results = self._run(self.runner.run_many(lists, concurrency=6))
+        answers = [list(record.values())[1].split(":")[1] for record, _failed in results]
+        self.assertEqual(answers, [f"{name}/from-run" for name in "abcdef"])
+        self.assertFalse(self.sync.variables.has("who"))
+        self.assertEqual(self.sync.variables.get("shared"), "from-run")
+
+    def test_fail_fast_skips_the_rest_of_an_async_list_but_not_teardown(self):
+        document = {
+            "meta": {"fail_fast": True, "teardown": [["WR_apw_echo", ["teardown"]]]},
+            "webdriver_wrapper": [["WR_apw_boom"], ["WR_apw_echo", ["skipped"]], ["WR_probe"]],
+        }
+        record, failed = self._run(self.runner.run(document))
+        self.assertEqual(len(failed), 3)
+        self.assertEqual(self.sync_threads, [])
+        self.assertEqual(self.runner.pool.sessions[0].calls, ["teardown"])
+        self.assertIn("fail-fast", list(record.values())[1])
+
+    def test_meta_retries_apply_to_the_sync_commands_of_that_list_only(self):
+        attempts = {"flaky": 0, "plain": 0}
+
+        def fail_twice(name):
+            attempts[name] += 1
+            if attempts[name] < 3:
+                raise ValueError("not yet")
+            return "ready"
+
+        self.sync.event_dict["WR_fail_twice"] = fail_twice
+        retried = {"meta": {"retries": 2}, "webdriver_wrapper": [["WR_fail_twice", ["flaky"]]]}
+        plain = [["WR_fail_twice", ["plain"]]]
+        results = self._run(self.runner.run_many([retried, plain], concurrency=2))
+        self.assertEqual([len(failed) for _record, failed in results], [0, 1])
+        self.assertEqual(attempts, {"flaky": 3, "plain": 1})
+        self.assertEqual(self.sync.retry_policy, {"retries": 0, "backoff": 0.0})
+
+    def test_fail_fast_is_per_list(self):
+        failing = {"meta": {"fail_fast": True}, "webdriver_wrapper": [["WR_apw_boom"], ["WR_apw_echo", [1]]]}
+        passing = [["WR_apw_echo", [2]], ["WR_apw_echo", [3]]]
+        results = self._run(self.runner.run_many([failing, passing], concurrency=2))
+        self.assertEqual([len(failed) for _record, failed in results], [2, 0])
+
+    def test_the_file_of_a_list_is_its_calling_file_and_marks_its_records(self):
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+        from je_web_runner.utils.test_record.test_record_class import record_action_to_list, test_record_instance
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = Path(directory.name).resolve()
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(root)
+        (root / "suite").mkdir()
+        (root / "suite" / "part.json").write_text(json.dumps([["WR_recorded"]]), encoding="utf-8")
+        self.sync.event_dict["WR_recorded"] = lambda: record_action_to_list("recorded", None)
+        self.addCleanup(test_record_instance.set_record_enable, test_record_instance.init_record)
+        self.addCleanup(setattr, test_record_instance, "test_record_list", test_record_instance.test_record_list)
+        test_record_instance.test_record_list = []
+        test_record_instance.set_record_enable(True)
+        main_file = str(root / "suite" / "main.json")
+        _record, failed = self._run(self.runner.run([["WR_call_file", {"path": "part.json"}]], file=main_file))
+        self.assertEqual(failed, [])
+        self.assertEqual([entry.get("file") for entry in test_record_instance.test_record_list], [main_file])
+        self.assertIsNone(self.sync.files.current)
+
+    def test_files_must_match_the_lists(self):
+        with self.assertRaises(WebRunnerExecuteException):
+            self._run(self.runner.run_many([[], []], files=["only-one.json"]))
+
     def test_variables_reach_async_commands(self):
         record, failed = self._run(self.runner.run([
             ["WR_set_var", {"name": "who", "value": "alice"}],

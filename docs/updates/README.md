@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-26 | 2026-11-16 | Async lists get their own variables, file, fail-fast and retries (closes #28) | #done #executor #async #flow | [2026-11](2026-11.md) |
 | U-20261116-25 | 2026-11-16 | Library leads reported while the adapters were written | #snapshot #quality | [2026-11](2026-11.md) |
 | U-20261116-24 | 2026-11-16 | Adapter commands: every utils subpackage reachable from action files (closes #30) | #done #executor #commands | [2026-11](2026-11.md) |
 | U-20261116-23 | 2026-11-16 | utils index went stale when utils/cli gained a module | #incident #ci #docs | [2026-11](2026-11.md) |
@@ -204,7 +205,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 29 |
+| [2026-11.md](2026-11.md) | 2026-11 | 30 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |

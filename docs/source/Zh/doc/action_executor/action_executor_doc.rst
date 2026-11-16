@@ -144,7 +144,8 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 * 變數屬於執行器（``executor.variables``，一個
   ``je_web_runner.utils.flow.VariableStore``），會一直保留到 ``WR_clear_vars``。
   以目錄執行時，後面的檔案看得到前面檔案的變數；``--parallel-mode process``
-  讓每個工作行程各有一份。
+  讓每個工作行程各有一份；非同步執行器則給每份清單一份副本
+  （``Executor.isolated_variables``），隨清單結束。
 
 流程控制
 --------
@@ -230,8 +231,8 @@ Selenium wrapper 呼叫失敗時（``WR_to_url``、``WR_element_click``、
 * ``params`` 會成為被呼叫檔案的變數，呼叫結束即消失。呼叫端的其他變數也看得到。
 * 相對的 ``path`` 從發出呼叫的檔案所在目錄算起。``execute_files``、
   ``Executor.execute_file`` 與 CLI（``-e``、``-d``）會設定這個檔案；
-  ``--execute_str``、``execute_action``、socket server、MCP 工具與
-  ``--parallel-mode async`` 沒有檔案可依據，改用工作目錄。
+  ``--execute_str``、``execute_action``、socket server 與 MCP 工具沒有檔案可依據，改用工作
+  目錄。``--parallel-mode async`` 會把每份清單的檔案交給非同步執行器。
 * 被呼叫的檔案必須在工作目錄之下，或在這次執行起始檔案的目錄之下；``..`` 到不了
   其他地方。正在執行的檔案不能再被呼叫，呼叫最多巢狀 20 層。
 * 第一個失敗的動作會中止被呼叫的檔案，並讓 ``WR_call_file`` 這個動作失敗。
@@ -291,7 +292,12 @@ Fail-fast
 
 它作用於一份清單或一個檔案的動作。單次的 ``execute_one`` 呼叫永遠不會被跳過；從動作
 內部執行的清單（``WR_execute_action``）屬於那個動作；自行處理失敗的 ``WR_try`` 區塊
-不會觸發它。``--parallel-mode async`` 不使用它。
+不會觸發它。非同步執行器會對每份清單各自套用。
+
+屬於單次執行的狀態（隔離清單的變數、正在執行的檔案、fail-fast 的執行、檔案的
+``meta.retries``、追蹤中的紀錄）以 ``contextvars`` 依脈絡保存：``--parallel`` 的每個執行緒與
+``--parallel-mode async`` 的每份清單各有一份，非同步執行器為同步指令啟動的工作執行緒看到的
+是啟動它的那份清單的狀態。
 
 函式庫指令
 ----------
