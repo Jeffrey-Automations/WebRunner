@@ -5,6 +5,7 @@ poison test runs.
 """
 from __future__ import annotations
 
+from typing import Any
 
 from je_web_runner.utils.cdp.cdp_commands import playwright_cdp, selenium_cdp
 from je_web_runner.utils.exception.exceptions import WebRunnerException
@@ -47,7 +48,8 @@ def selenium_unregister_service_workers() -> list[bool]:
     driver = webdriver_wrapper_instance.current_webdriver
     if driver is None:
         raise ServiceWorkerError("no Selenium driver active")
-    return driver.execute_async_script(_UNREGISTER_JS) or []
+    unregistered: Any = driver.execute_async_script(_UNREGISTER_JS)
+    return unregistered or []
 
 
 def selenium_clear_caches() -> list[str]:
@@ -59,7 +61,8 @@ def selenium_clear_caches() -> list[str]:
     driver = webdriver_wrapper_instance.current_webdriver
     if driver is None:
         raise ServiceWorkerError("no Selenium driver active")
-    return driver.execute_async_script(_CACHES_CLEAR_JS) or []
+    cleared: Any = driver.execute_async_script(_CACHES_CLEAR_JS)
+    return cleared or []
 
 
 def selenium_bypass_service_worker(bypass: bool = True) -> None:

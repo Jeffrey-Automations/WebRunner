@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from je_web_runner.utils.async_executor.session import AsyncSession
 from je_web_runner.utils.exception.exceptions import WebRunnerException
@@ -131,7 +131,7 @@ async def wait_for_websocket_message(session: AsyncSession, contains: str, timeo
         await asyncio.sleep(0.05)
 
 
-ASYNC_COMMANDS = {
+ASYNC_COMMANDS: dict[str, Callable[..., Awaitable[Any]]] = {
     "WR_apw_goto": goto,
     "WR_apw_new_page": new_page,
     "WR_apw_switch_to_page": switch_to_page,

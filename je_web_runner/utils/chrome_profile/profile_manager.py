@@ -134,6 +134,30 @@ def _is_session_critical(rel_path: str) -> bool:
     return normalised in SESSION_CRITICAL_PATHS
 
 
+def _copy_profile_files(profile_dir: Path, snapshot_dir: Path, full_copy: bool) -> tuple[int, list[str]]:
+    """Copy the profile tree into ``snapshot_dir``; the copied-file count and the files that could not be copied."""
+    copied = 0
+    skipped: list[str] = []
+    profile_root_str = str(profile_dir)
+    for root, dirs, files in os.walk(profile_dir, topdown=True):
+        if not full_copy:
+            dirs[:] = [d for d in dirs if d not in SNAPSHOT_IGNORE_NAMES]
+        rel_root = os.path.relpath(root, profile_root_str)
+        target_root = snapshot_dir if rel_root == "." else snapshot_dir / rel_root
+        target_root.mkdir(parents=True, exist_ok=True)
+        for fname in files:
+            if fname in SINGLETON_LOCK_FILES:
+                continue
+            src = Path(root) / fname
+            dst = target_root / fname
+            try:
+                shutil.copy2(src, dst)
+                copied += 1
+            except OSError as error:  # shutil.Error is a subclass of OSError
+                skipped.append(f"{rel_root}/{fname}: {error!r}")
+    return copied, skipped
+
+
 def snapshot_chrome_profile(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     profile_dir: Path,
     snapshot_dir: Path,
@@ -164,25 +188,7 @@ def snapshot_chrome_profile(  # NOSONAR S3776 — cohesive logic; planned refact
             ) from error
     snapshot_dir.mkdir(parents=True, exist_ok=True)
 
-    copied = 0
-    skipped: list[str] = []
-    profile_root_str = str(profile_dir)
-    for root, dirs, files in os.walk(profile_dir, topdown=True):
-        if not full_copy:
-            dirs[:] = [d for d in dirs if d not in SNAPSHOT_IGNORE_NAMES]
-        rel_root = os.path.relpath(root, profile_root_str)
-        target_root = snapshot_dir if rel_root == "." else snapshot_dir / rel_root
-        target_root.mkdir(parents=True, exist_ok=True)
-        for fname in files:
-            if fname in SINGLETON_LOCK_FILES:
-                continue
-            src = Path(root) / fname
-            dst = target_root / fname
-            try:
-                shutil.copy2(src, dst)
-                copied += 1
-            except OSError as error:  # shutil.Error is a subclass of OSError
-                skipped.append(f"{rel_root}/{fname}: {error!r}")
+    copied, skipped = _copy_profile_files(profile_dir, snapshot_dir, full_copy)
     web_runner_logger.info(
         f"snapshot_chrome_profile: copied={copied} skipped={len(skipped)} → {snapshot_dir}"
     )
@@ -292,7 +298,7 @@ def build_stealth_chrome_driver(
         run_dir = profile_dir
 
     opts = build_chrome_options(run_dir, flags=flags)
-    service_kwargs = {}
+    service_kwargs: dict[str, Any] = {}
     if chromedriver_log is not None:
         # Selenium 4.x maps a string ``log_output`` to chromedriver's
         # ``--log-path``; the old ``log_path`` kwarg is swallowed by the
@@ -309,7 +315,7 @@ def build_stealth_chrome_driver(
         web_runner_logger.warning(
             f"first chrome spawn failed: {first_err!r}; rebuilding snapshot and retrying"
         )
-        if snapshot_path is not None:
+        if snapshot_dir is not None:
             snapshot_path = snapshot_chrome_profile(profile_dir, Path(snapshot_dir))
             cleanup_chrome_locks(snapshot_path)
             run_dir = snapshot_path
@@ -414,6 +420,23 @@ def build_playwright_persistent_context(
 
 # ----- optional Windows-only window minimise hook --------------------------
 
+def _chrome_pids_of_profile(psutil: Any, profile_dir: Path) -> set[int]:
+    """The pids of the chrome.exe processes whose command line names ``profile_dir``."""
+    profile_marker = str(Path(profile_dir)).replace("\\", "/").lower()
+    target_pids: set[int] = set()
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        try:
+            name = (proc.info.get("name") or "").lower()
+            if name != "chrome.exe":
+                continue
+            cmdline = " ".join(proc.info.get("cmdline") or []).replace("\\", "/").lower()
+            if profile_marker in cmdline:
+                target_pids.add(proc.info["pid"])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return target_pids
+
+
 def minimise_chrome_windows(profile_dir: Path) -> int:
     """
     Win32 路徑 minimise 所有跑這個 profile 的 chrome.exe 視窗。
@@ -435,19 +458,7 @@ def minimise_chrome_windows(profile_dir: Path) -> int:
         )
         return 0
 
-    profile_marker = str(Path(profile_dir)).replace("\\", "/").lower()
-    target_pids = set()
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
-        try:
-            name = (proc.info.get("name") or "").lower()
-            if name != "chrome.exe":
-                continue
-            cmdline = " ".join(proc.info.get("cmdline") or []).replace("\\", "/").lower()
-            if profile_marker in cmdline:
-                target_pids.add(proc.info["pid"])
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-
+    target_pids = _chrome_pids_of_profile(psutil, profile_dir)
     hidden = 0
 
     def _maybe_minimise(hwnd, _arg):

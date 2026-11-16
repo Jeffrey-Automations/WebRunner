@@ -96,7 +96,7 @@ def load_spec(spec_path: str | Path) -> dict[str, Any]:
     except ValueError:
         pass
     try:
-        import yaml  # type: ignore[import-not-found]
+        import yaml  # type: ignore[import-not-found,import-untyped]
     except ImportError as error:
         raise OpenAPIGeneratorError(
             f"YAML spec but PyYAML not installed: pip install pyyaml ({path})"
@@ -151,7 +151,41 @@ _TYPE_DEFAULTS: dict[str, Any] = {
 }
 
 
-def synthesize_example(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+_NO_EXAMPLE = object()
+
+
+def _declared_example(schema: dict[str, Any]) -> Any:
+    """A copy of the schema's own ``example`` / ``examples`` / ``default``, or ``_NO_EXAMPLE``."""
+    if "example" in schema:
+        return copy.deepcopy(schema["example"])
+    if "examples" in schema:
+        examples = schema["examples"]
+        if isinstance(examples, dict):
+            first = next(iter(examples.values()), None)
+            if isinstance(first, dict) and "value" in first:
+                return copy.deepcopy(first["value"])
+            if first is not None:
+                return copy.deepcopy(first)
+        if isinstance(examples, list) and examples:
+            return copy.deepcopy(examples[0])
+    if "default" in schema:
+        return copy.deepcopy(schema["default"])
+    return _NO_EXAMPLE
+
+
+def _object_example(spec: dict[str, Any], schema: dict[str, Any], depth: int) -> dict[str, Any]:
+    """An example object: every property when none is required, else the required ones."""
+    out: dict[str, Any] = {}
+    properties = schema.get("properties") or {}
+    required = set(schema.get("required") or [])
+    for key, prop in properties.items():
+        if required and key not in required:
+            continue
+        out[key] = synthesize_example(spec, prop, depth=depth + 1)
+    return out
+
+
+def synthesize_example(  # NOSONAR S3776 — cohesive logic
     spec: dict[str, Any],
     schema: Any,
     *,
@@ -167,30 +201,12 @@ def synthesize_example(  # NOSONAR S3776 — cohesive logic; planned refactor in
     schema = _maybe_resolve(spec, schema, depth=depth)
     if not isinstance(schema, dict):
         return None
-    if "example" in schema:
-        return copy.deepcopy(schema["example"])
-    if "examples" in schema:
-        examples = schema["examples"]
-        if isinstance(examples, dict):
-            first = next(iter(examples.values()), None)
-            if isinstance(first, dict) and "value" in first:
-                return copy.deepcopy(first["value"])
-            if first is not None:
-                return copy.deepcopy(first)
-        if isinstance(examples, list) and examples:
-            return copy.deepcopy(examples[0])
-    if "default" in schema:
-        return copy.deepcopy(schema["default"])
+    declared = _declared_example(schema)
+    if declared is not _NO_EXAMPLE:
+        return declared
     schema_type = schema.get("type")
     if schema_type == "object" or "properties" in schema:
-        out: dict[str, Any] = {}
-        properties = schema.get("properties") or {}
-        required = set(schema.get("required") or [])
-        for key, prop in properties.items():
-            if required and key not in required:
-                continue
-            out[key] = synthesize_example(spec, prop, depth=depth + 1)
-        return out
+        return _object_example(spec, schema, depth)
     if schema_type == "array":
         items = schema.get("items")
         if items:
@@ -229,7 +245,7 @@ def _base_url(spec: dict[str, Any]) -> str:
 _PATH_PARAM_RE = re.compile(r"\{([^{}]+)\}")
 
 
-def _expand_path(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def _expand_path(  # NOSONAR S3776 — cohesive logic
     template: str,
     parameters: list[dict[str, Any]],
     spec: dict[str, Any],
@@ -310,7 +326,7 @@ def _build_action(
     return [_action_command(method), kwargs]
 
 
-def _request_body_example(spec: dict[str, Any], operation: dict[str, Any]) -> Any:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def _request_body_example(spec: dict[str, Any], operation: dict[str, Any]) -> Any:  # NOSONAR S3776 — cohesive logic
     body = operation.get("requestBody")
     if isinstance(body, dict):
         body = _maybe_resolve(spec, body)

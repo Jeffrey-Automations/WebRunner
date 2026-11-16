@@ -92,12 +92,12 @@ def run_locust(
     :param run_seconds: 總時長 / total run time in seconds
     :return: dict with ``total`` and ``per_endpoint``
     """
-    if not isinstance(host, str) or not (host.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not isinstance(host, str) or not (host.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list
         raise LoadTestError(f"host must be http(s): {host!r}")
     web_runner_logger.info(f"run_locust host={host} users={num_users} run_seconds={run_seconds}")
     _http_user_cls, _between, _task, environment_cls = _require_locust()
     user_class = build_http_user_class(actions, wait_min=wait_min, wait_max=wait_max)
-    user_class.host = host
+    setattr(user_class, "host", host)
 
     env = environment_cls(user_classes=[user_class])
     runner = env.create_local_runner()

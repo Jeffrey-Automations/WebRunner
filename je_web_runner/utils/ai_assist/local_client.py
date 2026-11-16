@@ -6,7 +6,7 @@ import json
 from typing import Any, Callable, TypeVar
 from urllib.parse import urlsplit
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from je_web_runner.utils.ai_assist.llm_assist import LLMAssistError
 from je_web_runner.utils.exception.exceptions import WebRunnerException

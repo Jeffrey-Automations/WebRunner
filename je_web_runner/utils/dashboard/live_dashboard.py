@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, cast
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -120,7 +120,7 @@ class LiveDashboard:
     def address(self) -> str:
         if self._server is None:
             raise DashboardError("dashboard is not running")
-        host, port = self._server.server_address
+        host, port = cast("tuple[str, int]", self._server.server_address)
         # Local-only progress dashboard, served over plain HTTP by design;
         # SonarCloud S5332 is a false positive on this URL builder.
         return f"http://{host}:{port}"  # NOSONAR

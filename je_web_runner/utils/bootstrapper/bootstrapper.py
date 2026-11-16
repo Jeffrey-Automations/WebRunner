@@ -85,7 +85,7 @@ python -m je_web_runner --validate ./actions
 """
 
 
-_DRIVERS_PIN_TEMPLATE = {
+_DRIVERS_PIN_TEMPLATE: dict[str, list] = {
     "drivers": []
 }
 

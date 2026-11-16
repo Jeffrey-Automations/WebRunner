@@ -109,6 +109,7 @@ def _render_svg(points: list[A11yTrendPoint]) -> str:
     plot_w = width - 2 * margin
     plot_h = height - 2 * margin
     n = len(points)
+    x_step: float
     if n == 1:
         x_step = 0
     else:

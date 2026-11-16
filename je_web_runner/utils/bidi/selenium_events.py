@@ -109,8 +109,9 @@ def _har_entry(request_params: dict[str, Any], response_params: dict[str, Any]) 
     response = response_params.get("response", {})
     started = request_params.get("timestamp")
     finished = response_params.get("timestamp")
-    timed = isinstance(started, (int, float)) and isinstance(finished, (int, float))
-    elapsed = max(0.0, float(finished - started)) if timed else 0.0
+    elapsed = 0.0
+    if isinstance(started, (int, float)) and isinstance(finished, (int, float)):
+        elapsed = max(0.0, float(finished - started))
     return {
         "startedDateTime": _iso(started),
         "time": elapsed,

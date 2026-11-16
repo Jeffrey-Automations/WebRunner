@@ -39,7 +39,7 @@ def normalise_path(path: str, normalise_params: bool = True) -> str:
     if not normalise_params:
         return cleaned
     parts = cleaned.split("/")
-    canonical = []
+    canonical: list[str] = []
     for segment in parts:
         if not segment:
             canonical.append(segment)

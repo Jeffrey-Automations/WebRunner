@@ -120,6 +120,7 @@ def pinch(
         raise TouchGestureError("steps must be >= 2")
     cx, cy = centre
     _validate_point(cx, cy)
+
     def at(r: float) -> tuple[TouchPoint, TouchPoint]:
         return (TouchPoint(x=cx - r, y=cy, id=1),
                 TouchPoint(x=cx + r, y=cy, id=2))

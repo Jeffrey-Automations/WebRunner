@@ -72,7 +72,7 @@ def _classify_type(files: Sequence[str], commits: Sequence[str]) -> str:
 
 
 def _infer_scope(files: Sequence[str]) -> str:
-    tops = Counter()
+    tops: Counter[str] = Counter()
     for path in files:
         parts = path.replace("\\", "/").split("/")
         # use second segment if path is "src/<scope>/..."

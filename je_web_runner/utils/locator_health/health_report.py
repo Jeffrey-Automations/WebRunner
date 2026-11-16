@@ -372,6 +372,29 @@ def suggest_upgrades(
     return suggestions
 
 
+def _locator_kwargs(action: Any) -> dict[str, Any] | None:
+    """The kwargs dict of an ``[name, ..., {kwargs}]`` action, or None when it has none."""
+    if not isinstance(action, list) or len(action) < 2:
+        return None
+    if len(action) >= 3 and isinstance(action[2], dict):
+        return action[2]
+    if isinstance(action[1], dict):
+        return action[1]
+    return None
+
+
+def _rewrite_locator(kwargs: dict[str, Any], suggestion: UpgradeSuggestion) -> None:
+    """Point the locator keys ``kwargs`` has at the suggested strategy and value."""
+    if "object_type" in kwargs:
+        kwargs["object_type"] = suggestion.to_strategy
+    if "strategy" in kwargs:
+        kwargs["strategy"] = suggestion.to_strategy
+    if "test_object_name" in kwargs:
+        kwargs["test_object_name"] = suggestion.to_value
+    if "value" in kwargs:
+        kwargs["value"] = suggestion.to_value
+
+
 def apply_upgrades(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     actions: list[Any],
     suggestions: Iterable[UpgradeSuggestion],
@@ -391,24 +414,9 @@ def apply_upgrades(  # NOSONAR S3776 — cohesive logic; planned refactor in fol
         suggestion = by_index.get(index)
         if suggestion is None:
             continue
-        if not isinstance(action, list) or len(action) < 2:
-            continue
-        if len(action) >= 3 and isinstance(action[2], dict):
-            kwargs = action[2]
-        elif isinstance(action[1], dict):
-            kwargs = action[1]
-        else:
-            kwargs = None
-        if kwargs is None:
-            continue
-        if "object_type" in kwargs:
-            kwargs["object_type"] = suggestion.to_strategy
-        if "strategy" in kwargs:
-            kwargs["strategy"] = suggestion.to_strategy
-        if "test_object_name" in kwargs:
-            kwargs["test_object_name"] = suggestion.to_value
-        if "value" in kwargs:
-            kwargs["value"] = suggestion.to_value
+        kwargs = _locator_kwargs(action)
+        if kwargs is not None:
+            _rewrite_locator(kwargs, suggestion)
     return new_actions
 
 

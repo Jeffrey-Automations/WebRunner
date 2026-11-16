@@ -82,7 +82,7 @@ def compute_cost(
     record: CallRecord, *,
     rate_card_override: Mapping[str, Mapping[str, float]] | None = None,
 ) -> float:
-    rates = dict(DEFAULT_RATE_CARD)
+    rates: dict[str, Mapping[str, float]] = dict(DEFAULT_RATE_CARD)
     if rate_card_override:
         rates.update(rate_card_override)
     prices = _resolve_price(record.model, rates)

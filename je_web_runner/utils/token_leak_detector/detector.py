@@ -137,6 +137,7 @@ def _looks_like_jwt(value: str) -> bool:
         return False
     return isinstance(header, dict) and "alg" in header
 
+
 # ---------- core scan ---------------------------------------------------
 
 def _extract_token(match: re.Match[str]) -> str:

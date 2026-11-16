@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
@@ -76,9 +76,14 @@ def assert_meta_present(meta: ViewportMeta | None) -> None:
         )
 
 
-def assert_responsive_width(meta: ViewportMeta | None) -> None:
+def _present(meta: ViewportMeta | None) -> ViewportMeta:
+    """``meta`` once :func:`assert_meta_present` has ruled out None."""
     assert_meta_present(meta)
-    width = meta.parsed.get("width")
+    return cast(ViewportMeta, meta)
+
+
+def assert_responsive_width(meta: ViewportMeta | None) -> None:
+    width = _present(meta).parsed.get("width")
     if width != "device-width":
         raise ViewportAuditError(
             f"viewport width={width!r}, expected 'device-width'"
@@ -87,7 +92,7 @@ def assert_responsive_width(meta: ViewportMeta | None) -> None:
 
 def assert_user_scalable_allowed(meta: ViewportMeta | None) -> None:
     """A11y / WCAG 1.4.4: pinch-zoom must not be disabled."""
-    assert_meta_present(meta)
+    meta = _present(meta)
     scalable = meta.parsed.get("user-scalable")
     if scalable in ("no", "0"):
         raise ViewportAuditError(
@@ -108,8 +113,7 @@ def assert_user_scalable_allowed(meta: ViewportMeta | None) -> None:
 
 
 def assert_notch_aware(meta: ViewportMeta | None) -> None:
-    assert_meta_present(meta)
-    fit = meta.parsed.get("viewport-fit")
+    fit = _present(meta).parsed.get("viewport-fit")
     if fit != "cover":
         raise ViewportAuditError(
             f"viewport-fit={fit!r}, expected 'cover' "

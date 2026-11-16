@@ -228,6 +228,29 @@ def assert_csv_row_count(
 
 # ---------- Excel ---------------------------------------------------------
 
+def _worksheet(workbook: Any, sheet: str | int | None) -> Any:
+    """The sheet named by ``sheet``: the active one, one by position, or one by name."""
+    if sheet is None:
+        return workbook.active
+    if isinstance(sheet, int):
+        return workbook.worksheets[sheet]
+    return workbook[sheet]
+
+
+def _sheet_rows(worksheet: Any) -> list[dict[str, Any]]:
+    """The rows of ``worksheet`` as dicts keyed by its first row."""
+    rows_iter = worksheet.iter_rows(values_only=True)
+    try:
+        header = next(rows_iter)
+    except StopIteration:
+        return []
+    headers = [str(h) if h is not None else f"col_{i}" for i, h in enumerate(header)]
+    return [
+        {headers[i]: value for i, value in enumerate(row) if i < len(headers)}
+        for row in rows_iter
+    ]
+
+
 def read_excel_rows(
     path: str | Path,
     *,
@@ -242,7 +265,7 @@ def read_excel_rows(
     if not p.is_file():
         raise DownloadVerifyError(f"Excel file not found: {p}")
     try:
-        from openpyxl import load_workbook  # type: ignore[import-not-found]
+        from openpyxl import load_workbook  # type: ignore[import-not-found,import-untyped]
     except ImportError as error:
         raise DownloadVerifyError(
             "Excel extraction requires openpyxl. Install: pip install openpyxl"
@@ -252,22 +275,7 @@ def read_excel_rows(
     except Exception as error:
         raise DownloadVerifyError(f"cannot open {p}: {error!r}") from error
     try:
-        if sheet is None:
-            ws = wb.active
-        elif isinstance(sheet, int):
-            ws = wb.worksheets[sheet]
-        else:
-            ws = wb[sheet]
-        rows_iter = ws.iter_rows(values_only=True)
-        try:
-            header = next(rows_iter)
-        except StopIteration:
-            return []
-        headers = [str(h) if h is not None else f"col_{i}" for i, h in enumerate(header)]
-        return [
-            {headers[i]: value for i, value in enumerate(row) if i < len(headers)}
-            for row in rows_iter
-        ]
+        return _sheet_rows(_worksheet(wb, sheet))
     finally:
         wb.close()
 

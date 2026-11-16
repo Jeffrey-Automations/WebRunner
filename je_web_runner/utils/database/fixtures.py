@@ -114,8 +114,9 @@ def _build_insert(table: str, columns: list[str], quote: str) -> str:
     """Construct an INSERT with already-validated identifiers."""
     placeholder = ", ".join(f":{col}" for col in columns)
     column_text = ", ".join(f"{quote}{col}{quote}" for col in columns)
+    # B608: the identifiers are validated by _safe_identifier.
     # nosemgrep: python_sql_rule-hardcoded-sql-expression
-    return f"INSERT INTO {quote}{table}{quote} ({column_text}) VALUES ({placeholder})"  # nosec B608 — identifiers validated by _safe_identifier
+    return f"INSERT INTO {quote}{table}{quote} ({column_text}) VALUES ({placeholder})"  # nosec B608
 
 
 def _build_delete(table: str, quote: str) -> str:

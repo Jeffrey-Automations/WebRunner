@@ -58,7 +58,7 @@ Translator = Callable[[Any, Callable[[BidiEvent], None]], Callable[[], None]]
 
 
 def _selenium_console_translator(target: Any,
-                                  callback: Callable[[BidiEvent], None]) -> Callable[[], None]:
+                                 callback: Callable[[BidiEvent], None]) -> Callable[[], None]:
     if not hasattr(target, "script") or not hasattr(target.script, "add_console_message_handler"):
         raise BidiBackendError("driver.script.add_console_message_handler missing")
 

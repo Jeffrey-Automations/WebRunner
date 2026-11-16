@@ -179,6 +179,34 @@ class VisualReviewServer:
 _TEXT_PLAIN = "text/plain"
 
 
+def _image_response(server: VisualReviewServer, request_path: str) -> tuple[int, bytes, str]:
+    """Status, body and content type for an ``/img/<bucket>/<name>`` request."""
+    bucket, _, name = request_path[5:].partition("/")  # strip "/img/"
+    base = server.baseline_dir if bucket == "baseline" else server.current_dir
+    target = (Path(base) / name).resolve()
+    try:
+        target.relative_to(Path(base).resolve())
+    except ValueError:
+        return 404, b"", _TEXT_PLAIN
+    if not target.is_file():
+        return 404, b"", _TEXT_PLAIN
+    return 200, target.read_bytes(), "image/png"
+
+
+def _accept_from_form(server: VisualReviewServer, body: str) -> tuple[int, bytes, str] | None:
+    """Accept the baseline named in the form ``body``; the refusal response, or None once accepted."""
+    params = parse_qs(body)
+    names = params.get("name") or []
+    if not names:
+        return 400, b"missing name", _TEXT_PLAIN
+    try:
+        accept_baseline(server.baseline_dir, server.current_dir, names[0])
+    except VisualReviewError as error:
+        return 400, str(error).encode("utf-8"), _TEXT_PLAIN
+    server.accepted.append(names[0])
+    return None
+
+
 def _make_handler(server: VisualReviewServer) -> Callable:
 
     class _ReviewHandler(BaseHTTPRequestHandler):
@@ -208,18 +236,7 @@ def _make_handler(server: VisualReviewServer) -> Callable:
             self._send(404, b"not found", _TEXT_PLAIN)
 
         def _serve_image(self, request_path: str) -> None:
-            bucket, _, name = request_path[5:].partition("/")  # strip "/img/"
-            base = server.baseline_dir if bucket == "baseline" else server.current_dir
-            target = (Path(base) / name).resolve()
-            try:
-                target.relative_to(Path(base).resolve())
-            except ValueError:
-                self._send(404, b"", _TEXT_PLAIN)
-                return
-            if not target.is_file():
-                self._send(404, b"", _TEXT_PLAIN)
-                return
-            self._send(200, target.read_bytes(), "image/png")
+            self._send(*_image_response(server, request_path))
 
         def do_POST(self):
             if self.path != "/accept":
@@ -227,17 +244,10 @@ def _make_handler(server: VisualReviewServer) -> Callable:
                 return
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length).decode("utf-8") if length else ""
-            params = parse_qs(body)
-            names = params.get("name") or []
-            if not names:
-                self._send(400, b"missing name", _TEXT_PLAIN)
+            refusal = _accept_from_form(server, body)
+            if refusal is not None:
+                self._send(*refusal)
                 return
-            try:
-                accept_baseline(server.baseline_dir, server.current_dir, names[0])
-            except VisualReviewError as error:
-                self._send(400, str(error).encode("utf-8"), _TEXT_PLAIN)
-                return
-            server.accepted.append(names[0])
             self.send_response(303)
             self.send_header("Location", "/")
             self.end_headers()

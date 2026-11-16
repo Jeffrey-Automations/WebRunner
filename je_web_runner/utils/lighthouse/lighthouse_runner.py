@@ -27,7 +27,7 @@ _DEFAULT_TIMEOUT = 180
 
 
 def _check_url(url: str) -> str:
-    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list
         raise LighthouseError(f"URL must be http(s): {url!r}")
     return url
 
@@ -73,6 +73,17 @@ def _summarise(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _report_target(output_path: str | None) -> str:
+    """Where the lighthouse CLI writes its JSON: ``output_path``, or a fresh temporary file."""
+    if output_path is not None:
+        return output_path
+    # ``NamedTemporaryFile`` returns a securely-generated path without
+    # the ``mktemp`` race; ``delete=False`` lets the lighthouse CLI
+    # write to it before we read it back, and we clean up at the end.
+    with tempfile.NamedTemporaryFile(suffix=".lh.json", delete=False) as tmp:
+        return tmp.name
+
+
 def run_lighthouse(
     url: str,
     output_path: str | None = None,
@@ -93,14 +104,7 @@ def run_lighthouse(
     safe_url = _check_url(url)
     web_runner_logger.info(f"run_lighthouse: {safe_url}")
     using_tmp = output_path is None
-    if using_tmp:
-        # ``NamedTemporaryFile`` returns a securely-generated path without
-        # the ``mktemp`` race; ``delete=False`` lets the lighthouse CLI
-        # write to it before we read it back, and we clean up at the end.
-        with tempfile.NamedTemporaryFile(suffix=".lh.json", delete=False) as tmp:
-            target = tmp.name
-    else:
-        target = output_path
+    target = _report_target(output_path)
     cmd = _build_command(safe_url, target, lighthouse_path, chrome_flags, extra_args)
     try:
         # cmd is built from a static argv list, never user shell input.

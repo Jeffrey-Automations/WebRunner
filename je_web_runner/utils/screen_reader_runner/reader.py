@@ -135,25 +135,9 @@ def _walk_node(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-
     state["index"] += 1
 
     if role == "heading":
-        level = int(node.get("level") or 1)
-        _check_heading_level(level, index, state, transcript)
-        if name:
-            transcript.utterances.append(Utterance(
-                text=f"heading level {level}: {name}",
-                role=role, node_index=index,
-            ))
-        state["last_heading_level"] = level
+        _emit_heading(node, role, name, index, state, transcript)
     elif role == "image":
-        alt = name or str(node.get("description") or "").strip()
-        if not alt and not _is_decorative(node):
-            transcript.violations.append(Violation(
-                kind=ViolationKind.MISSING_ALT,
-                role=role, node_index=index,
-            ))
-        elif alt:
-            transcript.utterances.append(Utterance(
-                text=f"image: {alt}", role=role, node_index=index,
-            ))
+        _emit_image(node, role, name, index, transcript)
     elif role in _INTERACTIVE_ROLES:
         _emit_interactive(node, role, name, index, transcript)
     elif role in _GROUPING_ROLES:
@@ -167,6 +151,16 @@ def _walk_node(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-
                 text=name, role=role or "text", node_index=index,
             ))
 
+    _walk_children(node, transcript, state, include_decorative=include_decorative)
+
+
+def _walk_children(
+    node: dict[str, Any],
+    transcript: ScreenReaderTranscript,
+    state: dict[str, int],
+    *,
+    include_decorative: bool,
+) -> None:
     children = node.get("children") or []
     if not isinstance(children, list):
         return
@@ -174,6 +168,43 @@ def _walk_node(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-
         if isinstance(child, dict):
             _walk_node(child, transcript, state,
                        include_decorative=include_decorative)
+
+
+def _emit_heading(
+    node: dict[str, Any],
+    role: str,
+    name: str,
+    index: int,
+    state: dict[str, int],
+    transcript: ScreenReaderTranscript,
+) -> None:
+    level = int(node.get("level") or 1)
+    _check_heading_level(level, index, state, transcript)
+    if name:
+        transcript.utterances.append(Utterance(
+            text=f"heading level {level}: {name}",
+            role=role, node_index=index,
+        ))
+    state["last_heading_level"] = level
+
+
+def _emit_image(
+    node: dict[str, Any],
+    role: str,
+    name: str,
+    index: int,
+    transcript: ScreenReaderTranscript,
+) -> None:
+    alt = name or str(node.get("description") or "").strip()
+    if not alt and not _is_decorative(node):
+        transcript.violations.append(Violation(
+            kind=ViolationKind.MISSING_ALT,
+            role=role, node_index=index,
+        ))
+    elif alt:
+        transcript.utterances.append(Utterance(
+            text=f"image: {alt}", role=role, node_index=index,
+        ))
 
 
 def _emit_interactive(

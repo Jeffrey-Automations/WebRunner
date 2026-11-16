@@ -29,7 +29,7 @@ from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
 _KEY_PRESSING_CHARACTERS = "\r\n\t"
 
 
-def _local_driver_classes() -> tuple[type, ...]:
+def _local_driver_classes() -> tuple[type[Any], ...]:
     from selenium.webdriver import Firefox, Ie, Safari
     from selenium.webdriver.chromium.webdriver import ChromiumDriver
     return ChromiumDriver, Firefox, Safari, Ie

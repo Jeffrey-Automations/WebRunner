@@ -10,7 +10,7 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -93,8 +93,9 @@ def _locator_for(element: dict[str, str | None]):
         return ("ID", element["id"])
     if element.get("name"):
         return ("NAME", element["name"])
-    if element.get("class"):
-        first_class = element["class"].split()[0]
+    class_names = element.get("class")
+    if class_names:
+        first_class = class_names.split()[0]
         return ("CLASS_NAME", first_class)
     if element.get("text"):
         return ("LINK_TEXT", element["text"])
@@ -224,7 +225,7 @@ def generate_pom_from_url(url: str, class_name: str, timeout: int = 30) -> str:
     從 URL 下載 HTML 並產生 POM 類別
     Fetch the URL and emit a POM class. ``http`` / ``https`` schemes only.
     """
-    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list
         raise POMGeneratorError(f"URL must be http(s): {url!r}")
     web_runner_logger.info(f"generate_pom_from_url: {url}")
     response = requests.get(url, timeout=timeout)

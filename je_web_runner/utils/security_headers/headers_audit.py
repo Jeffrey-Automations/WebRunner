@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -95,7 +95,7 @@ def audit_url(
     GET ``url`` 並稽核回應 headers
     Issue a GET request and audit the response headers.
     """
-    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list
         raise SecurityHeadersError(f"URL must be http(s): {url!r}")
     web_runner_logger.info(f"audit_url: {url}")
     response = requests.get(url, timeout=timeout, allow_redirects=True)

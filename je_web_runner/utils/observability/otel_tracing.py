@@ -10,7 +10,7 @@ clear install hint.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, ContextManager
+from typing import Any, Iterator
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -95,7 +95,7 @@ def install_executor_tracing(
     tracer = init_tracer(service_name, use_console_exporter=use_console_exporter)
 
     @contextmanager
-    def _factory(name: str) -> ContextManager:
+    def _factory(name: str) -> Iterator[None]:
         with tracer.start_as_current_span(name):
             yield
 

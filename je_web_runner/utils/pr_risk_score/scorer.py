@@ -212,7 +212,7 @@ def report_markdown(report: RiskReport) -> str:
     return "\n".join(lines) + "\n"
 
 
-def aggregate_signals(per_file: Sequence[dict[str, Any]]) -> PrSignals:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def aggregate_signals(per_file: Sequence[dict[str, Any]]) -> PrSignals:  # NOSONAR S3776 — cohesive logic
     """
     Reduce a per-file signal list (from upstream tools) into one
     :class:`PrSignals`. Unknown keys are ignored so callers can pass

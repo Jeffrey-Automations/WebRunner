@@ -127,6 +127,42 @@ HARVEST_SCRIPT = "return window.__wr_notif_log__ || {permission_requests: [], no
 
 # ---------- parsing ----------------------------------------------------
 
+def _permission_request(raw: dict[str, Any]) -> PermissionRequest:
+    """One harvested ``permission_requests`` entry as a typed record."""
+    try:
+        result = PermissionResult(str(raw.get("result") or "default"))
+    except ValueError:
+        result = PermissionResult.DEFAULT
+    try:
+        return PermissionRequest(
+            timestamp_ms=float(raw.get("timestamp_ms") or 0),
+            user_gesture=bool(raw.get("user_gesture", False)),
+            result=result,
+            page_age_ms=float(raw.get("page_age_ms") or 0),
+        )
+    except (TypeError, ValueError) as error:
+        raise NotificationsAuditError(
+            f"bad permission_request entry {raw!r}: {error}"
+        ) from error
+
+
+def _notification_shown(raw: dict[str, Any]) -> NotificationShown:
+    """One harvested ``notifications`` entry as a typed record."""
+    try:
+        return NotificationShown(
+            timestamp_ms=float(raw.get("timestamp_ms") or 0),
+            title=str(raw.get("title") or ""),
+            body=str(raw.get("body") or ""),
+            tag=raw.get("tag"),
+            require_interaction=bool(raw.get("require_interaction", False)),
+            silent=bool(raw.get("silent", False)),
+        )
+    except (TypeError, ValueError) as error:
+        raise NotificationsAuditError(
+            f"bad notification entry {raw!r}: {error}"
+        ) from error
+
+
 def parse_log(payload: Any) -> NotificationsLog:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     """Convert the harvested JSON into typed records."""
     if not isinstance(payload, dict):
@@ -135,40 +171,12 @@ def parse_log(payload: Any) -> NotificationsLog:  # NOSONAR S3776 — cohesive l
         )
     requests: list[PermissionRequest] = []
     for raw in payload.get("permission_requests") or []:
-        if not isinstance(raw, dict):
-            continue
-        try:
-            result = PermissionResult(str(raw.get("result") or "default"))
-        except ValueError:
-            result = PermissionResult.DEFAULT
-        try:
-            requests.append(PermissionRequest(
-                timestamp_ms=float(raw.get("timestamp_ms") or 0),
-                user_gesture=bool(raw.get("user_gesture", False)),
-                result=result,
-                page_age_ms=float(raw.get("page_age_ms") or 0),
-            ))
-        except (TypeError, ValueError) as error:
-            raise NotificationsAuditError(
-                f"bad permission_request entry {raw!r}: {error}"
-            ) from error
+        if isinstance(raw, dict):
+            requests.append(_permission_request(raw))
     notifications: list[NotificationShown] = []
     for raw in payload.get("notifications") or []:
-        if not isinstance(raw, dict):
-            continue
-        try:
-            notifications.append(NotificationShown(
-                timestamp_ms=float(raw.get("timestamp_ms") or 0),
-                title=str(raw.get("title") or ""),
-                body=str(raw.get("body") or ""),
-                tag=raw.get("tag"),
-                require_interaction=bool(raw.get("require_interaction", False)),
-                silent=bool(raw.get("silent", False)),
-            ))
-        except (TypeError, ValueError) as error:
-            raise NotificationsAuditError(
-                f"bad notification entry {raw!r}: {error}"
-            ) from error
+        if isinstance(raw, dict):
+            notifications.append(_notification_shown(raw))
     return NotificationsLog(
         permission_requests=requests,
         notifications=notifications,

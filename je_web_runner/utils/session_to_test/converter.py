@@ -80,7 +80,7 @@ class ConversionResult:
 
 # ---------- entry points ------------------------------------------------
 
-def convert_rrweb_events(events: Sequence[dict[str, Any]]) -> ConversionResult:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up PR
+def convert_rrweb_events(events: Sequence[dict[str, Any]]) -> ConversionResult:  # NOSONAR S3776 — cohesive logic
     """Convert an rrweb event list into WR action JSON."""
     if not isinstance(events, list):
         raise SessionToTestError("rrweb events must be a list")
@@ -241,7 +241,9 @@ def _generic_click(locator: tuple[str, str] | None, stats: ConversionStats) -> d
     return {"WR_click_element": list(locator)}
 
 
-def _generic_input(event: dict[str, Any], locator: tuple[str, str] | None, stats: ConversionStats) -> dict[str, Any] | None:
+def _generic_input(
+    event: dict[str, Any], locator: tuple[str, str] | None, stats: ConversionStats,
+) -> dict[str, Any] | None:
     if locator is None:
         stats.note_skip("input without target")
         return None
@@ -266,10 +268,10 @@ def _generic_wait(event: dict[str, Any], stats: ConversionStats) -> dict[str, An
 
 _GENERIC_DISPATCH = {
     "navigate": lambda event, locator, stats: _generic_navigate(event, stats),
-    "click":    lambda event, locator, stats: _generic_click(locator, stats),
-    "input":    lambda event, locator, stats: _generic_input(event, locator, stats),
-    "submit":   lambda event, locator, stats: _generic_submit(locator),
-    "wait":     lambda event, locator, stats: _generic_wait(event, stats),
+    "click": lambda event, locator, stats: _generic_click(locator, stats),
+    "input": lambda event, locator, stats: _generic_input(event, locator, stats),
+    "submit": lambda event, locator, stats: _generic_submit(locator),
+    "wait": lambda event, locator, stats: _generic_wait(event, stats),
 }
 
 

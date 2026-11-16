@@ -10,8 +10,8 @@ A shared locator file: logical names for the elements a project's action files u
     }
 
 Each entry becomes a test object stored under its logical name, so ``WR_find_recorded_element`` /
-``WR_pw_find_element`` and the other recorded-name commands of both backends take ``login_button`` where
-they used to need the locator value itself. When the page changes, only this file does.
+``WR_pw_find_element_with_test_object_record`` and the other recorded-name commands of both backends take
+``login_button`` where they used to need the locator value itself. When the page changes, only this file does.
 """
 from __future__ import annotations
 

@@ -14,7 +14,7 @@ import json
 import re
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Iterable, Pattern, Sequence
+from typing import Any, Callable, Iterable, Pattern, Sequence, cast
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -111,7 +111,7 @@ def _coerce_pattern(value: str | Pattern[str] | None) -> Pattern[str] | None:
     if value is None:
         return None
     if hasattr(value, "search"):
-        return value  # already a compiled pattern
+        return cast("Pattern[str]", value)  # already a compiled pattern
     return re.compile(str(value))
 
 

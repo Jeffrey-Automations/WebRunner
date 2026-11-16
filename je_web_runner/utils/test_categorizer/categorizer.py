@@ -41,6 +41,7 @@ class Rule:
 
 def _has_any(action_name_pattern: str) -> Callable[[list[dict[str, Any]]], bool]:
     regex = re.compile(action_name_pattern)
+
     def _check(actions: list[dict[str, Any]]) -> bool:
         for action in actions:
             if not isinstance(action, dict) or len(action) != 1:

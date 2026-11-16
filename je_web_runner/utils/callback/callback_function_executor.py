@@ -170,7 +170,7 @@ class CallbackFunctionExecutor:
 
             # 執行觸發函式
             # Execute trigger function
-            execute_return_value = self.event_dict.get(trigger_function_name)(**kwargs)
+            execute_return_value = self.event_dict[trigger_function_name](**kwargs)
 
             # 執行回呼函式
             # Execute callback function

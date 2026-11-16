@@ -168,7 +168,9 @@ def assert_resilient_to(
     """Assert listed vendors did not break the flow."""
     bad = [
         v for v in vendors
-        if (report.by_vendor().get(v) or BlockOutcome(vendor=v, resilience=Resilience.BROKEN)).resilience == Resilience.BROKEN
+        if (
+            report.by_vendor().get(v) or BlockOutcome(vendor=v, resilience=Resilience.BROKEN)
+        ).resilience == Resilience.BROKEN
     ]
     if bad:
         raise ThirdPartyBlockError(

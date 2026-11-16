@@ -14,9 +14,11 @@ class TestObject:
     # Tell pytest this is a domain class, not a test container.
     __test__ = False
 
-    def __init__(self, test_object_name: str, object_type: str):
+    def __init__(self, test_object_name: str, object_type: str | None):
         # 測試物件的定位方式 (必須在 type_list 中)
         # Locator type of the test object (must be in type_list)
+        if not isinstance(object_type, str):
+            raise TypeError(f"Invalid locator type: {object_type}")
         self.test_object_type: str = object_type
 
         # 測試物件名稱 (實際的定位值，例如元素 ID 或 XPath)

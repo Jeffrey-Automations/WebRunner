@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger

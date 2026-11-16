@@ -33,7 +33,7 @@ def _require_pillow():
         ) from error
 
 
-def _selenium_png() -> bytes:
+def _selenium_png() -> bytes | None:
     """A PNG screenshot of the current Selenium page."""
     return webdriver_wrapper_instance.get_screenshot_as_png()
 
@@ -44,7 +44,7 @@ def _playwright_png() -> bytes:
     return playwright_wrapper.playwright_wrapper_instance.screenshot_bytes()
 
 
-def _capture_png_bytes(screenshot: Callable[[], bytes] = _selenium_png) -> bytes:
+def _capture_png_bytes(screenshot: Callable[[], bytes | None] = _selenium_png) -> bytes:
     """Take a PNG screenshot with ``screenshot`` (the Selenium page by default)."""
     png = screenshot()
     if not png:
@@ -56,7 +56,7 @@ def _ensure_parent(path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
-def capture_baseline(baseline_path: str, screenshot: Callable[[], bytes] = _selenium_png) -> str:
+def capture_baseline(baseline_path: str, screenshot: Callable[[], bytes | None] = _selenium_png) -> str:
     """
     擷取當前頁面並儲存為基準圖
     Capture the current page and save it as the baseline image.
@@ -86,7 +86,7 @@ def compare_with_baseline(
     diff_path: str | None = None,
     current_path: str | None = None,
     threshold: int = 0,
-    screenshot: Callable[[], bytes] = _selenium_png,
+    screenshot: Callable[[], bytes | None] = _selenium_png,
 ) -> dict:
     """
     擷取目前頁面並與基準圖比較

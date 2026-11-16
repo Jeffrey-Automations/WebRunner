@@ -35,8 +35,8 @@ class FailureRecord:
 
 # These patterns are regex strings used to *strip* noise from failure
 # messages; the module never opens any file or directory.
-_TMP_PATH_FRAGMENT = "/" + "tmp"   # split avoids the "/tmp" literal being
-                                   # flagged as a writable-directory use.
+# Split so the "/tmp" literal is not flagged as a writable-directory use.
+_TMP_PATH_FRAGMENT = "/" + "tmp"
 _NOISE_PATTERNS = (
     re.compile(r"\b0x[0-9a-fA-F]+\b"),
     re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-"
@@ -80,6 +80,7 @@ class Cluster:
 
 def _neighbours_fn(tokens: list[set[str]], eps: float):
     n = len(tokens)
+
     def find(i: int) -> list[int]:
         return [j for j in range(n)
                 if j != i and _jaccard_distance(tokens[i], tokens[j]) <= eps]

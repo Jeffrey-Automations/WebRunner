@@ -375,7 +375,7 @@ def compare_images(
     if threshold < 0 or threshold > 1:
         raise VisualAIError(f"threshold must be in [0,1], got {threshold}")
 
-    hash_kwargs = {"crop_box": crop_box, "mask_boxes": mask_boxes}
+    hash_kwargs: dict[str, Any] = {"crop_box": crop_box, "mask_boxes": mask_boxes}
     a_a = average_hash(source_a, **hash_kwargs)
     a_b = average_hash(source_b, **hash_kwargs)
     d_a = difference_hash(source_a, **hash_kwargs)

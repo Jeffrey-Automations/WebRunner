@@ -89,6 +89,14 @@ _TEMPLATE_RE = re.compile(
 _QUIT_RE = re.compile(r"^quit$", re.IGNORECASE)
 
 
+def _wait_actions(raw_seconds: str) -> list[list[Any]]:
+    """An implicit wait of ``raw_seconds``; a whole number of seconds stays an int."""
+    seconds = float(raw_seconds)
+    if seconds.is_integer():
+        seconds = int(seconds)
+    return [["WR_implicitly_wait", {"time_to_wait": seconds}]]
+
+
 def _parse_bullet(text: str) -> list[list[Any]] | None:
     match = _OPEN_RE.match(text)
     if match:
@@ -101,10 +109,7 @@ def _parse_bullet(text: str) -> list[list[Any]] | None:
         return _click_actions(match.group(1))
     match = _WAIT_RE.match(text)
     if match:
-        seconds = float(match.group(1))
-        if seconds.is_integer():
-            seconds = int(seconds)
-        return [["WR_implicitly_wait", {"time_to_wait": seconds}]]
+        return _wait_actions(match.group(1))
     match = _TITLE_RE.match(text)
     if match:
         return [["WR_assert_title", {"value": match.group(1)}]]

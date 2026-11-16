@@ -137,7 +137,7 @@ class RtpStats:
     jitter: float = 0.0
 
 
-def aggregate_stats(stats_report: Sequence[dict[str, Any]]) -> list[RtpStats]:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def aggregate_stats(stats_report: Sequence[dict[str, Any]]) -> list[RtpStats]:  # NOSONAR S3776 — cohesive logic
     """Reduce a raw ``getStats()`` list into one :class:`RtpStats` per direction+kind."""
     if not isinstance(stats_report, list):
         raise WebRtcAssertError(

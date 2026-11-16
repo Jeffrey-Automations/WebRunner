@@ -163,6 +163,8 @@ class TCPServerHandler(socketserver.BaseRequestHandler):
     Request handler for TCP server
     """
 
+    server: "TCPServer"
+
     # Set per request in ``handle``; declared here so the attribute always
     # exists even if a subclass reaches a reply path early.
     _framed = False

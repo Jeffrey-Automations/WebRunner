@@ -95,6 +95,21 @@ def _is_deeply_nested(selector: str) -> bool:
     return preceded_by_space >= 3
 
 
+def _css_fragility(selector: str, reasons: list[str]) -> float:
+    """The fragility a CSS selector adds; each cause is appended to ``reasons``."""
+    score = 0.0
+    if _NTH_PATTERN.search(selector):
+        score += 0.4
+        reasons.append("uses :nth-of-type/child")
+    if _is_deeply_nested(selector):
+        score += 0.2
+        reasons.append("deeply nested CSS")
+    if _HASHED_CLASS.search(selector):
+        score += 0.4
+        reasons.append("hashed class names")
+    return score
+
+
 def score_fragility(locator: FragileLocator) -> FragilityScore:
     """Quick non-LLM check. Anything ``score >= 0.5`` is worth hardening."""
     if not isinstance(locator, FragileLocator):
@@ -108,15 +123,7 @@ def score_fragility(locator: FragileLocator) -> FragilityScore:
             score += 0.3
             reasons.append("uses text() predicate")
     if locator.strategy == LocatorStrategy.CSS:
-        if _NTH_PATTERN.search(locator.value):
-            score += 0.4
-            reasons.append("uses :nth-of-type/child")
-        if _is_deeply_nested(locator.value):
-            score += 0.2
-            reasons.append("deeply nested CSS")
-        if _HASHED_CLASS.search(locator.value):
-            score += 0.4
-            reasons.append("hashed class names")
+        score += _css_fragility(locator.value, reasons)
     if locator.strategy not in _PREFERRED_STRATEGIES:
         score += 0.1
         reasons.append("non-preferred strategy")
@@ -190,7 +197,28 @@ class LocatorSuggestion:
         return {"strategy": self.strategy.value, "value": self.value,
                 "rationale": self.rationale}
 
-def parse_suggestions(raw: str) -> list[LocatorSuggestion]:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up PR
+
+def _suggestion_from(raw_item: Any) -> LocatorSuggestion | None:
+    """One entry of the LLM's array as a suggestion, or None when it is malformed or unsafe."""
+    if not isinstance(raw_item, dict):
+        return None
+    strategy_str = raw_item.get("strategy") or ""
+    value = raw_item.get("value") or ""
+    rationale = raw_item.get("rationale") or ""
+    try:
+        strategy = LocatorStrategy(strategy_str)
+    except ValueError:
+        return None
+    if not isinstance(value, str) or not value:
+        return None
+    if not _looks_safe(strategy, value):
+        return None
+    return LocatorSuggestion(
+        strategy=strategy, value=str(value), rationale=str(rationale),
+    )
+
+
+def parse_suggestions(raw: str) -> list[LocatorSuggestion]:  # NOSONAR S3776 — cohesive logic
     """Decode the LLM's JSON array; reject malformed entries."""
     if not isinstance(raw, str) or not raw.strip():
         raise LocatorHardenerError("LLM returned empty response")
@@ -208,22 +236,9 @@ def parse_suggestions(raw: str) -> list[LocatorSuggestion]:  # NOSONAR S3776 —
         raise LocatorHardenerError("suggestions must be a list")
     out: list[LocatorSuggestion] = []
     for raw_item in obj:
-        if not isinstance(raw_item, dict):
-            continue
-        strategy_str = raw_item.get("strategy") or ""
-        value = raw_item.get("value") or ""
-        rationale = raw_item.get("rationale") or ""
-        try:
-            strategy = LocatorStrategy(strategy_str)
-        except ValueError:
-            continue
-        if not isinstance(value, str) or not value:
-            continue
-        if not _looks_safe(strategy, value):
-            continue
-        out.append(LocatorSuggestion(
-            strategy=strategy, value=str(value), rationale=str(rationale),
-        ))
+        suggestion = _suggestion_from(raw_item)
+        if suggestion is not None:
+            out.append(suggestion)
     if not out:
         raise LocatorHardenerError("no valid suggestions in LLM response")
     return out

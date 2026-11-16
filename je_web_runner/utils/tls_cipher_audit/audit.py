@@ -15,7 +15,7 @@ from __future__ import annotations
 import socket
 import ssl
 from dataclasses import asdict, dataclass
-from typing import Sequence
+from typing import Sequence, cast
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
@@ -68,7 +68,8 @@ def handshake(
             with ctx.wrap_socket(raw, server_hostname=host) as tls:
                 cert = tls.getpeercert() or {}
                 subject_parts = []
-                for rdn in cert.get("subject", ()):
+                subject = cast("tuple[tuple[tuple[str, str], ...], ...]", cert.get("subject", ()))
+                for rdn in subject:
                     for k, v in rdn:
                         subject_parts.append(f"{k}={v}")
                 return TlsHandshakeReport(

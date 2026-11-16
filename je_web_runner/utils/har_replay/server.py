@@ -171,6 +171,14 @@ class HarReplayServer:
             self._thread = None
 
 
+def _replayed_headers(entry: HarEntry) -> list[tuple[str, str]]:
+    """The recorded response headers, minus the framing ones the replay recomputes."""
+    return [
+        (name, value) for name, value in entry.headers.items()
+        if name.lower() not in {"content-length", "transfer-encoding"}
+    ]
+
+
 def _make_handler(server: HarReplayServer) -> Callable:
 
     class _ReplayHandler(BaseHTTPRequestHandler):
@@ -209,9 +217,8 @@ def _make_handler(server: HarReplayServer) -> Callable:
                 return
             body_bytes = _entry_body_bytes(entry)
             self.send_response(entry.status)
-            for name, value in entry.headers.items():
-                if name.lower() not in {"content-length", "transfer-encoding"}:
-                    self.send_header(name, value)
+            for name, value in _replayed_headers(entry):
+                self.send_header(name, value)
             self.send_header("Content-Length", str(len(body_bytes)))
             self.end_headers()
             self.wfile.write(body_bytes)

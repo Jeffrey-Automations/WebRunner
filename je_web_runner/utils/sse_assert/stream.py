@@ -76,6 +76,14 @@ def parse_sse_stream(text: str) -> list[SseEvent]:
     return events
 
 
+def _retry_value(value: str) -> int | None:
+    """The ``retry`` field as milliseconds, or None when it is not an integer."""
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 def _parse_event_block(raw: str) -> SseEvent | None:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     event_type = "message"
     data_lines: list[str] = []
@@ -96,10 +104,7 @@ def _parse_event_block(raw: str) -> SseEvent | None:  # NOSONAR S3776 — cohesi
         elif field_name == "id":
             event_id = value
         elif field_name == "retry":
-            try:
-                retry = int(value)
-            except ValueError:
-                retry = None
+            retry = _retry_value(value)
     if not data_lines and event_type == "message" and event_id is None and retry is None:
         return None
     return SseEvent(

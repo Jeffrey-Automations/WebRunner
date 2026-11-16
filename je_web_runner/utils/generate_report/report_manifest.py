@@ -55,6 +55,25 @@ def _existing(paths: list[str]) -> list[str]:
     return [path for path in paths if Path(path).exists()]
 
 
+def _write_manifest(base_name: str, produced: dict[str, list[str]], errors: dict[str, str]) -> str | None:
+    """Write ``<base_name>.manifest.json``; its path, or None when the write failed."""
+    manifest_path = f"{base_name}.manifest.json"
+    try:
+        payload = {
+            "base_name": base_name,
+            "produced": produced,
+            "errors": errors,
+        }
+        Path(manifest_path).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError as error:
+        web_runner_logger.error(f"generate_all_reports manifest write failed: {error!r}")
+        return None
+    return manifest_path
+
+
 def generate_all_reports(
     base_name: str,
     allure_dir: str | None = None,
@@ -110,22 +129,7 @@ def generate_all_reports(
     if allure_dir:
         produced["allure"] = allure_paths or _existing(plan.get("allure", []))
 
-    manifest_path: str | None = None
-    if write_manifest:
-        manifest_path = f"{base_name}.manifest.json"
-        try:
-            payload = {
-                "base_name": base_name,
-                "produced": produced,
-                "errors": errors,
-            }
-            Path(manifest_path).write_text(
-                json.dumps(payload, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as error:
-            web_runner_logger.error(f"generate_all_reports manifest write failed: {error!r}")
-            manifest_path = None
+    manifest_path = _write_manifest(base_name, produced, errors) if write_manifest else None
 
     return {
         "produced": produced,

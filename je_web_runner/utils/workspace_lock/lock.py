@@ -73,7 +73,7 @@ def _scan_distributions() -> list[tuple]:
     scanned: list[tuple] = []
     for dist in importlib_metadata.distributions():
         try:
-            name = dist.metadata.get("Name") or ""
+            name = dist.metadata.get("Name") or ""  # type: ignore[attr-defined]
             version = dist.version or ""
         except Exception as error:  # pylint: disable=broad-except  # nosec B112 — broken dist metadata; log and skip
             web_runner_logger.debug(

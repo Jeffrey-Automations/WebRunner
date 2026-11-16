@@ -76,8 +76,8 @@ def _positional_xpath_steps(actions: Sequence[dict[str, Any]]) -> list[int]:
 
 
 def _duplicated_locators(actions: Sequence[dict[str, Any]]) -> list[str]:
-    locators = [a.get("by_value") for a in actions
-                if isinstance(a.get("by_value"), str) and a.get("by_value")]
+    locators = [value for value in (a.get("by_value") for a in actions)
+                if isinstance(value, str) and value]
     counts = Counter(locators)
     return [k for k, v in counts.items() if v >= 3]
 

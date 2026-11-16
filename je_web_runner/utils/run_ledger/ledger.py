@@ -23,7 +23,7 @@ def _load(ledger_path: str) -> dict[str, list]:
     if not path.exists():
         return {"runs": []}
     try:
-        with open(path, encoding="utf-8") as ledger_file:  # NOSONAR S8707 — developer-supplied path (own report/config file), not untrusted input
+        with open(path, encoding="utf-8") as ledger_file:  # NOSONAR S8707 — developer-supplied path
             data = json.load(ledger_file)
     except ValueError as error:
         raise LedgerError(f"ledger file is not valid JSON: {ledger_path}") from error

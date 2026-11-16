@@ -158,6 +158,7 @@ def _render_pass_rate_svg(daily: list[dict[str, Any]]) -> str:
     plot_w = width - 2 * margin
     plot_h = height - 2 * margin
     n = len(daily)
+    x_step: float
     if n == 1:
         x_step = 0
     else:

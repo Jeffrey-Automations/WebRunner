@@ -69,6 +69,38 @@ class FlagMatrix:
 
 # ---------- builders ----------------------------------------------------
 
+def _unique_pinned(
+    pinned: Sequence[Combo], names: Sequence[str], variant_lists: Sequence[Sequence[Any]],
+) -> tuple[list[Combo], set[str]]:
+    """The valid pinned combos without repeats, in input order, and their keys."""
+    pinned_combos: list[Combo] = []
+    pinned_keys: set[str] = set()
+    for combo in pinned:
+        _validate_pinned(combo, names, variant_lists)
+        key = _combo_key(combo)
+        if key in pinned_keys:
+            continue
+        pinned_keys.add(key)
+        pinned_combos.append(combo)
+    return pinned_combos, pinned_keys
+
+
+def _unpinned_passing(
+    all_combos: Sequence[Combo], pinned_keys: set[str], constraints: Sequence[Constraint],
+) -> tuple[list[Combo], int]:
+    """The combos that are not pinned and pass every constraint, and how many the constraints dropped."""
+    filtered: list[Combo] = []
+    constrained_out = 0
+    for combo in all_combos:
+        if _combo_key(combo) in pinned_keys:
+            continue
+        if _passes_all(combo, constraints):
+            filtered.append(combo)
+        else:
+            constrained_out += 1
+    return filtered, constrained_out
+
+
 def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     flags: Sequence[FlagSpec],
     *,
@@ -101,25 +133,8 @@ def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follo
         combo = dict(zip(names, tup, strict=False))
         all_combos.append(combo)
 
-    pinned_combos: list[Combo] = []
-    pinned_keys = set()
-    for combo in pinned:
-        _validate_pinned(combo, names, variant_lists)
-        key = _combo_key(combo)
-        if key in pinned_keys:
-            continue
-        pinned_keys.add(key)
-        pinned_combos.append(combo)
-
-    filtered: list[Combo] = []
-    constrained_out = 0
-    for combo in all_combos:
-        if _combo_key(combo) in pinned_keys:
-            continue
-        if _passes_all(combo, constraints):
-            filtered.append(combo)
-        else:
-            constrained_out += 1
+    pinned_combos, pinned_keys = _unique_pinned(pinned, names, variant_lists)
+    filtered, constrained_out = _unpinned_passing(all_combos, pinned_keys, constraints)
 
     if not pinned_combos and not filtered:
         raise FlagMatrixError("all combos were filtered out by constraints")
@@ -129,7 +144,7 @@ def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follo
         keep_count = max(0, sample_size - len(pinned_combos))
         # S2245 ok: deterministic seeded sampling for reproducible test combos;
         # not used for any cryptographic / security decision.
-        filtered = rng.sample(filtered, keep_count)  # NOSONAR S2245 — non-crypto use (chaos/sampling), not security-sensitive
+        filtered = rng.sample(filtered, keep_count)  # NOSONAR S2245 — non-crypto sampling
         sampled = True
     else:
         sampled = False

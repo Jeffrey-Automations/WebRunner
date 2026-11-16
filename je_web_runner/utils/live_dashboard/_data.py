@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.flake_detector.detector import (
@@ -19,6 +19,11 @@ from je_web_runner.utils.flake_detector.detector import (
 from je_web_runner.utils.live_dashboard._config import DashboardConfig
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.trend_dashboard.trend import compute_trend_from_runs
+
+
+def _path(configured: str | Path | None) -> Path | None:
+    """A ``DashboardConfig`` path as its ``__post_init__`` left it: a ``Path`` or None."""
+    return cast("Path | None", configured)
 
 
 def _read_ledger_runs(ledger_path: Path | None) -> list[dict[str, Any]]:
@@ -112,8 +117,8 @@ def _summarise(all_runs: list[dict[str, Any]], config: DashboardConfig) -> dict[
     pass_rate = (passed / total) if total else 0.0
     flake_entries = _flake_entries(all_runs)
     flake_count = sum(1 for f in flake_entries if f.get("is_flaky"))
-    quarantine = _load_quarantine(config.quarantine_path)
-    locator_report = _load_locator_report(config.locator_findings_path)
+    quarantine = _load_quarantine(_path(config.quarantine_path))
+    locator_report = _load_locator_report(_path(config.locator_findings_path))
     return {
         "total_runs": total,
         "passed": passed,
@@ -131,7 +136,7 @@ def _summarise(all_runs: list[dict[str, Any]], config: DashboardConfig) -> dict[
 
 def build_summary(config: DashboardConfig) -> dict[str, Any]:
     """One-shot snapshot used by ``/`` and ``/api/summary``."""
-    return _summarise(_read_ledger_runs(config.ledger_path), config)
+    return _summarise(_read_ledger_runs(_path(config.ledger_path)), config)
 
 
 def load_trend(ledger_path: Path | None) -> dict[str, Any]:
@@ -141,7 +146,7 @@ def load_trend(ledger_path: Path | None) -> dict[str, Any]:
 
 def load_overview(config: DashboardConfig) -> dict[str, Any]:
     """The overview page's data from one read of the ledger: summary, daily trend, latest runs."""
-    all_runs = _read_ledger_runs(config.ledger_path)
+    all_runs = _read_ledger_runs(_path(config.ledger_path))
     return {
         "summary": _summarise(all_runs, config),
         "daily": compute_trend_from_runs(all_runs)["daily"],

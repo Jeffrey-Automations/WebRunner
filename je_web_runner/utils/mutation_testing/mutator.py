@@ -290,7 +290,20 @@ def generate_mutations(
 
 # ---------- apply ---------------------------------------------------------
 
-def apply_mutation(actions: list[Any], mutation: Mutation) -> list[Any]:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def _mutable_keys(mutation_type: MutationType) -> tuple[str, ...]:
+    """The kwargs keys a value-replacing mutation of ``mutation_type`` may rewrite, in priority order."""
+    if mutation_type is MutationType.LOCATOR_SWAP:
+        return _LOCATOR_KEYS
+    if mutation_type is MutationType.TIMEOUT_SHRINK:
+        return _TIMEOUT_KEYS
+    if mutation_type is MutationType.URL_CHANGE:
+        return _URL_KEYS
+    if mutation_type is MutationType.ASSERTION_FLIP:
+        return _ASSERTION_KEYS
+    return ()
+
+
+def apply_mutation(actions: list[Any], mutation: Mutation) -> list[Any]:  # NOSONAR S3776 — cohesive logic
     """
     產生一份套了 mutation 的 actions（不修改原 list）。
     Return a deep-copied action list with ``mutation`` applied. Mutations
@@ -316,26 +329,10 @@ def apply_mutation(actions: list[Any], mutation: Mutation) -> list[Any]:  # NOSO
         raise MutationTestingError(
             f"action at index {mutation.action_index} has no kwargs to mutate"
         )
-    if mutation.type is MutationType.LOCATOR_SWAP:
-        for key in _LOCATOR_KEYS:
-            if key in kwargs:
-                kwargs[key] = mutation.mutated
-                return new_actions
-    if mutation.type is MutationType.TIMEOUT_SHRINK:
-        for key in _TIMEOUT_KEYS:
-            if key in kwargs:
-                kwargs[key] = mutation.mutated
-                return new_actions
-    if mutation.type is MutationType.URL_CHANGE:
-        for key in _URL_KEYS:
-            if key in kwargs:
-                kwargs[key] = mutation.mutated
-                return new_actions
-    if mutation.type is MutationType.ASSERTION_FLIP:
-        for key in _ASSERTION_KEYS:
-            if key in kwargs:
-                kwargs[key] = mutation.mutated
-                return new_actions
+    for key in _mutable_keys(mutation.type):
+        if key in kwargs:
+            kwargs[key] = mutation.mutated
+            return new_actions
     raise MutationTestingError(
         f"could not apply mutation {mutation.type.value} at {mutation.action_index}"
     )

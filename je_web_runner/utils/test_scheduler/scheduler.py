@@ -113,6 +113,27 @@ def value_density(candidate: TestCandidate) -> float:
 
 # ---------- scheduler ----------------------------------------------------
 
+def _checked_pinned_ids(
+    candidates: Sequence[TestCandidate],
+    time_budget_seconds: float,
+    cloud_slot_budget: int | None,
+    pinned_test_ids: Iterable[str] | None,
+) -> set[str]:
+    """Validate the budgets, then return the pinned ids, which must all be candidates."""
+    if time_budget_seconds <= 0:
+        raise TestSchedulerError("time_budget_seconds must be > 0")
+    if cloud_slot_budget is not None and cloud_slot_budget < 0:
+        raise TestSchedulerError("cloud_slot_budget must be >= 0")
+    pinned = set(pinned_test_ids or [])
+    seen_ids = {c.test_id for c in candidates}
+    missing = pinned - seen_ids
+    if missing:
+        raise TestSchedulerError(
+            f"pinned test ids not in candidate set: {sorted(missing)}"
+        )
+    return pinned
+
+
 def schedule_tests(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     candidates: Sequence[TestCandidate],
     *,
@@ -130,17 +151,7 @@ def schedule_tests(  # NOSONAR S3776 — cohesive logic; planned refactor in fol
     test-suite scales (hundreds to thousands of tests) the gap to optimal
     is tiny and the algorithm is debuggable.
     """
-    if time_budget_seconds <= 0:
-        raise TestSchedulerError("time_budget_seconds must be > 0")
-    if cloud_slot_budget is not None and cloud_slot_budget < 0:
-        raise TestSchedulerError("cloud_slot_budget must be >= 0")
-    pinned = set(pinned_test_ids or [])
-    seen_ids = {c.test_id for c in candidates}
-    missing = pinned - seen_ids
-    if missing:
-        raise TestSchedulerError(
-            f"pinned test ids not in candidate set: {sorted(missing)}"
-        )
+    pinned = _checked_pinned_ids(candidates, time_budget_seconds, cloud_slot_budget, pinned_test_ids)
 
     selected_ids: list[str] = []
     selected_cost = 0.0
@@ -211,6 +222,32 @@ def schedule_tests(  # NOSONAR S3776 — cohesive logic; planned refactor in fol
 
 # ---------- ledger / flake integration -----------------------------------
 
+def _bucket_runs(runs: list[Any]) -> dict[str, dict[str, Any]]:
+    """Per-test totals of the ledger runs: run and failure counts, duration sum and count, latest epoch."""
+    buckets: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        test_id = run.get("path")
+        if not isinstance(test_id, str):
+            continue
+        record = buckets.setdefault(test_id, {
+            "runs": 0, "fails": 0, "duration_sum": 0.0,
+            "duration_count": 0, "latest_epoch": 0.0,
+        })
+        record["runs"] += 1
+        if not run.get("passed"):
+            record["fails"] += 1
+        duration = run.get("duration_seconds")
+        if isinstance(duration, (int, float)) and duration > 0:
+            record["duration_sum"] += float(duration)
+            record["duration_count"] += 1
+        epoch = _parse_iso_epoch(run.get("time"))
+        if epoch and epoch > record["latest_epoch"]:
+            record["latest_epoch"] = epoch
+    return buckets
+
+
 def build_candidates_from_ledger(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     ledger_path: str | Path,
     *,
@@ -244,27 +281,7 @@ def build_candidates_from_ledger(  # NOSONAR S3776 — cohesive logic; planned r
     fail_rates = fail_rate_lookup or {}
     impacts = impact_lookup or {}
     cloud_set = set(cloud_tests or [])
-    buckets: dict[str, dict[str, Any]] = {}
-    for run in runs:
-        if not isinstance(run, dict):
-            continue
-        test_id = run.get("path")
-        if not isinstance(test_id, str):
-            continue
-        record = buckets.setdefault(test_id, {
-            "runs": 0, "fails": 0, "duration_sum": 0.0,
-            "duration_count": 0, "latest_epoch": 0.0,
-        })
-        record["runs"] += 1
-        if not run.get("passed"):
-            record["fails"] += 1
-        duration = run.get("duration_seconds")
-        if isinstance(duration, (int, float)) and duration > 0:
-            record["duration_sum"] += float(duration)
-            record["duration_count"] += 1
-        epoch = _parse_iso_epoch(run.get("time"))
-        if epoch and epoch > record["latest_epoch"]:
-            record["latest_epoch"] = epoch
+    buckets = _bucket_runs(runs)
 
     candidates: list[TestCandidate] = []
     for test_id, rec in buckets.items():

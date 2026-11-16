@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import IO, Iterable
 
 # defusedxml-protected XML reader; CLAUDE.md requires this for parsing.
-from defusedxml import ElementTree as DefusedET
+from defusedxml import ElementTree as DefusedET  # type: ignore[import-untyped]
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger

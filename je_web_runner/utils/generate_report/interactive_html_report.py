@@ -57,7 +57,7 @@ def _escape(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
-def _parse_time(text: str) -> datetime.datetime | None:
+def _parse_time(text: object) -> datetime.datetime | None:
     try:
         return datetime.datetime.fromisoformat(str(text))
     except ValueError:
@@ -158,8 +158,8 @@ def _waterfall(har_path: str | None) -> str:
         entries = json.loads(Path(har_path).read_text(encoding="utf-8"))["log"]["entries"]
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise WebRunnerHTMLException(f"har_path is not a readable HAR 1.2 file: {error!r}") from error
-    timed = [(_parse_time(entry.get("startedDateTime", "").replace("Z", "+00:00")), entry) for entry in entries]
-    timed = [(start, entry) for start, entry in timed if start is not None]
+    dated = [(_parse_time(entry.get("startedDateTime", "").replace("Z", "+00:00")), entry) for entry in entries]
+    timed = [(start, entry) for start, entry in dated if start is not None]
     if not timed:
         return "<h2>Network waterfall</h2><p>The HAR file has no timed entries.</p>"
     origin = min(start for start, _entry in timed)

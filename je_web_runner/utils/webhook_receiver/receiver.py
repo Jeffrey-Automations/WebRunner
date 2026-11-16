@@ -72,16 +72,56 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+def _response_for(request: ReceivedRequest, response_fn: ResponseFn | None) -> dict[str, Any]:
+    """The default 200 response, overridden by whatever ``response_fn`` returns for ``request``."""
+    response: dict[str, Any] = {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": b'{"received":true}',
+    }
+    if response_fn is not None:
+        try:
+            override = response_fn(request)
+        except Exception as error:
+            web_runner_logger.warning(f"response_fn raised: {error!r}")
+            override = None
+        if override:
+            response.update(override)
+            body = response.get("body")
+            if isinstance(body, str):
+                response["body"] = body.encode("utf-8")
+    return response
+
+
+class _ResponseWriter(BaseHTTPRequestHandler):
+    """The response plumbing every webhook handler shares; it holds no server state."""
+
+    protocol_version = "HTTP/1.1"
+
+    # Parameter names match the BaseHTTPRequestHandler signature.
+    def log_message(self, format: str, *args: Any) -> None:  # pylint: disable=redefined-builtin
+        web_runner_logger.debug("webhook " + (format % args))
+
+    def _respond(self, response: dict[str, Any]) -> None:
+        self.send_response(int(response["status"]))
+        response_body = response.get("body") or b""
+        if isinstance(response_body, str):
+            response_body = response_body.encode("utf-8")
+        for name, value in (response.get("headers") or {}).items():
+            self.send_header(str(name), str(value))
+        self.send_header("Content-Length", str(len(response_body)))
+        self.end_headers()
+        if response_body:
+            self.wfile.write(response_body)
+
+
 def _build_handler(
     received: list[ReceivedRequest],
     lock: threading.Lock,
     response_fn: ResponseFn | None,
 ) -> type:
-    class WebhookHandler(BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.1"
-
-        def log_message(self, format: str, *args: Any) -> None:  # pylint: disable=redefined-builtin — match BaseHTTPRequestHandler signature
-            web_runner_logger.debug("webhook " + (format % args))
+    class WebhookHandler(_ResponseWriter):
+        """Records each request of one server and answers it."""
 
         def _handle(self, method: str) -> None:
             length = int(self.headers.get("Content-Length") or 0)
@@ -96,32 +136,7 @@ def _build_handler(
             )
             with lock:
                 received.append(request)
-            response: dict[str, Any] = {
-                "status": 200,
-                "headers": {"Content-Type": "application/json"},
-                "body": b'{"received":true}',
-            }
-            if response_fn is not None:
-                try:
-                    override = response_fn(request)
-                except Exception as error:
-                    web_runner_logger.warning(f"response_fn raised: {error!r}")
-                    override = None
-                if override:
-                    response.update(override)
-                    body = response.get("body")
-                    if isinstance(body, str):
-                        response["body"] = body.encode("utf-8")
-            self.send_response(int(response["status"]))
-            response_body = response.get("body") or b""
-            if isinstance(response_body, str):
-                response_body = response_body.encode("utf-8")
-            for name, value in (response.get("headers") or {}).items():
-                self.send_header(str(name), str(value))
-            self.send_header("Content-Length", str(len(response_body)))
-            self.end_headers()
-            if response_body:
-                self.wfile.write(response_body)
+            self._respond(_response_for(request, response_fn))
 
         # noinspection PyPep8Naming
         def do_GET(self) -> None: self._handle("GET")
@@ -161,7 +176,7 @@ class WebhookServer:
     def base_url(self) -> str:
         # S5332 ok: this is a localhost test-fixture HTTP server with random
         # port, intentionally plain HTTP so callers can hit it without certs.
-        return f"http://{self._host}:{self._port}"  # NOSONAR S5332 — intentional plain HTTP (localhost/dev-configured endpoint), not a security-sensitive transport
+        return f"http://{self._host}:{self._port}"  # NOSONAR S5332 — intentional plain HTTP
 
     def start(self) -> WebhookServer:
         if self._server is not None:

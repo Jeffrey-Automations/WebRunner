@@ -94,6 +94,16 @@ class BisectResult:
         return asdict(self)
 
 
+def _rows_by_commit(entries: Sequence[LedgerEntry], test_id: str) -> dict[str, LedgerEntry]:
+    """The ledger rows of ``test_id`` keyed by commit; a later row for a commit replaces an earlier one."""
+    by_commit: dict[str, LedgerEntry] = {}
+    for entry in entries:
+        if entry.test_id != test_id:
+            continue
+        by_commit[entry.commit] = entry
+    return by_commit
+
+
 def bisect_from_ledger(
     entries: Sequence[LedgerEntry],
     commit_order: Sequence[str],
@@ -110,11 +120,7 @@ def bisect_from_ledger(
         raise GitBisectFlakeError("commit_order must be a non-empty sequence")
     if not test_id:
         raise GitBisectFlakeError("test_id must be a non-empty string")
-    by_commit: dict[str, LedgerEntry] = {}
-    for entry in entries:
-        if entry.test_id != test_id:
-            continue
-        by_commit[entry.commit] = entry
+    by_commit = _rows_by_commit(entries, test_id)
     if not by_commit:
         raise GitBisectFlakeError(f"no ledger rows for test_id {test_id!r}")
     last_good: str | None = None
@@ -149,6 +155,26 @@ CommitProbe = Callable[[str], bool]
 """Callable: commit-sha → True if the test passes when run at that commit."""
 
 
+def _probe_window(
+    commit_order: Sequence[str], known_good: str | None, known_bad: str | None,
+) -> tuple[int, int]:
+    """The ``(low, high)`` indices in ``commit_order`` the bisect searches between."""
+    indices_by_commit = {c: i for i, c in enumerate(commit_order)}
+    low = 0
+    high = len(commit_order) - 1
+    if known_good is not None:
+        if known_good not in indices_by_commit:
+            raise GitBisectFlakeError(f"known_good {known_good!r} not in commit_order")
+        low = indices_by_commit[known_good]
+    if known_bad is not None:
+        if known_bad not in indices_by_commit:
+            raise GitBisectFlakeError(f"known_bad {known_bad!r} not in commit_order")
+        high = indices_by_commit[known_bad]
+    if low >= high:
+        raise GitBisectFlakeError("known_good must come before known_bad in commit_order")
+    return low, high
+
+
 def bisect_with_probe(
     commit_order: Sequence[str],
     test_id: str,
@@ -166,19 +192,7 @@ def bisect_with_probe(
         raise GitBisectFlakeError("commit_order needs at least 2 commits")
     if not test_id:
         raise GitBisectFlakeError("test_id must be non-empty")
-    indices_by_commit = {c: i for i, c in enumerate(commit_order)}
-    low = 0
-    high = len(commit_order) - 1
-    if known_good is not None:
-        if known_good not in indices_by_commit:
-            raise GitBisectFlakeError(f"known_good {known_good!r} not in commit_order")
-        low = indices_by_commit[known_good]
-    if known_bad is not None:
-        if known_bad not in indices_by_commit:
-            raise GitBisectFlakeError(f"known_bad {known_bad!r} not in commit_order")
-        high = indices_by_commit[known_bad]
-    if low >= high:
-        raise GitBisectFlakeError("known_good must come before known_bad in commit_order")
+    low, high = _probe_window(commit_order, known_good, known_bad)
 
     probes = 0
     history: list[dict[str, Any]] = []

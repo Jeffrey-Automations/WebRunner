@@ -69,6 +69,29 @@ class RunRow:
             )
 
 
+def _run_row(raw: Any) -> RunRow | None:
+    """One ledger entry as a row, or None when it has no usable id, runner or duration."""
+    if not isinstance(raw, dict):
+        return None
+    duration = raw.get("duration_seconds")
+    if duration is None:
+        return None
+    test_id = raw.get("test_id") or raw.get("path")
+    runner = raw.get("runner") or "local"
+    if not isinstance(test_id, str) or not isinstance(runner, str):
+        return None
+    try:
+        return RunRow(
+            test_id=test_id,
+            runner=runner,
+            duration_seconds=float(duration),
+        )
+    except TestCostEstimatorError:
+        raise
+    except (TypeError, ValueError):
+        return None
+
+
 def load_runs(path: str | Path) -> list[RunRow]:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     """Parse a ledger JSON file. Rows missing duration are skipped."""
     p = Path(path)
@@ -82,25 +105,9 @@ def load_runs(path: str | Path) -> list[RunRow]:  # NOSONAR S3776 — cohesive l
         raise TestCostEstimatorError("ledger missing 'runs' key")
     out: list[RunRow] = []
     for raw in data["runs"]:
-        if not isinstance(raw, dict):
-            continue
-        duration = raw.get("duration_seconds")
-        if duration is None:
-            continue
-        test_id = raw.get("test_id") or raw.get("path")
-        runner = raw.get("runner") or "local"
-        if not isinstance(test_id, str) or not isinstance(runner, str):
-            continue
-        try:
-            out.append(RunRow(
-                test_id=test_id,
-                runner=runner,
-                duration_seconds=float(duration),
-            ))
-        except TestCostEstimatorError:
-            raise
-        except (TypeError, ValueError):
-            continue
+        row = _run_row(raw)
+        if row is not None:
+            out.append(row)
     return out
 
 

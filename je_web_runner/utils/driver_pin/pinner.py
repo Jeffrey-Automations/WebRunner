@@ -161,7 +161,7 @@ def _default_fetch(url: str) -> bytes:
         return response.read()
 
 
-def _extract_archive(archive_format: str, payload: bytes, target_dir: Path) -> None:
+def _extract_archive(archive_format: str, payload: bytes | bytearray, target_dir: Path) -> None:
     # Both branches route through ``_safe_extract_*`` validators that
     # check every member resolves inside ``target_dir`` before any extract
     # call runs (zip-slip / tar-slip defence).
@@ -170,7 +170,7 @@ def _extract_archive(archive_format: str, payload: bytes, target_dir: Path) -> N
             _safe_extract_zip(zf, target_dir)  # NOSONAR S5042 — members validated above
         return
     if archive_format == "tar.gz":
-        with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as tf:  # NOSONAR S5042 — _safe_extract_tar validates members below
+        with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as tf:  # NOSONAR S5042 — members validated below
             _safe_extract_tar(tf, target_dir)
         return
     raise DriverPinError(f"unsupported archive format {archive_format!r}")
@@ -201,7 +201,9 @@ def _safe_extract_tar(archive: tarfile.TarFile, target_dir: Path) -> None:
     # 3.9.17 / 3.10.12 / 3.11.4) which rejects escaping links; fall back to a
     # plain extract on older interpreters that lack the parameter.
     try:
-        archive.extractall(target_dir, filter="data")  # nosec B202 — members validated + data filter  # NOSONAR S930 — valid tarfile 'filter' kwarg (Py3.12+), guarded by except TypeError
+        # B202: members validated + data filter. S930: ``filter`` is a valid
+        # tarfile kwarg (Py3.12+), guarded by the ``except TypeError`` below.
+        archive.extractall(target_dir, filter="data")  # nosec B202  # NOSONAR S930
     except TypeError:
         archive.extractall(target_dir)  # nosec B202 — members validated above
 

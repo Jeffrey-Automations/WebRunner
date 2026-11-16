@@ -52,34 +52,34 @@ async (algorithm, text) => {
 """
 
 
-def decompress(data: bytes, algorithm: Algorithm) -> bytes:
-    if not isinstance(data, (bytes, bytearray)):
-        raise CompressionStreamsError("data must be bytes")
-    if not isinstance(algorithm, Algorithm):
+def _decompress_gzip(data: bytes) -> bytes:
+    try:
+        return gzip.decompress(bytes(data))
+    except OSError as exc:
         raise CompressionStreamsError(
-            "algorithm must be Algorithm enum"
-        )
-    if algorithm == Algorithm.GZIP:
-        try:
-            return gzip.decompress(bytes(data))
-        except OSError as exc:
-            raise CompressionStreamsError(
-                f"gzip decompression failed: {exc!r}"
-            ) from exc
-    if algorithm == Algorithm.DEFLATE:
-        try:
-            return zlib.decompress(bytes(data))
-        except zlib.error as exc:
-            raise CompressionStreamsError(
-                f"deflate decompression failed: {exc!r}"
-            ) from exc
-    if algorithm == Algorithm.DEFLATE_RAW:
-        try:
-            return zlib.decompress(bytes(data), -zlib.MAX_WBITS)
-        except zlib.error as exc:
-            raise CompressionStreamsError(
-                f"deflate-raw decompression failed: {exc!r}"
-            ) from exc
+            f"gzip decompression failed: {exc!r}"
+        ) from exc
+
+
+def _decompress_deflate(data: bytes) -> bytes:
+    try:
+        return zlib.decompress(bytes(data))
+    except zlib.error as exc:
+        raise CompressionStreamsError(
+            f"deflate decompression failed: {exc!r}"
+        ) from exc
+
+
+def _decompress_deflate_raw(data: bytes) -> bytes:
+    try:
+        return zlib.decompress(bytes(data), -zlib.MAX_WBITS)
+    except zlib.error as exc:
+        raise CompressionStreamsError(
+            f"deflate-raw decompression failed: {exc!r}"
+        ) from exc
+
+
+def _decompress_brotli(data: bytes) -> bytes:
     # brotli is optional
     try:
         import brotli   # type: ignore
@@ -93,6 +93,22 @@ def decompress(data: bytes, algorithm: Algorithm) -> bytes:
         raise CompressionStreamsError(
             f"brotli decompression failed: {exc!r}"
         ) from exc
+
+
+def decompress(data: bytes, algorithm: Algorithm) -> bytes:
+    if not isinstance(data, (bytes, bytearray)):
+        raise CompressionStreamsError("data must be bytes")
+    if not isinstance(algorithm, Algorithm):
+        raise CompressionStreamsError(
+            "algorithm must be Algorithm enum"
+        )
+    if algorithm == Algorithm.GZIP:
+        return _decompress_gzip(data)
+    if algorithm == Algorithm.DEFLATE:
+        return _decompress_deflate(data)
+    if algorithm == Algorithm.DEFLATE_RAW:
+        return _decompress_deflate_raw(data)
+    return _decompress_brotli(data)
 
 
 def assert_round_trip(

@@ -1,5 +1,5 @@
-from defusedxml import ElementTree as DefusedElementTree
-from defusedxml.minidom import parseString as defused_parse_string
+from defusedxml import ElementTree as DefusedElementTree  # type: ignore[import-untyped]
+from defusedxml.minidom import parseString as defused_parse_string  # type: ignore[import-untyped]
 # ElementTree class used only as a writer wrapper around an already-defused root.
 from xml.etree.ElementTree import ElementTree as _ETree  # nosec B405 # nosemgrep: use-defused-xml
 

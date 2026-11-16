@@ -41,7 +41,7 @@ class ToolCall:
             raise ToolCallAssertError("arguments must be a dict")
 
 
-JSON_TYPE_MAP = {
+JSON_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
     "string": str, "integer": int, "number": (int, float),
     "boolean": bool, "object": dict, "array": list,
 }

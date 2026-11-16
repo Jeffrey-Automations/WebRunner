@@ -42,7 +42,7 @@ class ApiContract:
     request_fields: list[FieldSpec] = field(default_factory=list)
 
 
-_TYPE_MAP = {
+_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
     "string": str, "integer": int, "number": (int, float),
     "boolean": bool, "object": dict, "array": list,
 }

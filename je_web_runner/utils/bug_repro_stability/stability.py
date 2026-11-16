@@ -76,6 +76,7 @@ def _classify(repro_pct: float) -> ReproCategory:
         return ReproCategory.NON_REPRODUCIBLE
     return ReproCategory.FLAKY
 
+
 # ---------- core -------------------------------------------------------
 
 @dataclass

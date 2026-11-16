@@ -68,6 +68,38 @@ class PaginationFindings:
         return not self.duplicates and not self.cursor_loop and not self.hit_max_pages
 
 
+def _fetch_page(fetcher: PageFetcher, cursor: Any | None, page_index: int) -> Page:
+    """Fetch the page at ``cursor``; a fetcher error or a non-``Page`` result is an audit error."""
+    try:
+        page = fetcher(cursor)
+    except Exception as error:
+        raise PaginationAuditError(
+            f"fetcher raised at page {page_index}: {error!r}"
+        ) from error
+    if not isinstance(page, Page):
+        raise PaginationAuditError(
+            f"fetcher must return Page, got {type(page).__name__}"
+        )
+    return page
+
+
+def _page_keys(
+    page: Page, key_fn: KeyFn, page_index: int, seen_items: dict[Hashable, list[int]],
+) -> list[Hashable]:
+    """The key of every item on ``page``; each one is also recorded against ``page_index`` in ``seen_items``."""
+    page_keys: list[Hashable] = []
+    for item in page.items:
+        try:
+            key = key_fn(item)
+        except Exception as error:
+            raise PaginationAuditError(
+                f"key_fn failed on page {page_index}: {error!r}"
+            ) from error
+        seen_items.setdefault(key, []).append(page_index)
+        page_keys.append(key)
+    return page_keys
+
+
 def walk_all_pages(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     fetcher: PageFetcher,
     key_fn: KeyFn,
@@ -92,27 +124,9 @@ def walk_all_pages(  # NOSONAR S3776 — cohesive logic; planned refactor in fol
     cursor: Any | None = initial_cursor
     page_index = 0
     while page_index < max_pages:
-        try:
-            page = fetcher(cursor)
-        except Exception as error:
-            raise PaginationAuditError(
-                f"fetcher raised at page {page_index}: {error!r}"
-            ) from error
-        if not isinstance(page, Page):
-            raise PaginationAuditError(
-                f"fetcher must return Page, got {type(page).__name__}"
-            )
+        page = _fetch_page(fetcher, cursor, page_index)
         findings.page_count = page_index + 1
-        page_keys: list[Hashable] = []
-        for item in page.items:
-            try:
-                key = key_fn(item)
-            except Exception as error:
-                raise PaginationAuditError(
-                    f"key_fn failed on page {page_index}: {error!r}"
-                ) from error
-            seen_items.setdefault(key, []).append(page_index)
-            page_keys.append(key)
+        page_keys = _page_keys(page, key_fn, page_index, seen_items)
         findings.total_items += len(page.items)
         findings.item_keys_by_page.append(page_keys)
         if not page.items:
@@ -217,7 +231,7 @@ def _check_order(last: Hashable, current: Hashable, reverse: bool) -> None:
     # (str vs int, None vs anything) raise TypeError here — surface that
     # as a PaginationAuditError instead of leaking a bare TypeError.
     try:
-        out_of_order = current > last if reverse else current < last
+        out_of_order = current > last if reverse else current < last  # type: ignore[operator]
     except TypeError as error:
         raise PaginationAuditError(
             f"items_by_page_key returned non-comparable keys "

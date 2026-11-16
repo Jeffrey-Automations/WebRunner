@@ -77,7 +77,7 @@ def _arg_type_signature(args: list[Any]) -> str:
 def _string_kind(value: str) -> str:
     """Crude bucket: 'locator' / 'url' / 'short' / 'long' so canonical."""
     # S5332 ok: we are *classifying* a string, not making an HTTP request.
-    if value.startswith(("http://", "https://")):  # NOSONAR S5332 — intentional plain HTTP (localhost/dev-configured endpoint), not a security-sensitive transport
+    if value.startswith(("http://", "https://")):  # NOSONAR S5332 — intentional plain HTTP
         return "url"
     if value in {"id", "name", "xpath", "link text", "partial link text",
                  "tag name", "class name", "css selector"}:
@@ -190,6 +190,7 @@ def _summary_for(file: ActionFile) -> str:
         else:
             parts.append(name)
     return " | ".join(parts)
+
 
 def _embed_one(embedder: Embedder, file: ActionFile) -> list[float]:
     """Call ``embedder`` for one file and validate the returned vector."""

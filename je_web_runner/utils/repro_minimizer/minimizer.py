@@ -53,6 +53,35 @@ ActionRunner = Callable[[list[Any]], bool]
 
 # ---------- ddmin -------------------------------------------------------
 
+def _check_arguments(actions: Sequence[Any], runner: ActionRunner, max_iterations: int) -> None:
+    """Reject arguments :func:`minimize` cannot work with."""
+    if not isinstance(actions, (list, tuple)):
+        raise ReproMinimizerError(
+            f"actions must be list/tuple, got {type(actions).__name__}"
+        )
+    if not actions:
+        raise ReproMinimizerError("actions must be non-empty")
+    if not callable(runner):
+        raise ReproMinimizerError("runner must be callable")
+    if max_iterations <= 0:
+        raise ReproMinimizerError("max_iterations must be > 0")
+
+
+def _first_failing_complement(
+    chunks: list[list[Any]], evaluate: Callable[[list[Any]], bool],
+) -> list[Any] | None:
+    """The first non-empty complement of one chunk that ``evaluate`` still fails, or None."""
+    for index in range(len(chunks)):
+        complement = [
+            a for j, c in enumerate(chunks) if j != index for a in c
+        ]
+        if not complement:
+            continue
+        if not evaluate(complement):
+            return complement
+    return None
+
+
 def minimize(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     actions: Sequence[Any],
     runner: ActionRunner,
@@ -64,16 +93,7 @@ def minimize(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     Classic ddmin. Returns the smallest contiguous-or-not subsequence of
     ``actions`` that still causes ``runner`` to return ``False``.
     """
-    if not isinstance(actions, (list, tuple)):
-        raise ReproMinimizerError(
-            f"actions must be list/tuple, got {type(actions).__name__}"
-        )
-    if not actions:
-        raise ReproMinimizerError("actions must be non-empty")
-    if not callable(runner):
-        raise ReproMinimizerError("runner must be callable")
-    if max_iterations <= 0:
-        raise ReproMinimizerError("max_iterations must be > 0")
+    _check_arguments(actions, runner, max_iterations)
 
     counter = {"evals": 0}
 
@@ -102,22 +122,14 @@ def minimize(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
         chunks = [current[i:i + chunk_size]
                   for i in range(0, len(current), chunk_size)]
         # Try removing complement of each chunk first (granularity = n).
-        reduced = False
-        for index in range(len(chunks)):
-            complement = [
-                a for j, c in enumerate(chunks) if j != index for a in c
-            ]
-            if not complement:
-                continue
-            if not _evaluate(complement):
-                current = complement
-                n = max(n - 1, 2)
-                reduced = True
-                break
-        if not reduced:
-            if n >= len(current):
-                break
-            n = min(n * 2, len(current))
+        failing = _first_failing_complement(chunks, _evaluate)
+        if failing is not None:
+            current = failing
+            n = max(n - 1, 2)
+            continue
+        if n >= len(current):
+            break
+        n = min(n * 2, len(current))
     duration = round(time.monotonic() - started, 4)
     if iterations >= max_iterations:
         web_runner_logger.warning(

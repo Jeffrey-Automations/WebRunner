@@ -81,7 +81,7 @@ class RenderArtifact:
 
 def _require_requests() -> Any:
     try:
-        import requests  # type: ignore[import-not-found]
+        import requests  # type: ignore[import-not-found,import-untyped]
         return requests
     except ImportError as error:
         raise EmailRenderError(
@@ -136,7 +136,7 @@ def _from_message(msg: Message, *, raw_text: str | None = None) -> CapturedEmail
 
 
 def _decode_payload(part: Message) -> str | None:
-    payload = part.get_payload(decode=True)
+    payload: Any = part.get_payload(decode=True)
     if payload is None:
         return None
     charset = part.get_content_charset() or "utf-8"
