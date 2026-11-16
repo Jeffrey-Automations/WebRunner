@@ -24,6 +24,7 @@ class WebLocksError(WebRunnerException):
 
 
 class LockOutcome(str, Enum):
+    """What happened to one ``lock.request`` call."""
     ACQUIRED = "acquired"
     RELEASED = "released"
     ABORTED = "aborted"
@@ -95,6 +96,7 @@ class LockEvent:
     time_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``outcome`` enum replaced by its string value."""
         return {**asdict(self), "outcome": self.outcome.value}
 
 
@@ -179,6 +181,7 @@ def assert_if_available_unavailable(
 def assert_acquired_count(
     events: Iterable[LockEvent], *, name: str, expected: int,
 ) -> None:
+    """Raise ``WebLocksError`` unless the lock ``name`` was acquired exactly ``expected`` times."""
     actual = sum(
         1 for e in events
         if e.name == name and e.outcome == LockOutcome.ACQUIRED

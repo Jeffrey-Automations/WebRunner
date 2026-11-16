@@ -107,3 +107,22 @@ python_files = ["test_*.py"]
 [tool.pylint.format]
 # The project line limit, the same as flake8 --max-line-length=120; Pylint's default is 100.
 max-line-length = 120
+
+[tool.pylint.design]
+# The project limits: at most 7 parameters per function. Pylint's defaults are 5.
+max-args = 7
+max-positional-arguments = 7
+
+[tool.pylint."messages control"]
+disable = [
+    # Log lines are written as f-strings throughout the package; the logger is at WARNING and above, so
+    # the cost of formatting a dropped line is not what this message is about here.
+    "logging-fstring-interpolation",
+    # Imports inside functions are deliberate: `import je_web_runner` must stay fast and must not load
+    # optional packages (Playwright, je_auto_control, the adapter libraries) until a command needs them.
+    "import-outside-toplevel",
+    # A consequence of those lazy imports: the cycles are never entered at import time.
+    "cyclic-import",
+    # Value objects, error classes and protocol stand-ins have few methods by design.
+    "too-few-public-methods",
+]

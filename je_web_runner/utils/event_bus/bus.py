@@ -30,6 +30,7 @@ class EventBusError(WebRunnerException):
 
 @dataclass
 class EventEnvelope:
+    """One event on the bus: its id, topic, payload, send time and sender."""
     event_id: str
     topic: str
     payload: dict[str, Any]
@@ -37,6 +38,7 @@ class EventEnvelope:
     sender: str | None = None
 
     def to_json_line(self) -> str:
+        """Return the event as one JSON line, newline included."""
         return json.dumps({
             "event_id": self.event_id,
             "topic": self.topic,
@@ -47,6 +49,7 @@ class EventEnvelope:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventEnvelope:
+        """Build an event from a decoded log line; raise ``EventBusError`` if a required key is missing."""
         try:
             return EventEnvelope(
                 event_id=str(data["event_id"]),
@@ -71,6 +74,7 @@ class EventBus:
         return Path(self.log_path)
 
     def publish(self, topic: str, payload: dict[str, Any] | None = None) -> EventEnvelope:
+        """Append an event for ``topic`` to the log file and return it; raise ``EventBusError`` on a bad argument."""
         if not topic:
             raise EventBusError("topic must be non-empty")
         if payload is not None and not isinstance(payload, dict):
@@ -99,6 +103,7 @@ class EventBus:
         offset: int = 0,
         topics: Iterable[str] | None = None,
     ) -> list[EventEnvelope]:
+        """Return the events stored from byte ``offset`` on, optionally only those of ``topics``."""
         path = self._path()
         if not path.is_file():
             return []
@@ -119,6 +124,7 @@ class EventBus:
         return events
 
     def current_offset(self) -> int:
+        """Size of the log file in bytes, to pass to ``poll`` as the next offset; 0 when there is no log."""
         path = self._path()
         return path.stat().st_size if path.is_file() else 0
 

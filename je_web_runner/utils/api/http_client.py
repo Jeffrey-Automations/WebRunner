@@ -30,7 +30,7 @@ _state: dict[str, Any] = {"last_response": None}
 def _allowed_url(url: str) -> str:
     if not isinstance(url, str) or not url:
         raise WebRunnerException("HTTP URL must be a non-empty string")
-    if not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not url.startswith(("http://", "https://")):  # NOSONAR — scheme allow-list, not an outbound HTTP call
         raise WebRunnerException(f"HTTP URL must start with http:// or https://: {url!r}")
     return url
 
@@ -81,22 +81,27 @@ def http_request(
 
 
 def http_get(url: str, **kwargs: Any) -> dict[str, Any]:
+    """Send a GET request through ``http_request`` and return its response dict."""
     return http_request("GET", url, **kwargs)
 
 
 def http_post(url: str, **kwargs: Any) -> dict[str, Any]:
+    """Send a POST request through ``http_request`` and return its response dict."""
     return http_request("POST", url, **kwargs)
 
 
 def http_put(url: str, **kwargs: Any) -> dict[str, Any]:
+    """Send a PUT request through ``http_request`` and return its response dict."""
     return http_request("PUT", url, **kwargs)
 
 
 def http_patch(url: str, **kwargs: Any) -> dict[str, Any]:
+    """Send a PATCH request through ``http_request`` and return its response dict."""
     return http_request("PATCH", url, **kwargs)
 
 
 def http_delete(url: str, **kwargs: Any) -> dict[str, Any]:
+    """Send a DELETE request through ``http_request`` and return its response dict."""
     return http_request("DELETE", url, **kwargs)
 
 
@@ -113,9 +118,10 @@ def http_assert_status(expected: int) -> None:
     last = _state["last_response"]
     if last is None:
         raise HttpAssertionError("no HTTP response recorded yet")
-    if last["status_code"] != int(expected):
+    status = last["status_code"]  # pylint: disable=unsubscriptable-object  # None is excluded above
+    if status != int(expected):
         raise HttpAssertionError(
-            f"expected status {expected}, got {last['status_code']}"
+            f"expected status {expected}, got {status}"
         )
 
 

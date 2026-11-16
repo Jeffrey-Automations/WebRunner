@@ -126,6 +126,10 @@ def _row_html(pair: _Pair) -> str:
 
 
 def render_index(baseline_dir: str, current_dir: str) -> str:
+    """回傳審視頁面的 HTML
+    Return the review page HTML: one row per snapshot pair found in the two
+    directories, or a placeholder row when there is none.
+    """
     pairs = _pairs(Path(baseline_dir), Path(current_dir))
     rows = "".join(_row_html(p) for p in pairs) or "<tr><td colspan='5'><em>No snapshots</em></td></tr>"
     return _INDEX_HTML.format(
@@ -154,6 +158,10 @@ class VisualReviewServer:
         self.accepted: list[str] = []
 
     def start(self) -> str:
+        """Serve the review UI from a daemon thread and return its base URL. With port 0
+        the port chosen by the OS is stored in ``self.port``. Raises ``VisualReviewError``
+        when the server is already started.
+        """
         if self._server is not None:
             raise VisualReviewError("review server already started")
         handler = _make_handler(self)
@@ -169,6 +177,7 @@ class VisualReviewServer:
         return f"http://{self.host}:{self.port}"  # NOSONAR — local UI
 
     def stop(self) -> None:
+        """Shut the HTTP server down and close its socket; does nothing when it is not running."""
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()
@@ -221,7 +230,8 @@ def _make_handler(server: VisualReviewServer) -> Callable:
             self.end_headers()
             self.wfile.write(body)
 
-        def do_GET(self):
+        def do_GET(self):  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Serve the index page or a baseline / current image; anything else is a 404."""
             parsed = urlparse(self.path)
             if parsed.path in {"/", "/index.html"}:
                 self._send(
@@ -238,7 +248,10 @@ def _make_handler(server: VisualReviewServer) -> Callable:
         def _serve_image(self, request_path: str) -> None:
             self._send(*_image_response(server, request_path))
 
-        def do_POST(self):
+        def do_POST(self):  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Handle ``POST /accept``: accept the snapshot named in the form body, then
+            redirect to the index; a refused request gets the refusal's status and body.
+            """
             if self.path != "/accept":
                 self._send(404, b"not found", _TEXT_PLAIN)
                 return

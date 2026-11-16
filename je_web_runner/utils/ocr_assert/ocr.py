@@ -141,6 +141,7 @@ class OcrMatchResult:
     notes: list[str] = field(default_factory=list)
 
     def raise_if_failed(self) -> None:
+        """Raise OcrAssertError, quoting the needle and the start of the recognised text, when the match failed."""
         if not self.matched:
             preview = self.haystack[:200].replace("\n", "\\n")
             raise OcrAssertError(

@@ -27,6 +27,7 @@ class CookieScopeAbuseError(WebRunnerException):
 
 
 class Severity(str, Enum):
+    """How serious a cookie-scope finding is."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
@@ -34,12 +35,14 @@ class Severity(str, Enum):
 
 @dataclass
 class CookieScopeFinding:
+    """One scope or security rule a session-like cookie broke."""
     severity: Severity
     rule: str
     cookie: str
     message: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict, with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
@@ -131,6 +134,7 @@ def _security_findings(c: _SessionCookie) -> list[CookieScopeFinding]:
 def audit_cookie(
     cookie: dict[str, Any], *, page_host: str,
 ) -> list[CookieScopeFinding]:
+    """Return the scope and security findings of one cookie; empty when it does not look like a session cookie."""
     if not isinstance(cookie, dict):
         raise CookieScopeAbuseError("cookie must be a dict")
     if not isinstance(page_host, str) or not page_host:
@@ -145,6 +149,7 @@ def audit_cookie(
 def audit_many(
     cookies: Iterable[dict[str, Any]], *, page_host: str,
 ) -> list[CookieScopeFinding]:
+    """Audit every cookie with ``audit_cookie`` and return all findings in one list."""
     out: list[CookieScopeFinding] = []
     for c in cookies:
         out.extend(audit_cookie(c, page_host=page_host))
@@ -152,6 +157,7 @@ def audit_many(
 
 
 def assert_no_errors(findings: Iterable[CookieScopeFinding]) -> None:
+    """Raise ``CookieScopeAbuseError`` naming every cookie that has an ERROR finding."""
     errors = [f for f in findings if f.severity == Severity.ERROR]
     if errors:
         details = [f"{f.cookie}({f.rule})" for f in errors]

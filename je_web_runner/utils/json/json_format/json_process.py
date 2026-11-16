@@ -1,3 +1,8 @@
+"""
+重新格式化 JSON 字串
+Reformat (pretty-print) JSON strings.
+"""
+
 import json.decoder
 import sys
 from json import dumps, loads

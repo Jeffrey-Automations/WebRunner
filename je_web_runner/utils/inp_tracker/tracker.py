@@ -67,6 +67,7 @@ _INSTALL = """
 
 
 def build_install_script() -> str:
+    """Return the JavaScript that installs the interaction listener in the page."""
     return _INSTALL
 
 
@@ -88,9 +89,11 @@ class InteractionEvent:
     processing_end: float = 0.0
 
     def rating(self) -> InpRating:
+        """Rate this interaction's duration against the INP thresholds."""
         return _rate(self.duration_ms)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the event as a dict, with its rating added as a string."""
         return {**asdict(self), "rating": self.rating().value}
 
 
@@ -156,6 +159,7 @@ class InpReport:
         return interactions[-1]
 
     def rating(self) -> InpRating:
+        """Rate the page's INP; GOOD when no interaction was recorded."""
         value = self.inp()
         if value is None:
             return InpRating.GOOD

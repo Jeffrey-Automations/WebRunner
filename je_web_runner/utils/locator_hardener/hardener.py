@@ -141,7 +141,8 @@ def score_fragility(locator: FragileLocator) -> FragilityScore:
 class HardenerClient(Protocol):
     """LLM client interface."""
 
-    def suggest(self, prompt: str) -> str: ...
+    def suggest(self, prompt: str) -> str:
+        """Return the model's raw answer to ``prompt``."""
 
 
 # ---------- prompt -----------------------------------------------------
@@ -171,6 +172,10 @@ You are improving an end-to-end test locator to make it more resilient.
 
 
 def build_prompt(locator: FragileLocator) -> str:
+    """Fill the prompt template with the locator, its failure history and its DOM excerpt.
+
+    Raises LocatorHardenerError when ``locator`` is not a FragileLocator.
+    """
     if not isinstance(locator, FragileLocator):
         raise LocatorHardenerError("build_prompt expects FragileLocator")
     return PROMPT_TEMPLATE.format(
@@ -194,6 +199,7 @@ class LocatorSuggestion:
     rationale: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the strategy (as its string value), the value and the rationale."""
         return {"strategy": self.strategy.value, "value": self.value,
                 "rationale": self.rationale}
 

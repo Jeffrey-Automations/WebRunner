@@ -30,8 +30,10 @@ _KEY_PRESSING_CHARACTERS = "\r\n\t"
 
 
 def _local_driver_classes() -> tuple[type[Any], ...]:
-    from selenium.webdriver import Firefox, Ie, Safari
     from selenium.webdriver.chromium.webdriver import ChromiumDriver
+    from selenium.webdriver.firefox.webdriver import WebDriver as Firefox
+    from selenium.webdriver.ie.webdriver import WebDriver as Ie
+    from selenium.webdriver.safari.webdriver import WebDriver as Safari
     return ChromiumDriver, Firefox, Safari, Ie
 
 

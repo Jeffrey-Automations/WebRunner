@@ -21,6 +21,9 @@ class StorybookError(WebRunnerException):
 
 @dataclass(frozen=True)
 class StorybookStory:
+    """Storybook index 中的一個 story
+    One entry of the Storybook index: its id, title, name, kind and parameters.
+    """
     id: str
     title: str
     name: str

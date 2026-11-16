@@ -27,6 +27,7 @@ class ComputePressureError(WebRunnerException):
 
 
 class PressureLevel(str, Enum):
+    """The pressure states of the Compute Pressure API, from lightest to heaviest."""
     NOMINAL = "nominal"
     FAIR = "fair"
     SERIOUS = "serious"
@@ -79,6 +80,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class PressureReaction:
+    """Something the app did in response to a pressure level."""
     name: str
     level: PressureLevel = PressureLevel.NOMINAL
     ts_ms: int = 0
@@ -86,12 +88,14 @@ class PressureReaction:
 
 @dataclass
 class PressureLog:
+    """What the page recorded: its reactions, the levels fired and how often the observer disconnected."""
     reactions: list[PressureReaction] = field(default_factory=list)
     disconnect_count: int = 0
     fires: list[PressureLevel] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> PressureLog:
+    """Build a ``PressureLog`` from the harvested payload; raise ``ComputePressureError`` on an unknown level."""
     if not isinstance(payload, dict):
         raise ComputePressureError("payload must be a dict")
     reactions: list[PressureReaction] = []
@@ -127,6 +131,7 @@ def parse_log(payload: Any) -> PressureLog:
 def assert_reaction_to(
     log: PressureLog, *, level: PressureLevel, name: str | None = None,
 ) -> PressureReaction:
+    """Return the first reaction at ``level`` or heavier (optionally by name); raise if there is none."""
     if not isinstance(level, PressureLevel):
         raise ComputePressureError("level must be PressureLevel enum")
     matches = [r for r in log.reactions
@@ -158,6 +163,7 @@ def assert_throttled_at_or_above(
 
 
 def assert_observer_disconnected(log: PressureLog) -> None:
+    """Raise ``ComputePressureError`` when the page never disconnected its ``PressureObserver``."""
     if log.disconnect_count == 0:
         raise ComputePressureError(
             "PressureObserver never disconnected — page leaks the observer"

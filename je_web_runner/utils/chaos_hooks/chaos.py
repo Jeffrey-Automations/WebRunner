@@ -59,9 +59,11 @@ class ChaosPlan:
     skipped: list[int] = field(default_factory=list)
 
     def faults_for_step(self, index: int) -> list[ChaosFaultType]:
+        """Return the faults planned for the step at ``index``."""
         return [e.fault for e in self.events if e.step_index == index]
 
     def describe(self) -> str:
+        """Return a one-line summary of the planned faults, step by step."""
         if not self.events:
             return "no chaos planned"
         rows = [

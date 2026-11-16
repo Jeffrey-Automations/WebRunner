@@ -53,19 +53,21 @@ def _path_template(path: str) -> str:
     return "/".join(out)
 
 
+# Checked in order: ``bool`` is a subclass of ``int`` and must come first.
+_JS_TYPES: tuple[tuple[type, str], ...] = (
+    (bool, "boolean"),
+    (int, "integer"),
+    (float, "number"),
+    (str, "string"),
+    (list, "array"),
+    (dict, "object"),
+)
+
+
 def _js_type(value: Any) -> str:
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, int):
-        return "integer"
-    if isinstance(value, float):
-        return "number"
-    if isinstance(value, str):
-        return "string"
-    if isinstance(value, list):
-        return "array"
-    if isinstance(value, dict):
-        return "object"
+    for python_type, name in _JS_TYPES:
+        if isinstance(value, python_type):
+            return name
     return "null"
 
 
@@ -135,6 +137,10 @@ def _register_entry(
 
 
 def convert(har: Mapping[str, Any]) -> dict[str, Any]:
+    """Build an OpenAPI 3.1 document from the entries of a HAR.
+
+    Raises HarToOpenapiError when ``har`` is not a mapping or ``har.log.entries`` is not a list.
+    """
     if not isinstance(har, Mapping):
         raise HarToOpenapiError("har must be a mapping")
     log = har.get("log")
@@ -155,6 +161,7 @@ def convert(har: Mapping[str, Any]) -> dict[str, Any]:
 def assert_spec_minimum_coverage(
     spec: Mapping[str, Any], *, min_paths: int,
 ) -> None:
+    """Raise HarToOpenapiError when the spec has fewer than ``min_paths`` paths."""
     if min_paths < 1:
         raise HarToOpenapiError("min_paths must be >= 1")
     paths = spec.get("paths") or {}

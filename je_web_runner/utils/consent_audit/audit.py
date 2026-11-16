@@ -98,6 +98,7 @@ class ClassifiedCookie:
     vendor: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the cookie's name, domain, category and vendor as a dict."""
         return {
             "name": self.cookie.name,
             "domain": self.cookie.domain,
@@ -159,9 +160,11 @@ class ConsentReport:
     unknown_cookies: list[ClassifiedCookie] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True when no non-essential cookie was set before consent or came back after a rejection."""
         return not self.pre_consent_violations and not self.post_consent_reintroduced
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a dict, including the computed ``passed`` flag."""
         return {
             "pre_consent_total": self.pre_consent_total,
             "post_consent_total": self.post_consent_total,

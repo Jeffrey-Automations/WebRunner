@@ -38,6 +38,7 @@ class RouteBudget:
     metrics: dict[str, float] = field(default_factory=dict)
 
     def matches(self, route_path: str) -> bool:
+        """Return True when ``route_path`` equals ``path`` or matches ``path_glob``."""
         if self.path is not None and self.path == route_path:
             return True
         if self.path_glob is not None and fnmatch.fnmatchcase(route_path, self.path_glob):
@@ -84,12 +85,14 @@ def _build_route_budget(index: int, entry: Any) -> RouteBudget:
 
 @dataclass
 class BudgetCheckResult:
+    """The rule that matched a route (None when no rule did) and the metrics that broke it."""
     route: str
     matched_rule: RouteBudget | None
     breaches: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
+        """True when no metric breached the budget."""
         return not self.breaches
 
 
@@ -123,6 +126,7 @@ def evaluate_metrics(
 
 
 def assert_within_budget(result: BudgetCheckResult) -> None:
+    """Raise PerfBudgetError when the route breached its budget; a route no rule matched passes."""
     if result.matched_rule is None:
         return  # no rule for this route — caller decides whether that's OK
     if not result.passed:

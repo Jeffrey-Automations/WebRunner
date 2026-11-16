@@ -17,7 +17,7 @@ from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_fail
 _recorded = recorded_calls("Web element")
 
 
-class WebElementWrapper:
+class WebElementWrapper:  # pylint: disable=too-many-public-methods  # one method per command
     """
     操作目前選取的 WebElement
     Operations on the currently selected WebElement (set by the wrapper's find methods).
@@ -63,7 +63,7 @@ class WebElementWrapper:
         try:
             self.current_web_element.submit()
             record_action_to_list("Web element submit", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper submit, failed: {error!r}")
             record_action_to_list("Web element submit", None, error)
             settle_wrapper_failure(error)
@@ -77,7 +77,7 @@ class WebElementWrapper:
         try:
             self.current_web_element.clear()
             record_action_to_list("Web element clear", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper clear, failed: {error!r}")
             record_action_to_list("Web element clear", None, error)
             settle_wrapper_failure(error)
@@ -94,7 +94,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element get_property", param, None)
             return self.current_web_element.get_property(name)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper get_property, name: {name}, failed: {error!r}")
             record_action_to_list("Web element get_property", param, error)
             settle_wrapper_failure(error)
@@ -112,7 +112,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element get_dom_attribute", param, None)
             return self.current_web_element.get_dom_attribute(name)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper get_dom_attribute, name: {name}, failed: {error!r}")
             record_action_to_list("Web element get_dom_attribute", param, error)
             settle_wrapper_failure(error)
@@ -130,7 +130,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element get_attribute", param, None)
             return self.current_web_element.get_attribute(name)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper get_attribute, name: {name}, failed: {error!r}")
             record_action_to_list("Web element get_attribute", param, error)
             settle_wrapper_failure(error)
@@ -146,7 +146,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element is_selected", None, None)
             return self.current_web_element.is_selected()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper is_selected, failed: {error!r}")
             record_action_to_list("Web element is_selected", None, error)
             settle_wrapper_failure(error)
@@ -162,7 +162,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element is_enabled", None, None)
             return self.current_web_element.is_enabled()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper is_enabled, failed: {error!r}")
             record_action_to_list("Web element is_enabled", None, error)
             settle_wrapper_failure(error)
@@ -179,7 +179,7 @@ class WebElementWrapper:
         try:
             self.current_web_element.send_keys(input_value)
             record_action_to_list("Web element input_to_element", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper input_to_element, input_value: {input_value}, failed: {error!r}")
             record_action_to_list("Web element input_to_element", param, error)
@@ -194,7 +194,7 @@ class WebElementWrapper:
         try:
             self.current_web_element.click()
             record_action_to_list("Web element click_element", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper click_element, failed: {error!r}")
             record_action_to_list("Web element click_element", None, error)
             settle_wrapper_failure(error)
@@ -209,7 +209,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element is_displayed", None, None)
             return self.current_web_element.is_displayed()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebElementWrapper is_displayed, failed: {error!r}")
             record_action_to_list("Web element is_displayed", None, error)
             settle_wrapper_failure(error)
@@ -227,7 +227,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element value_of_css_property", param, None)
             return self.current_web_element.value_of_css_property(property_name)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper value_of_css_property, property_name: {property_name}, failed: {error!r}")
             record_action_to_list("Web element value_of_css_property", param, error)
@@ -246,7 +246,7 @@ class WebElementWrapper:
         try:
             record_action_to_list("Web element screenshot", param, None)
             return self.current_web_element.screenshot(filename + ".png")
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.info(f"WebElementWrapper screenshot, filename: {filename}, failed: {error!r}")
             record_action_to_list("Web element screenshot", param, error)
             settle_wrapper_failure(error)
@@ -261,9 +261,11 @@ class WebElementWrapper:
         web_runner_logger.info(f"WebElementWrapper change_web_element, element_index: {element_index}")
         param = locals()
         try:
-            self.current_web_element = self.current_web_element_list[element_index]
+            # None until a find sets the list: the TypeError is then recorded like any other failure.
+            elements = self.current_web_element_list
+            self.current_web_element = elements[element_index]  # pylint: disable=unsubscriptable-object  # see above
             record_action_to_list("Web element change_web_element", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper change_web_element, element_index: {element_index}, failed: {error!r}")
             record_action_to_list("Web element change_web_element", param, error)
@@ -288,7 +290,7 @@ class WebElementWrapper:
             # 紀錄成功動作
             # Record successful action
             record_action_to_list("Web element check_current_web_element", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             # 錯誤處理與紀錄
             # Handle and log error
             web_runner_logger.error(
@@ -307,7 +309,7 @@ class WebElementWrapper:
         try:
             Select(self.current_web_element).select_by_value(value)
             record_action_to_list("Web element select_by_value", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper select_by_value, value: {value}, failed: {error!r}"
             )
@@ -324,7 +326,7 @@ class WebElementWrapper:
         try:
             Select(self.current_web_element).select_by_index(int(index))
             record_action_to_list("Web element select_by_index", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper select_by_index, index: {index}, failed: {error!r}"
             )
@@ -341,7 +343,7 @@ class WebElementWrapper:
         try:
             Select(self.current_web_element).select_by_visible_text(text)
             record_action_to_list("Web element select_by_visible_text", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebElementWrapper select_by_visible_text, text: {text}, failed: {error!r}"
             )
@@ -365,7 +367,7 @@ class WebElementWrapper:
             # 回傳 Select 包裝的 WebElement
             # Return Select wrapper of the WebElement
             return Select(self.current_web_element)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             # 錯誤處理與紀錄
             # Handle and log error
             web_runner_logger.error(f"WebElementWrapper get_select, failed: {error!r}")

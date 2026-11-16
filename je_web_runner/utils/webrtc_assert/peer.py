@@ -32,6 +32,7 @@ class WebRtcAssertError(WebRunnerException):
 # ---------- enums -------------------------------------------------------
 
 class ConnectionState(str, Enum):
+    """Values of ``RTCPeerConnection.connectionState``."""
     NEW = "new"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -41,6 +42,7 @@ class ConnectionState(str, Enum):
 
 
 class IceState(str, Enum):
+    """Values of ``RTCPeerConnection.iceConnectionState``."""
     NEW = "new"
     CHECKING = "checking"
     CONNECTED = "connected"
@@ -51,6 +53,7 @@ class IceState(str, Enum):
 
 
 class SignalingState(str, Enum):
+    """Values of ``RTCPeerConnection.signalingState``."""
     STABLE = "stable"
     HAVE_LOCAL_OFFER = "have-local-offer"
     HAVE_REMOTE_OFFER = "have-remote-offer"
@@ -73,7 +76,7 @@ class TrackInfo:
 
 
 @dataclass
-class PeerSnapshot:
+class PeerSnapshot:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """A point-in-time view of an ``RTCPeerConnection``."""
 
     connection_state: ConnectionState

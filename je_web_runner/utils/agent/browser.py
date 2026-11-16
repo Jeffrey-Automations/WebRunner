@@ -214,7 +214,7 @@ class BrowserSession:
                 result["frames"].append({
                     "selector": selector, "elements": content["elements"], "text": content["text"],
                 })
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # an unreadable frame is recorded
                 result["frames"].append({"selector": selector, "error": type(error).__name__})
         return result
 

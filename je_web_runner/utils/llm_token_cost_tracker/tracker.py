@@ -40,6 +40,7 @@ DEFAULT_RATE_CARD: dict[str, dict[str, float]] = {
 
 @dataclass
 class CallRecord:
+    """The token counts of one LLM call, with the model and the test that made it."""
     model: str
     input_tokens: int = 0
     output_tokens: int = 0
@@ -54,12 +55,14 @@ class CallRecord:
 
 @dataclass
 class Tally:
+    """Summed tokens, cost in USD and number of calls."""
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
     calls: int = 0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the totals as a plain dict."""
         return asdict(self)
 
 
@@ -82,6 +85,10 @@ def compute_cost(
     record: CallRecord, *,
     rate_card_override: Mapping[str, Mapping[str, float]] | None = None,
 ) -> float:
+    """Return the USD cost of one call from the per-1000-token prices of its model.
+
+    ``rate_card_override`` entries replace or add to the default rate card.
+    """
     rates: dict[str, Mapping[str, float]] = dict(DEFAULT_RATE_CARD)
     if rate_card_override:
         rates.update(rate_card_override)
@@ -94,6 +101,10 @@ def tally(
     records: Iterable[CallRecord], *,
     rate_card_override: Mapping[str, Mapping[str, float]] | None = None,
 ) -> Tally:
+    """Sum the tokens, cost (rounded to 6 decimals) and call count of ``records``.
+
+    Raises LlmTokenCostError when an item is not a CallRecord.
+    """
     out = Tally()
     for r in records:
         if not isinstance(r, CallRecord):
@@ -110,6 +121,7 @@ def tally_by_test(
     records: Iterable[CallRecord],
     *, rate_card_override: Mapping[str, Mapping[str, float]] | None = None,
 ) -> dict[str, Tally]:
+    """Return one Tally per test name; calls without a test name go under ``(unknown)``."""
     buckets: dict[str, list[CallRecord]] = defaultdict(list)
     for r in records:
         buckets[r.test_name or "(unknown)"].append(r)
@@ -120,6 +132,7 @@ def tally_by_test(
 def assert_under_budget(
     summary: Tally, *, max_usd: float,
 ) -> None:
+    """Raise LlmTokenCostError when the summed cost exceeds ``max_usd``."""
     if max_usd <= 0:
         raise LlmTokenCostError("max_usd must be positive")
     if summary.cost_usd > max_usd:
@@ -131,6 +144,7 @@ def assert_under_budget(
 def top_spenders(
     by_test: Mapping[str, Tally], *, top_n: int = 5,
 ) -> list[dict[str, Any]]:
+    """Return the ``top_n`` most expensive tests as dicts, most expensive first."""
     if top_n < 1:
         raise LlmTokenCostError("top_n must be >= 1")
     items = sorted(by_test.items(), key=lambda kv: -kv[1].cost_usd)

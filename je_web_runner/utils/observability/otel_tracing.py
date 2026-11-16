@@ -20,7 +20,7 @@ class OTelTracingError(WebRunnerException):
     """Raised when OpenTelemetry isn't available or installation fails."""
 
 
-_tracer: Any = None
+_tracer: Any = None  # pylint: disable=invalid-name  # module state set by init_tracer, not a constant
 
 
 def _require_otel():
@@ -52,7 +52,7 @@ def init_tracer(
     (a ConsoleSpanExporter by default for easy verification), and return a
     Tracer scoped to ``service_name``.
     """
-    global _tracer
+    global _tracer  # pylint: disable=global-statement  # the cached tracer is module state
     web_runner_logger.info(f"init_tracer service={service_name}")
     # The names below are real classes from opentelemetry-sdk; the
     # ``CamelCase`` in lower-scope is unavoidable (SonarCloud S117 false
@@ -79,7 +79,7 @@ def init_tracer(
 
 def reset_tracer() -> None:
     """Drop the cached tracer (mainly for tests)."""
-    global _tracer
+    global _tracer  # pylint: disable=global-statement  # the cached tracer is module state
     _tracer = None
 
 

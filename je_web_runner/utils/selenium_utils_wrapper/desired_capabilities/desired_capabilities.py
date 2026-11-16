@@ -1,13 +1,16 @@
+"""各瀏覽器的 DesiredCapabilities 查詢。
+Lookup of Selenium ``DesiredCapabilities`` by browser name.
+"""
 from typing import Any
 
-from selenium.webdriver import DesiredCapabilities
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from je_web_runner.utils.exception.exception_tags import selenium_wrapper_web_driver_not_found_error
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
 # 定義可用的 WebDriver 與其對應的 DesiredCapabilities
 # Define available WebDrivers and their corresponding DesiredCapabilities
-desired_capabilities_dict = {
+desired_capabilities_dict: dict[str, dict[str, Any]] = {
     "firefox": DesiredCapabilities.FIREFOX,
     "chrome": DesiredCapabilities.CHROME,
     "edge": DesiredCapabilities.EDGE,

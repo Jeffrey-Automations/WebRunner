@@ -1,3 +1,8 @@
+"""
+建立 WebRunner 專案範本
+Create the directories, keyword JSON files and executor scripts of a new WebRunner project.
+"""
+
 from os import getcwd
 from pathlib import Path
 from threading import Lock
@@ -59,8 +64,7 @@ def create_template(parent_name: str, project_path: str | None = None) -> None:
     # 建立 executor Python 檔案
     # Create executor Python files
     if executor_dir_path.exists() and executor_dir_path.is_dir():
-        lock.acquire()
-        try:
+        with lock:
             with open(project_root + EXECUTOR_DIR + "/executor_one_file.py", "w+", encoding="utf-8") as file:
                 file.write(
                     executor_template_1.replace(
@@ -82,8 +86,6 @@ def create_template(parent_name: str, project_path: str | None = None) -> None:
                         project_root + KEYWORD_DIR
                     )
                 )
-        finally:
-            lock.release()
 
 
 def create_project_dir(project_path: str | None = None, parent_name: str = "WebRunner") -> None:

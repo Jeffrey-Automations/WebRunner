@@ -73,6 +73,10 @@ def from_spans(spans: Iterable[dict[str, Any]]) -> list[TimelineEvent]:
 
 
 def from_console(messages: Iterable[dict[str, Any]]) -> list[TimelineEvent]:
+    """Turn console messages into ``console`` timeline events.
+
+    A message without a usable timestamp takes its index, so the order is kept.
+    """
     events: list[TimelineEvent] = []
     for index, message in enumerate(messages):
         ts = _coerce_timestamp(_first_present(message, "timestamp_ms", "ts"))
@@ -88,6 +92,10 @@ def from_console(messages: Iterable[dict[str, Any]]) -> list[TimelineEvent]:
 
 
 def from_responses(responses: Iterable[dict[str, Any]]) -> list[TimelineEvent]:
+    """Turn network responses into ``response`` timeline events labelled ``METHOD status``.
+
+    A response without a usable timestamp takes its index, so the order is kept.
+    """
     events: list[TimelineEvent] = []
     for index, response in enumerate(responses):
         ts = _coerce_timestamp(_first_present(response, "timestamp_ms", "ts"))
@@ -116,6 +124,7 @@ def merge(*event_lists: Iterable[TimelineEvent]) -> list[TimelineEvent]:
 
 
 def to_dicts(events: Iterable[TimelineEvent]) -> list[dict[str, Any]]:
+    """Return the events as plain dicts (timestamp, kind, label, payload)."""
     return [
         {
             "timestamp_ms": e.timestamp_ms,

@@ -62,6 +62,7 @@ _INSTALL = """
 
 
 def build_install_script() -> str:
+    """Return the JavaScript that installs the long-animation-frame observer in the page."""
     return _INSTALL
 
 
@@ -95,6 +96,7 @@ class LongFrame:
     scripts: list[ScriptAttribution] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the frame fields as a plain dict."""
         return asdict(self)
 
 
@@ -148,9 +150,11 @@ class LoafReport:
     frames: list[LongFrame] = field(default_factory=list)
 
     def worst_frame_ms(self) -> float:
+        """Duration of the longest frame, 0.0 when there are none."""
         return max((f.duration_ms for f in self.frames), default=0.0)
 
     def total_blocking_ms(self) -> float:
+        """Sum of the blocking duration of every frame."""
         return sum(f.blocking_duration_ms for f in self.frames)
 
     def top_scripts(self, *, n: int = 5) -> list[ScriptAttribution]:

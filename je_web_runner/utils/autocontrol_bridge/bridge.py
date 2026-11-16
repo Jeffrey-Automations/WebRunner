@@ -49,8 +49,7 @@ def ac_executor() -> Any:
     """AutoControl's global action executor; imports ``je_auto_control`` on first use."""
     if not ac_available():
         raise AutoControlBridgeError(_HINT)
-    from je_auto_control.utils.executor.action_executor import executor  # type: ignore[import-not-found]
-    return executor
+    return importlib.import_module("je_auto_control.utils.executor.action_executor").executor
 
 
 def is_denied(name: str) -> bool:

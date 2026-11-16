@@ -39,7 +39,7 @@ _TIER_THRESHOLDS = (
 
 
 @dataclass
-class AgedEntry:
+class AgedEntry:  # pylint: disable=too-many-instance-attributes  # report record, one field per column
     """One quarantine entry + escalation metadata."""
 
     test_id: str
@@ -52,6 +52,7 @@ class AgedEntry:
     runs_when_added: int = 0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the entry as a dict with the tier as its string value."""
         return {**asdict(self), "tier": self.tier.value}
 
 

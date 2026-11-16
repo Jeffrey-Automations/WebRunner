@@ -1,3 +1,6 @@
+"""XML 元素樹與 dict 之間的轉換。
+Conversion between XML element trees and dicts.
+"""
 from collections import defaultdict
 # Element/SubElement/tostring are XML builders, not parsers; defusedxml does not provide builders.
 from xml.etree.ElementTree import Element, SubElement, tostring  # nosec B405 # nosemgrep: use-defused-xml

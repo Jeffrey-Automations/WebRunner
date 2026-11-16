@@ -1,3 +1,6 @@
+"""測試物件紀錄：以名稱保存與查詢 TestObject。
+Record of TestObject instances, stored and looked up by name.
+"""
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_object.test_object_class import TestObject

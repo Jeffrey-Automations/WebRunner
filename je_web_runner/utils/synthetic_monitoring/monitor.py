@@ -48,6 +48,7 @@ class SyntheticMonitorResult:
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the result as a plain dict, with the duration rounded to four decimals."""
         return {
             "name": self.name,
             "status": self.status,
@@ -88,6 +89,10 @@ class SyntheticMonitor:
         failure_threshold: int = 1,
         recovery_threshold: int = 1,
     ) -> None:
+        """Add or replace the check ``name``. The thresholds are the numbers of consecutive
+        failures / successes needed before the state flips. Raises ``SyntheticMonitorError``
+        for an empty name, a non-callable check or a threshold below 1.
+        """
         if not name:
             raise SyntheticMonitorError("check name must be non-empty")
         if not callable(check):

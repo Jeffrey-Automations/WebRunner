@@ -90,8 +90,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):
-        if self.path == "/" or self.path == "/index.html":
+    def do_GET(self):  # pylint: disable=invalid-name  # the name http.server dispatches GET requests to
+        """Serve the dashboard page on ``/`` and the recorded actions as JSON on ``/records``; 404 otherwise."""
+        if self.path in ("/", "/index.html"):
             self._send(200, _INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
             return
         if self.path == "/records":
@@ -104,7 +105,7 @@ class _Handler(BaseHTTPRequestHandler):
         # ``format`` shadows the built-in here because BaseHTTPRequestHandler
         # defines the method with that exact parameter name; renaming would
         # break the override contract. Routes through WebRunner's logger.
-        web_runner_logger.debug("dashboard: " + (format % args))
+        web_runner_logger.debug("dashboard: %s", format % args)
 
 
 class LiveDashboard:
@@ -118,6 +119,7 @@ class LiveDashboard:
 
     @property
     def address(self) -> str:
+        """The ``http://host:port`` URL of the running server; raise ``DashboardError`` when it is not running."""
         if self._server is None:
             raise DashboardError("dashboard is not running")
         host, port = cast("tuple[str, int]", self._server.server_address)
@@ -126,6 +128,7 @@ class LiveDashboard:
         return f"http://{host}:{port}"  # NOSONAR
 
     def start(self) -> str:
+        """Start the HTTP server on a daemon thread and return its URL."""
         web_runner_logger.info(f"LiveDashboard.start {self._host}:{self._port}")
         self._server = ThreadingHTTPServer((self._host, self._port), _Handler)
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -133,6 +136,7 @@ class LiveDashboard:
         return self.address
 
     def stop(self) -> None:
+        """Shut the server down; does nothing when it is not running."""
         if self._server is None:
             return
         self._server.shutdown()
@@ -145,10 +149,12 @@ _default = LiveDashboard()
 
 
 def start_dashboard(host: str = "127.0.0.1", port: int = 0) -> str:
-    _default._host = host
-    _default._port = int(port)
+    """Start the module-wide dashboard on ``host``:``port`` (0 picks a free port) and return its URL."""
+    _default._host = host  # pylint: disable=protected-access  # this module's own instance
+    _default._port = int(port)  # pylint: disable=protected-access  # this module's own instance
     return _default.start()
 
 
 def stop_dashboard() -> None:
+    """Stop the module-wide dashboard."""
     _default.stop()

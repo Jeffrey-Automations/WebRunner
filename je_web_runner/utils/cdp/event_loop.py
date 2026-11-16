@@ -108,7 +108,7 @@ def resolve_cdp_ws_url(driver) -> str:
     )
 
 
-class CDPEventListener:
+class CDPEventListener:  # pylint: disable=too-many-instance-attributes  # socket, thread, locks and handlers
     """
     背景 CDP 事件迴圈，搭配同一條 WebSocket 同時送命令 / 收事件。
     Background CDP event loop sharing one WebSocket for sending commands
@@ -188,7 +188,7 @@ class CDPEventListener:
         if ws is not None:
             try:
                 ws.close()
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # the socket may already be dead
                 web_runner_logger.debug(f"CDPEventListener ws.close failed: {error!r}")
         thread = self._thread
         self._thread = None
@@ -244,7 +244,7 @@ class CDPEventListener:
                 break
             try:
                 raw = ws.recv()
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # any socket error ends the loop
                 if not self._stop_flag.is_set():
                     web_runner_logger.error(f"CDPEventListener recv failed: {error!r}")
                 break
@@ -252,7 +252,7 @@ class CDPEventListener:
                 continue
             try:
                 message = json.loads(raw)
-            except Exception as error:
+            except (ValueError, TypeError) as error:
                 web_runner_logger.warning(f"CDPEventListener bad JSON: {error!r}")
                 continue
             self._dispatch(message)
@@ -274,7 +274,7 @@ class CDPEventListener:
         for callback in handlers:
             try:
                 callback(params)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # a handler must not stop the loop
                 web_runner_logger.error(
                     f"CDPEventListener handler for {method!r} raised: {error!r}"
                 )

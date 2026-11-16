@@ -72,11 +72,13 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class MockDevice:
+    """The identity of the fake HID device handed to the shim."""
     vendor_id: int
     product_id: int
     product_name: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the vendor id, product id and product name as a plain dict."""
         return {
             "vendor_id": self.vendor_id,
             "product_id": self.product_id,
@@ -87,6 +89,9 @@ class MockDevice:
 def build_mock_device(
     vendor_id: int, product_id: int, product_name: str = "",
 ) -> MockDevice:
+    """Return a ``MockDevice``; raises ``WebhidMockError`` when an id does not fit in
+    an unsigned 16-bit integer.
+    """
     if not 0 <= vendor_id <= 0xFFFF or not 0 <= product_id <= 0xFFFF:
         raise WebhidMockError("vendor/product id must fit in uint16")
     return MockDevice(vendor_id=vendor_id, product_id=product_id,
@@ -94,6 +99,9 @@ def build_mock_device(
 
 
 def build_input_report(report_id: int, data: Sequence[int]) -> dict[str, Any]:
+    """Return the ``{report_id, data}`` dict that makes the shim deliver an input report.
+    Raises ``WebhidMockError`` when the id or a data byte is outside 0..255.
+    """
     if not 0 <= report_id <= 255:
         raise WebhidMockError("report_id must be 0..255")
     if not isinstance(data, (list, tuple)):
@@ -105,6 +113,7 @@ def build_input_report(report_id: int, data: Sequence[int]) -> dict[str, Any]:
 
 @dataclass
 class OutgoingReport:
+    """One report the page sent to the device: its id and data bytes."""
     report_id: int
     data: list[int] = field(default_factory=list)
 
@@ -119,6 +128,9 @@ def _outgoing_report_id(raw: dict[str, Any]) -> int:
 
 
 def parse_outgoing(payload: Any) -> list[OutgoingReport]:
+    """Turn the list recorded by the shim into ``OutgoingReport`` records, skipping
+    entries that are not objects. Raises ``WebhidMockError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise WebhidMockError("payload must be a list")
     out: list[OutgoingReport] = []
@@ -137,6 +149,10 @@ def assert_output_reports(
     *, expected_count: int | None = None,
     contains: Sequence[int] | None = None,
 ) -> None:
+    """Raise ``WebhidMockError`` when the number of reports differs from ``expected_count``
+    or when no report's data contains the byte run ``contains``; each check is
+    skipped when its argument is ``None``.
+    """
     rs = list(reports)
     if expected_count is not None and len(rs) != expected_count:
         raise WebhidMockError(

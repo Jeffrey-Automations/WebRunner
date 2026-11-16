@@ -19,6 +19,7 @@ class MultiTabError(WebRunnerException):
 
 @dataclass
 class TabHandle:
+    """A window handle and the alias it is known by."""
     alias: str
     handle: str
 
@@ -30,6 +31,10 @@ class TabChoreographer:
     tabs: dict[str, TabHandle] = field(default_factory=dict)
 
     def register_current(self, driver: Any, alias: str) -> TabHandle:
+        """Remember the driver's current window under ``alias`` and return its handle.
+
+        Raises MultiTabError when the driver has no ``current_window_handle``.
+        """
         if not hasattr(driver, "current_window_handle"):
             raise MultiTabError("driver does not expose current_window_handle")
         handle = driver.current_window_handle
@@ -53,6 +58,10 @@ class TabChoreographer:
         return self._register(alias, new_handle)
 
     def switch_to(self, driver: Any, alias: str) -> TabHandle:
+        """Switch the driver to the tab registered as ``alias`` and return its handle.
+
+        Raises MultiTabError for an unknown alias or a driver without ``switch_to``.
+        """
         if alias not in self.tabs:
             raise MultiTabError(f"unknown tab alias: {alias!r}")
         if not hasattr(driver, "switch_to"):
@@ -63,6 +72,10 @@ class TabChoreographer:
         return tab
 
     def close(self, driver: Any, alias: str) -> None:
+        """Switch to the tab registered as ``alias``, close it and forget the alias.
+
+        Raises MultiTabError for an unknown alias.
+        """
         tab = self.tabs.pop(alias, None)
         if tab is None:
             raise MultiTabError(f"unknown tab alias: {alias!r}")
@@ -70,6 +83,7 @@ class TabChoreographer:
         driver.close()
 
     def aliases(self) -> list[str]:
+        """Sorted aliases of the registered tabs."""
         return sorted(self.tabs.keys())
 
     def with_tab(

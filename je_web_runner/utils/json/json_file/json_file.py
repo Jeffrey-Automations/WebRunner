@@ -1,3 +1,8 @@
+"""
+讀寫 JSON 動作檔案
+Read and write action JSON files under a module-wide lock.
+"""
+
 import json
 from pathlib import Path
 from threading import Lock

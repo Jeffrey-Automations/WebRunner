@@ -48,6 +48,7 @@ _TICKET_RE = re.compile(
 
 @dataclass
 class TriggerPlan:
+    """What a commit message asks of CI: skip, restrict to buckets, labels, a shard and ticket ids."""
     skip: bool = False
     only_buckets: set[str] = field(default_factory=set)
     labels: set[str] = field(default_factory=set)
@@ -55,6 +56,7 @@ class TriggerPlan:
     tickets: set[str] = field(default_factory=set)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the plan as a dict with its sets turned into sorted lists."""
         d = asdict(self)
         d["only_buckets"] = sorted(self.only_buckets)
         d["labels"] = sorted(self.labels)
@@ -63,6 +65,7 @@ class TriggerPlan:
 
 
 def parse(message: str) -> TriggerPlan:
+    """Parse the CI directives of a commit message into a ``TriggerPlan``; raise on an invalid shard spec."""
     if not isinstance(message, str):
         raise CommitMsgTriggerError(
             f"message must be string, got {type(message).__name__}"
@@ -92,6 +95,7 @@ def parse(message: str) -> TriggerPlan:
 
 
 def should_run_job(plan: TriggerPlan, job_name: str) -> bool:
+    """True when ``job_name`` should run under ``plan`` (not skipped, and in the buckets if any are named)."""
     if not job_name:
         raise CommitMsgTriggerError("job_name must be non-empty")
     if plan.skip:

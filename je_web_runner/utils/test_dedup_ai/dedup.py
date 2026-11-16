@@ -99,6 +99,9 @@ class ActionFile:
 
     @classmethod
     def load(cls, path: str | Path) -> ActionFile:
+        """Read an action JSON file and compute its structural fingerprint.
+        Raises ``TestDedupError`` when the file is missing, is not JSON or is not a list.
+        """
         p = Path(path)
         if not p.exists():
             raise TestDedupError(f"action file not found: {p}")
@@ -133,6 +136,7 @@ class DuplicateCluster:
     similarity_threshold: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -214,12 +218,14 @@ class _UnionFind:
         self._parent = list(range(size))
 
     def find(self, i: int) -> int:
+        """Return the representative of ``i``'s set, shortening the path on the way."""
         while self._parent[i] != i:
             self._parent[i] = self._parent[self._parent[i]]
             i = self._parent[i]
         return i
 
     def union(self, i: int, j: int) -> None:
+        """Merge the sets that contain ``i`` and ``j``."""
         a, b = self.find(i), self.find(j)
         if a != b:
             self._parent[a] = b

@@ -161,6 +161,7 @@ class PseudoAuditReport:
     hits: list[HardcodedHit] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """Return True when the audit recorded no hit."""
         return not self.hits
 
 

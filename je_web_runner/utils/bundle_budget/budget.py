@@ -19,6 +19,7 @@ class BundleBudgetError(WebRunnerException):
 
 
 class AssetKind(str, Enum):
+    """The kind of resource an asset is, used to pick its budget."""
     SCRIPT = "script"
     STYLESHEET = "stylesheet"
     IMAGE = "image"
@@ -68,6 +69,7 @@ class Asset:
 
     @property
     def hostname(self) -> str:
+        """Lower-cased host of the asset URL, or an empty string when it cannot be parsed."""
         try:
             return (urlparse(self.url).hostname or "").lower()
         except (ValueError, AttributeError):
@@ -82,7 +84,7 @@ def _kind_of(entry: dict[str, Any]) -> AssetKind:
         return _RESOURCE_TYPE_KIND_MAP[resource_type]
     mime = str(
         ((entry.get("response") or {}).get("content") or {}).get("mimeType") or "",
-    ).split(";")[0].strip().lower()
+    ).split(";", maxsplit=1)[0].strip().lower()
     if mime.startswith("image/"):
         return AssetKind.IMAGE
     if mime.startswith(("video/", "audio/")):
@@ -182,6 +184,7 @@ class BudgetReport:
     biggest_assets: list[Asset] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True when no budget was exceeded."""
         return not self.breaches
 
 

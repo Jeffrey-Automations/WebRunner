@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 
@@ -39,9 +39,7 @@ def _strategy_value_for(selector: str) -> tuple[str, str]:
     selector = selector.strip()
     if selector.startswith("#"):
         return "ID", selector[1:]
-    if selector.startswith("."):
-        return "CSS_SELECTOR", selector
-    if selector.startswith("[") and selector.endswith("]"):
+    if selector.startswith(".") or (selector.startswith("[") and selector.endswith("]")):
         return "CSS_SELECTOR", selector
     if "/" in selector or selector.startswith("//"):
         return "XPATH", selector
@@ -97,32 +95,25 @@ def _wait_actions(raw_seconds: str) -> list[list[Any]]:
     return [["WR_implicitly_wait", {"time_to_wait": seconds}]]
 
 
+# Tried in order; the first pattern that matches a bullet builds its actions.
+_BULLET_RULES: tuple[tuple[re.Pattern[str], Callable[[re.Match[str]], list[list[Any]]]], ...] = (
+    (_OPEN_RE, lambda match: [["WR_to_url", {"url": match.group(1)}]]),
+    (_TYPE_RE, lambda match: _type_actions(match.group(1), match.group(2))),
+    (_CLICK_RE, lambda match: _click_actions(match.group(1))),
+    (_WAIT_RE, lambda match: _wait_actions(match.group(1))),
+    (_TITLE_RE, lambda match: [["WR_assert_title", {"value": match.group(1)}]]),
+    (_PRESS_RE, lambda match: [["WR_press_keys", {"keys": match.group(1)}]]),
+    (_SCREENSHOT_RE, lambda _match: [["WR_get_screenshot_as_png"]]),
+    (_TEMPLATE_RE, lambda match: [["WR_render_template", {"template": match.group(1)}]]),
+    (_QUIT_RE, lambda _match: [["WR_quit_all"]]),
+)
+
+
 def _parse_bullet(text: str) -> list[list[Any]] | None:
-    match = _OPEN_RE.match(text)
-    if match:
-        return [["WR_to_url", {"url": match.group(1)}]]
-    match = _TYPE_RE.match(text)
-    if match:
-        return _type_actions(match.group(1), match.group(2))
-    match = _CLICK_RE.match(text)
-    if match:
-        return _click_actions(match.group(1))
-    match = _WAIT_RE.match(text)
-    if match:
-        return _wait_actions(match.group(1))
-    match = _TITLE_RE.match(text)
-    if match:
-        return [["WR_assert_title", {"value": match.group(1)}]]
-    match = _PRESS_RE.match(text)
-    if match:
-        return [["WR_press_keys", {"keys": match.group(1)}]]
-    if _SCREENSHOT_RE.match(text):
-        return [["WR_get_screenshot_as_png"]]
-    match = _TEMPLATE_RE.match(text)
-    if match:
-        return [["WR_render_template", {"template": match.group(1)}]]
-    if _QUIT_RE.match(text):
-        return [["WR_quit_all"]]
+    for pattern, build in _BULLET_RULES:
+        match = pattern.match(text)
+        if match:
+            return build(match)
     return None
 
 

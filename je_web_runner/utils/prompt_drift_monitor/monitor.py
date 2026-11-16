@@ -49,6 +49,7 @@ class BaselineSample:
     captured_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the sample fields as a plain dict."""
         return asdict(self)
 
 
@@ -60,6 +61,7 @@ class Baseline:
     captured_at: str = ""
 
     def by_id(self) -> dict[str, BaselineSample]:
+        """Return the samples keyed by their prompt id."""
         return {s.prompt_id: s for s in self.samples}
 
 
@@ -172,10 +174,12 @@ class DriftReport:
     findings: list[DriftFinding] = field(default_factory=list)
 
     def drifted_findings(self) -> list[DriftFinding]:
+        """The findings that drifted, miss a required anchor or contain a forbidden one."""
         return [f for f in self.findings
                 if f.drifted or f.missing_required or f.forbidden_present]
 
     def passed(self) -> bool:
+        """Return True when no finding drifted or broke an anchor rule."""
         return not self.drifted_findings()
 
 

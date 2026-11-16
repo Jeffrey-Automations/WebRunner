@@ -32,10 +32,12 @@ _METRIC_KEYS = ("largest-contentful-paint", "cumulative-layout-shift",
 
 @dataclass
 class LighthouseSnapshot:
+    """The category scores (0..100) and the numeric metrics of one Lighthouse report."""
     scores: dict[str, float] = field(default_factory=dict)        # 0..100
     metrics: dict[str, float] = field(default_factory=dict)       # numeric
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the scores and metrics as a plain dict."""
         return asdict(self)
 
 
@@ -84,6 +86,10 @@ def _collect_metrics(audits: Mapping[str, Any]) -> dict[str, float]:
 
 
 def parse_report(report: Any) -> LighthouseSnapshot:
+    """Extract the category scores and metrics from a Lighthouse JSON report.
+
+    Raises LighthouseRegressionError when the report or its ``categories`` is not a mapping.
+    """
     if not isinstance(report, Mapping):
         raise LighthouseRegressionError("report must be a mapping")
     categories = report.get("categories") or {}
@@ -98,22 +104,29 @@ def parse_report(report: Any) -> LighthouseSnapshot:
 
 @dataclass
 class ScoreDelta:
+    """The baseline and head values of one category score or metric."""
     category: str
     baseline: float
     head: float
 
     @property
     def delta(self) -> float:
+        """Head minus baseline; negative when the value went down."""
         return self.head - self.baseline
 
 
 @dataclass
 class RegressionReport:
+    """The scores and the metrics that differ between two snapshots."""
     score_changes: list[ScoreDelta] = field(default_factory=list)
     metric_changes: list[ScoreDelta] = field(default_factory=list)
 
 
 def diff(baseline: LighthouseSnapshot, head: LighthouseSnapshot) -> RegressionReport:
+    """Compare two snapshots and return the scores and metrics that changed.
+
+    A key present on one side only is compared against itself, so it is not reported.
+    """
     report = RegressionReport()
     for key in _CATEGORY_KEYS:
         if key not in baseline.scores and key not in head.scores:
@@ -139,6 +152,7 @@ def diff(baseline: LighthouseSnapshot, head: LighthouseSnapshot) -> RegressionRe
 def assert_no_score_regression(
     report: RegressionReport, *, threshold_points: float = 5,
 ) -> None:
+    """Raise LighthouseRegressionError when any category score dropped by more than ``threshold_points``."""
     if threshold_points <= 0:
         raise LighthouseRegressionError("threshold_points must be positive")
     drops = [c for c in report.score_changes
@@ -153,6 +167,9 @@ def assert_no_score_regression(
 def assert_metric_within(
     snap: LighthouseSnapshot, *, metric: str, max_value: float,
 ) -> None:
+    """Raise LighthouseRegressionError when ``metric`` is unknown, missing from the snapshot
+    or above ``max_value``.
+    """
     if metric not in _METRIC_KEYS:
         raise LighthouseRegressionError(
             f"unknown metric {metric!r}; choose from {_METRIC_KEYS}"

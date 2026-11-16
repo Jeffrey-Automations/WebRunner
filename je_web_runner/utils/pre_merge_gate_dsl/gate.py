@@ -29,7 +29,8 @@ class PreMergeGateDslError(WebRunnerException):
 
 
 @dataclass
-class PrFacts:
+class PrFacts:  # pylint: disable=too-many-instance-attributes  # value object, one field per PR fact
+    """What a gate rule can test about a pull request: files, size, approvals, checks, labels."""
     title: str = ""
     files_changed: list[str] = field(default_factory=list)
     additions: int = 0
@@ -41,17 +42,20 @@ class PrFacts:
 
     @property
     def is_docs_only(self) -> bool:
+        """True when every changed file is a ``.md`` file or under ``docs/``."""
         return bool(self.files_changed) and all(
             f.endswith(".md") or f.startswith("docs/")
             for f in self.files_changed
         )
 
     def has_path(self, glob: str) -> bool:
+        """Return True when a changed file matches ``glob``."""
         return any(fnmatch.fnmatch(f, glob) for f in self.files_changed)
 
 
 @dataclass
 class Rule:
+    """A gate rule: the predicates in ``require`` must hold whenever the ``when`` expression is true."""
     when: str
     require: list[str]
 
@@ -160,14 +164,20 @@ BUILTIN_PREDICATES: dict[str, Predicate] = {
 
 @dataclass
 class GateResult:
+    """Whether the gate passed, with one message per failed requirement."""
     passed: bool
     failures: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the verdict and the failures as a plain dict."""
         return asdict(self)
 
 
 def parse_rules(raw: Any) -> list[Rule]:
+    """Build Rule objects from a list of ``{"when", "require"}`` dicts.
+
+    Raises PreMergeGateDslError when the input is not a list of dicts.
+    """
     if not isinstance(raw, list):
         raise PreMergeGateDslError("rules must be a list of dicts")
     out: list[Rule] = []
@@ -184,6 +194,11 @@ def evaluate(
     facts: PrFacts,
     predicates: dict[str, Predicate] | None = None,
 ) -> GateResult:
+    """Check ``facts`` against every rule whose ``when`` holds and return the gate result.
+
+    ``predicates`` adds to or replaces the built-in predicates.
+    Raises PreMergeGateDslError when a rule requires an unknown predicate.
+    """
     if not isinstance(facts, PrFacts):
         raise PreMergeGateDslError("facts must be PrFacts")
     table = dict(BUILTIN_PREDICATES)
@@ -204,6 +219,7 @@ def evaluate(
 
 
 def assert_gate_passes(result: GateResult) -> None:
+    """Raise PreMergeGateDslError listing the failures when the gate did not pass."""
     if not result.passed:
         raise PreMergeGateDslError(
             f"pre-merge gate failed: {result.failures}"

@@ -30,6 +30,7 @@ class ToolCallAssertError(WebRunnerException):
 
 @dataclass
 class ToolCall:
+    """One tool call made by the model; an empty name or non-dict arguments raise ``ToolCallAssertError``."""
     name: str
     arguments: dict[str, Any] = field(default_factory=dict)
     call_id: str = ""
@@ -48,6 +49,9 @@ JSON_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
 
 
 def parse_calls(payload: Any) -> list[ToolCall]:
+    """Turn a list of tool-call dicts into ``ToolCall`` records, skipping entries that
+    are not dicts. Raises ``ToolCallAssertError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise ToolCallAssertError("payload must be a list of tool-call dicts")
     out: list[ToolCall] = []
@@ -66,6 +70,10 @@ def assert_called(
     calls: Iterable[ToolCall], *, name: str, times: int | None = None,
     min_times: int | None = None, max_times: int | None = None,
 ) -> list[ToolCall]:
+    """Return the calls to tool ``name``, after checking their number against ``times``
+    (exact), ``min_times`` and ``max_times`` when given. Raises ``ToolCallAssertError``
+    when a bound is not met.
+    """
     if not name:
         raise ToolCallAssertError("name must be non-empty")
     matches = [c for c in calls if c.name == name]
@@ -90,6 +98,7 @@ def assert_called(
 def assert_not_called(
     calls: Iterable[ToolCall], *, denylist: Sequence[str],
 ) -> None:
+    """Raise ``ToolCallAssertError`` when a tool named in ``denylist`` was called."""
     if not denylist:
         raise ToolCallAssertError("denylist must be non-empty")
     bad = [c for c in calls if c.name in denylist]
@@ -142,6 +151,7 @@ def _validate_against_schema(args: Mapping[str, Any],
 def assert_args_match_schema(
     call: ToolCall, schema: Mapping[str, Any],
 ) -> None:
+    """Raise ``ToolCallAssertError`` when the call's arguments do not satisfy ``schema``."""
     if not isinstance(schema, Mapping):
         raise ToolCallAssertError("schema must be a mapping")
     _validate_against_schema(call.arguments, schema)
@@ -150,6 +160,7 @@ def assert_args_match_schema(
 def assert_call_order(
     calls: Iterable[ToolCall], *, expected: Sequence[str],
 ) -> None:
+    """Raise ``ToolCallAssertError`` unless the tool names, in call order, equal ``expected``."""
     actual = [c.name for c in calls]
     if actual != list(expected):
         raise ToolCallAssertError(

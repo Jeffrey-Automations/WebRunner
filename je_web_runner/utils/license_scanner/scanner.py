@@ -20,6 +20,7 @@ class LicenseScannerError(WebRunnerException):
 
 @dataclass
 class LicenseFinding:
+    """One licence marker found in a file: the licence id, the line and the matching text."""
     license_id: str
     line_number: int
     snippet: str
@@ -71,6 +72,7 @@ def scan_text(text: str) -> list[LicenseFinding]:
 
 
 def summarise(findings: Iterable[LicenseFinding]) -> Counter:
+    """Count the findings per licence id."""
     return Counter(f.license_id for f in findings)
 
 

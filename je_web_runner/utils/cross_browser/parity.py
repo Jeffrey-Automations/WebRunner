@@ -26,6 +26,7 @@ class CrossBrowserError(WebRunnerException):
 
 @dataclass
 class BrowserRunResult:
+    """What one browser produced for the run: title, DOM text, console, network and screenshot."""
     browser: str
     title: str | None = None
     dom_text: str | None = None
@@ -36,6 +37,7 @@ class BrowserRunResult:
 
 @dataclass
 class ParityFinding:
+    """One field in which a browser differs from the reference browser."""
     browser: str
     field: str
     expected: Any
@@ -45,14 +47,17 @@ class ParityFinding:
 
 @dataclass
 class ParityReport:
+    """The differences of each browser from the reference browser."""
     reference: str
     findings_by_browser: dict[str, list[ParityFinding]] = field(default_factory=dict)
 
     @property
     def matches(self) -> bool:
+        """True when no browser differs from the reference."""
         return all(not findings for findings in self.findings_by_browser.values())
 
     def major_findings(self) -> list[ParityFinding]:
+        """Return the findings of every browser whose severity is ``major``."""
         return [
             finding for findings in self.findings_by_browser.values()
             for finding in findings if finding.severity == "major"

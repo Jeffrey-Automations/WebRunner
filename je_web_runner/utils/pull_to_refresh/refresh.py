@@ -41,12 +41,17 @@ HARVEST_SCRIPT = r"""
 
 @dataclass
 class PullToRefreshSnapshot:
+    """The scroller's overscroll-behavior-y, height and declared pull threshold."""
     overscroll_y: str = "auto"
     scroller_height: float = 0
     pull_threshold_px: float = 0
 
 
 def parse_snapshot(payload: Any) -> PullToRefreshSnapshot:
+    """Build a PullToRefreshSnapshot from the dict read in the page.
+
+    Raises PullToRefreshError when the payload is not a dict or the threshold is not numeric.
+    """
     if not isinstance(payload, dict):
         raise PullToRefreshError("payload must be a dict")
     raw_threshold = payload.get("pull_threshold_attr") or ""
@@ -76,6 +81,9 @@ def assert_overscroll_contained(snap: PullToRefreshSnapshot) -> None:
 def assert_threshold_sensible(
     snap: PullToRefreshSnapshot, *, min_px: float = 60, max_px: float = 160,
 ) -> None:
+    """Raise PullToRefreshError when the scroller declares no pull threshold or one outside
+    ``[min_px, max_px]``.
+    """
     if min_px <= 0 or max_px <= min_px:
         raise PullToRefreshError("min_px>0 and max_px>min_px required")
     if not snap.pull_threshold_px:
@@ -91,11 +99,13 @@ def assert_threshold_sensible(
 
 @dataclass
 class RefreshEvent:
+    """Whether the refresh handler fired and whether a network refetch followed."""
     fired: bool = False
     network_refetched: bool = False
 
 
 def assert_refresh_triggered(event: RefreshEvent) -> None:
+    """Raise PullToRefreshError when the pull did not fire the refresh handler or no refetch followed."""
     if not event.fired:
         raise PullToRefreshError(
             "pull gesture did not trigger the refresh handler"

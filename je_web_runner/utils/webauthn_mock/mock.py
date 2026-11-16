@@ -87,7 +87,7 @@ INSTALL_SCRIPT = r"""
 
 
 @dataclass
-class MockCredential:
+class MockCredential:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """Minimal credential record the install script accepts."""
 
     id: str
@@ -100,6 +100,7 @@ class MockCredential:
     user_handle_b64: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the credential with the camelCase keys the JS shim reads."""
         # JS shim uses camelCase keys
         return {
             "id": self.id,
@@ -143,11 +144,15 @@ def build_credential(
 
 @dataclass
 class CeremonyLog:
+    """The ``navigator.credentials.create`` and ``.get`` calls the shim recorded."""
     created: list[dict[str, Any]] = field(default_factory=list)
     requested: list[dict[str, Any]] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> CeremonyLog:
+    """Build a ``CeremonyLog`` from the dict recorded by the shim.
+    Raises ``WebauthnMockError`` when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise WebauthnMockError("payload must be dict")
     return CeremonyLog(
@@ -157,6 +162,7 @@ def parse_log(payload: Any) -> CeremonyLog:
 
 
 def assert_registered(log: CeremonyLog) -> None:
+    """Raise ``WebauthnMockError`` when the page never called ``navigator.credentials.create``."""
     if not log.created:
         raise WebauthnMockError(
             "page never called navigator.credentials.create"
@@ -164,6 +170,7 @@ def assert_registered(log: CeremonyLog) -> None:
 
 
 def assert_signed_in(log: CeremonyLog) -> None:
+    """Raise ``WebauthnMockError`` when the page never called ``navigator.credentials.get``."""
     if not log.requested:
         raise WebauthnMockError(
             "page never called navigator.credentials.get"

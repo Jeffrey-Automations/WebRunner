@@ -26,6 +26,7 @@ class CspViolationParserError(WebRunnerException):
 
 @dataclass
 class Violation:
+    """One CSP violation report, normalised from the legacy or the Reporting API shape."""
     document_uri: str = ""
     referrer: str = ""
     violated_directive: str = ""
@@ -35,6 +36,7 @@ class Violation:
     disposition: str = "enforce"   # "enforce" | "report"
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the violation as a plain dict."""
         return asdict(self)
 
 
@@ -51,6 +53,7 @@ def _pick_int(*candidates: Any) -> int:
 
 
 def parse_one(report: Any) -> Violation:
+    """Parse one report (bare or wrapped in ``csp-report``) into a ``Violation``; raise if it is not a dict."""
     if not isinstance(report, dict):
         raise CspViolationParserError("report must be a dict")
     # Legacy: {"csp-report": {...}}
@@ -71,12 +74,14 @@ def parse_one(report: Any) -> Violation:
 
 
 def parse_many(reports: Iterable[Any]) -> list[Violation]:
+    """Parse every report with ``parse_one``."""
     return [parse_one(r) for r in reports]
 
 
 def group_by_directive(
     violations: Iterable[Violation],
 ) -> dict[str, list[Violation]]:
+    """Group the violations by violated directive; those without one go under ``(unknown)``."""
     buckets: dict[str, list[Violation]] = defaultdict(list)
     for v in violations:
         buckets[v.violated_directive or "(unknown)"].append(v)
@@ -86,6 +91,7 @@ def group_by_directive(
 def top_blocked_hosts(
     violations: Iterable[Violation], *, top_n: int = 5,
 ) -> list[dict[str, Any]]:
+    """Return the ``top_n`` most blocked hosts as ``{"host", "count"}`` dicts, most frequent first."""
     if top_n < 1:
         raise CspViolationParserError("top_n must be >= 1")
     counts: Counter = Counter()
@@ -97,6 +103,7 @@ def top_blocked_hosts(
 
 
 def assert_no_enforced_violations(violations: Iterable[Violation]) -> None:
+    """Raise ``CspViolationParserError`` when any violation was enforced rather than report-only."""
     enforced = [v for v in violations if v.disposition == "enforce"]
     if enforced:
         directives = sorted({v.violated_directive for v in enforced})

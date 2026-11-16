@@ -39,6 +39,10 @@ class TraceRecorder:
     _written: list[str] = field(default_factory=list, init=False)
 
     def start(self, context: Any, name: str) -> None:
+        """Start Playwright tracing on ``context`` under ``name``. Raises ``TraceRecorderError``
+        when the name is empty, a trace is already active, the context has no tracing
+        API, or Playwright fails to start.
+        """
         if not name:
             raise TraceRecorderError("trace name required")
         if self._active_name is not None:
@@ -60,6 +64,9 @@ class TraceRecorder:
         web_runner_logger.info(f"trace started: {name!r}")
 
     def stop(self, context: Any) -> str:
+        """Stop the active trace, write it to ``<output_dir>/<name>.zip`` and return that path.
+        Raises ``TraceRecorderError`` when no trace is active or Playwright fails to stop.
+        """
         if self._active_name is None:
             raise TraceRecorderError("no trace is active")
         if not hasattr(context, "tracing"):
@@ -76,4 +83,5 @@ class TraceRecorder:
         return str(target)
 
     def written(self) -> list[str]:
+        """Return the paths of the trace files written so far."""
         return list(self._written)

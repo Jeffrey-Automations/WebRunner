@@ -29,7 +29,7 @@ class _MediaMixin(_WrapperBase):
             result = self.current_webdriver.save_screenshot(file_path)
             record_action_to_list("webdriver wrapper save_screenshot", param, None)
             return bool(result)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper save_screenshot failed: {error!r}")
             record_action_to_list("webdriver wrapper save_screenshot", param, error)
             settle_wrapper_failure(error)
@@ -46,7 +46,7 @@ class _MediaMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_screenshot_as_png", None, None)
             return self.current_webdriver.get_screenshot_as_png()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_screenshot_as_png failed: {error!r}")
             record_action_to_list("webdriver wrapper get_screenshot_as_png", None, error)
             settle_wrapper_failure(error)
@@ -80,7 +80,7 @@ class _MediaMixin(_WrapperBase):
                 fh.write(base64.b64decode(data_b64))
             record_action_to_list(_FULL_PAGE_SCREENSHOT_LOG, param, None)
             return True
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper save_full_page_screenshot failed: {error!r}")
             record_action_to_list(_FULL_PAGE_SCREENSHOT_LOG, param, error)
             settle_wrapper_failure(error)
@@ -111,7 +111,7 @@ class _MediaMixin(_WrapperBase):
                 fh.write(base64.b64decode(data_b64))
             record_action_to_list(_PRINT_PAGE_LOG, param, None)
             return True
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper print_page failed: {error!r}")
             record_action_to_list(_PRINT_PAGE_LOG, param, error)
             settle_wrapper_failure(error)
@@ -128,7 +128,7 @@ class _MediaMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_screenshot_as_base64", None, None)
             return self.current_webdriver.get_screenshot_as_base64()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_screenshot_as_base64 failed: {error!r}")
             record_action_to_list("webdriver wrapper get_screenshot_as_base64", None, error)
             settle_wrapper_failure(error)
@@ -159,7 +159,7 @@ class _MediaMixin(_WrapperBase):
             record_action_to_list("webdriver wrapper get_log", None, None)
             # Only Chromium drivers have get_log; on the others the AttributeError is recorded below.
             return self.current_webdriver.get_log(log_type)  # type: ignore[attr-defined]
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_log failed: {error!r}")
             record_action_to_list("webdriver wrapper get_log", None, error)
             settle_wrapper_failure(error)

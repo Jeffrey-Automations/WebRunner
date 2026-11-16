@@ -33,6 +33,7 @@ class TestDebtDashboardError(WebRunnerException):
 
 
 class DebtKind(str, Enum):
+    """The form of deferred test work an item represents."""
     SKIP = "skip"
     XFAIL = "xfail"
     TODO = "todo"
@@ -75,6 +76,7 @@ class DebtItem:
     owner: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``kind`` enum replaced by its string value."""
         return {**asdict(self), "kind": self.kind.value}
 
 
@@ -85,12 +87,14 @@ class DebtReport:
     items: list[DebtItem] = field(default_factory=list)
 
     def by_kind(self) -> dict[str, int]:
+        """Count the items per debt kind."""
         out: dict[str, int] = {}
         for item in self.items:
             out[item.kind.value] = out.get(item.kind.value, 0) + 1
         return out
 
     def by_owner(self) -> dict[str, int]:
+        """Count the items per owner; items without one count under ``(unowned)``."""
         out: dict[str, int] = {}
         for item in self.items:
             key = item.owner or "(unowned)"
@@ -98,6 +102,7 @@ class DebtReport:
         return out
 
     def older_than(self, days: float) -> list[DebtItem]:
+        """Return the items at least ``days`` old."""
         return [i for i in self.items if i.age_days >= days]
 
 

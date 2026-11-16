@@ -39,6 +39,7 @@ def safe_filename(story: StorybookStory) -> str:
 
 @dataclass
 class SnapshotOutcome:
+    """Result of comparing one story's screenshot with its baseline."""
     story_id: str
     image_path: Path
     matched_baseline: bool
@@ -48,14 +49,17 @@ class SnapshotOutcome:
 
 @dataclass
 class StorybookSnapshotReport:
+    """The outcomes of one snapshot run over the discovered stories."""
     outcomes: list[SnapshotOutcome] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
+        """True when every story matched its baseline."""
         return all(o.matched_baseline for o in self.outcomes)
 
     @property
     def failures(self) -> list[SnapshotOutcome]:
+        """The outcomes whose screenshot did not match the baseline."""
         return [o for o in self.outcomes if not o.matched_baseline]
 
 
@@ -145,6 +149,9 @@ def _snapshot_story(
 
 def assert_no_visual_regressions(report: StorybookSnapshotReport,
                                  allow_stories: Iterable[str] | None = None) -> None:
+    """Raise ``StorybookSnapshotError`` when a story outside ``allow_stories`` failed,
+    quoting up to five of the failures.
+    """
     allow = set(allow_stories or [])
     bad = [o for o in report.failures if o.story_id not in allow]
     if bad:

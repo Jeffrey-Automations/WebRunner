@@ -113,6 +113,7 @@ class CategoryAssignment:
     action_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -189,6 +190,9 @@ class TagDistribution:
 
 
 def aggregate(assignments: Iterable[CategoryAssignment]) -> TagDistribution:
+    """Count tests per tag, plus the total and the untagged ones.
+    Raises ``TestCategorizerError`` when an item is not a ``CategoryAssignment``.
+    """
     dist = TagDistribution()
     for a in assignments:
         if not isinstance(a, CategoryAssignment):

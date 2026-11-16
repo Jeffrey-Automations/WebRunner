@@ -43,7 +43,7 @@ _CARET_TO_END_JS = (
 )
 
 
-class PlaywrightElementWrapper:
+class PlaywrightElementWrapper:  # pylint: disable=too-many-public-methods  # one method per command
     """
     Playwright 元素操作包裝器
     Element-operation wrapper for Playwright handles.
@@ -60,29 +60,32 @@ class PlaywrightElementWrapper:
         return self.current_element
 
     def click(self) -> None:
+        """Click the current element; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper click")
         try:
             self._require_element().click()
             _record("click", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper click failed: {error!r}")
             _record("click", None, error)
 
     def dblclick(self) -> None:
+        """Double-click the current element; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper dblclick")
         try:
             self._require_element().dblclick()
             _record("dblclick", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper dblclick failed: {error!r}")
             _record("dblclick", None, error)
 
     def hover(self) -> None:
+        """Move the mouse over the current element; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper hover")
         try:
             self._require_element().hover()
             _record("hover", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper hover failed: {error!r}")
             _record("hover", None, error)
 
@@ -93,7 +96,7 @@ class PlaywrightElementWrapper:
         try:
             self._require_element().fill(input_value)
             _record("fill", params, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper fill failed: {error!r}")
             _record("fill", params, error)
 
@@ -112,17 +115,18 @@ class PlaywrightElementWrapper:
                 element.press("End")
             element.type(input_value, delay=delay)
             _record("type_text", params, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper type_text failed: {error!r}")
             _record("type_text", params, error)
 
     def press(self, key: str) -> None:
+        """Press ``key`` (``Enter``, ``Control+A`` …) on the current element; a failure is recorded, not raised."""
         web_runner_logger.info(f"PlaywrightElementWrapper press: {key!r}")
         params = {"key": key}
         try:
             self._require_element().press(key)
             _record("press", params, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper press failed: {error!r}")
             _record("press", params, error)
 
@@ -131,31 +135,34 @@ class PlaywrightElementWrapper:
         self.fill("")
 
     def check(self) -> None:
+        """Tick the current checkbox or radio button; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper check")
         try:
             self._require_element().check()
             _record("check", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper check failed: {error!r}")
             _record("check", None, error)
 
     def uncheck(self) -> None:
+        """Untick the current checkbox; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper uncheck")
         try:
             self._require_element().uncheck()
             _record("uncheck", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper uncheck failed: {error!r}")
             _record("uncheck", None, error)
 
     def select_option(self, value: str | list | dict) -> list[str]:
+        """Select ``value`` in the current ``<select>``; returns the selected values (``[]`` after a failure)."""
         web_runner_logger.info(f"PlaywrightElementWrapper select_option: {value!r}")
         params = {"value": value}
         try:
             result = self._require_element().select_option(value)
             _record("select_option", params, None)
             return result
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper select_option failed: {error!r}")
             _record("select_option", params, error)
             return []
@@ -170,7 +177,7 @@ class PlaywrightElementWrapper:
         try:
             self._require_element().evaluate(_SUBMIT_SCRIPT)
             _record("submit", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper submit failed: {error!r}")
             _record("submit", None, error)
 
@@ -181,7 +188,7 @@ class PlaywrightElementWrapper:
             value = self._require_element().evaluate(_CSS_VALUE_SCRIPT, property_name)
             _record("value_of_css_property", params, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper value_of_css_property failed: {error!r}")
             _record("value_of_css_property", params, error)
             return None
@@ -214,13 +221,14 @@ class PlaywrightElementWrapper:
         _record("check_current_element", {"check_dict": check_dict}, None)
 
     def get_attribute(self, name: str) -> str | None:
+        """The current element's attribute ``name``; None when it has none or after a recorded failure."""
         web_runner_logger.info(f"PlaywrightElementWrapper get_attribute: {name!r}")
         params = {"name": name}
         try:
             value = self._require_element().get_attribute(name)
             _record("get_attribute", params, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper get_attribute failed: {error!r}")
             _record("get_attribute", params, error)
             return None
@@ -234,76 +242,83 @@ class PlaywrightElementWrapper:
             value = handle.json_value() if handle is not None else None
             _record("get_property", params, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper get_property failed: {error!r}")
             _record("get_property", params, error)
             return None
 
     def inner_text(self) -> str | None:
+        """The current element's rendered text, or None after a recorded failure."""
         web_runner_logger.info("PlaywrightElementWrapper inner_text")
         try:
             value = self._require_element().inner_text()
             _record("inner_text", None, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper inner_text failed: {error!r}")
             _record("inner_text", None, error)
             return None
 
     def inner_html(self) -> str | None:
+        """The current element's inner HTML, or None after a recorded failure."""
         web_runner_logger.info("PlaywrightElementWrapper inner_html")
         try:
             value = self._require_element().inner_html()
             _record("inner_html", None, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper inner_html failed: {error!r}")
             _record("inner_html", None, error)
             return None
 
     def is_visible(self) -> bool:
+        """Whether the current element is visible; False after a recorded failure."""
         web_runner_logger.info("PlaywrightElementWrapper is_visible")
         try:
             value = self._require_element().is_visible()
             _record("is_visible", None, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper is_visible failed: {error!r}")
             _record("is_visible", None, error)
             return False
 
     def is_enabled(self) -> bool:
+        """Whether the current element is enabled; False after a recorded failure."""
         web_runner_logger.info("PlaywrightElementWrapper is_enabled")
         try:
             value = self._require_element().is_enabled()
             _record("is_enabled", None, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper is_enabled failed: {error!r}")
             _record("is_enabled", None, error)
             return False
 
     def is_checked(self) -> bool:
+        """Whether the current checkbox or radio button is ticked; False after a recorded failure."""
         web_runner_logger.info("PlaywrightElementWrapper is_checked")
         try:
             value = self._require_element().is_checked()
             _record("is_checked", None, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper is_checked failed: {error!r}")
             _record("is_checked", None, error)
             return False
 
     def scroll_into_view(self) -> None:
+        """Scroll the current element into view if it is not; a failure is recorded, not raised."""
         web_runner_logger.info("PlaywrightElementWrapper scroll_into_view")
         try:
             self._require_element().scroll_into_view_if_needed()
             _record("scroll_into_view", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper scroll_into_view failed: {error!r}")
             _record("scroll_into_view", None, error)
 
     def screenshot(self, filename: str) -> str | None:
+        """Save a screenshot of the current element as ``filename`` + ``.png``; returns the path, None on failure."""
         web_runner_logger.info(f"PlaywrightElementWrapper screenshot: {filename}")
         params = {"filename": filename}
         try:
@@ -311,7 +326,7 @@ class PlaywrightElementWrapper:
             self._require_element().screenshot(path=target)
             _record("screenshot", params, None)
             return target
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper screenshot failed: {error!r}")
             _record("screenshot", params, error)
             return None
@@ -321,11 +336,12 @@ class PlaywrightElementWrapper:
         web_runner_logger.info(f"PlaywrightElementWrapper change_element: {element_index}")
         params = {"element_index": element_index}
         try:
-            if not self.current_element_list:
+            elements = self.current_element_list
+            if not elements:
                 raise PlaywrightElementError("no element list captured")
-            self.current_element = self.current_element_list[element_index]
+            self.current_element = elements[element_index]  # pylint: disable=unsubscriptable-object  # checked above
             _record("change_element", params, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"PlaywrightElementWrapper change_element failed: {error!r}")
             _record("change_element", params, error)
 

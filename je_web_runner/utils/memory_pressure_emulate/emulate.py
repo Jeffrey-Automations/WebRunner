@@ -21,6 +21,7 @@ class MemoryPressureError(WebRunnerException):
 
 
 class PressureLevel(str, Enum):
+    """Memory pressure levels, from ``nominal`` to ``critical``."""
     NOMINAL = "nominal"
     FAIR = "fair"
     SERIOUS = "serious"
@@ -93,6 +94,7 @@ def cdp_payloads(profile: EmulationProfile) -> list[dict[str, Any]]:
 
 @dataclass
 class PressureRunOutcome:
+    """Whether a test passed under one pressure profile, how long it took and its error."""
     profile: str
     passed: bool
     duration_seconds: float = 0.0
@@ -123,7 +125,7 @@ def run_under_profile(
     error_msg: str | None = None
     try:
         test_callable()
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught  # any test failure is recorded in the outcome
         passed = False
         error_msg = repr(exc)
     duration = round(time.monotonic() - started, 4)
@@ -132,7 +134,7 @@ def run_under_profile(
         cdp_send("Emulation.setHardwareConcurrencyOverride", {"hardwareConcurrency": 0})
         cdp_send("Emulation.setCPUThrottlingRate", {"rate": 1.0})
         cdp_send("Memory.simulatePressureNotification", {"level": "nominal"})
-    except Exception as restore_err:
+    except Exception as restore_err:  # pylint: disable=broad-exception-caught  # best-effort restore, logged
         # Don't mask the test result by re-raising here; CDP restore failure
         # is logged-only so a successful run isn't downgraded to error.
         _LOGGER.warning("CDP pressure restore failed: %r", restore_err)
@@ -147,6 +149,7 @@ def run_under_profile(
 # ---------- assertion ---------------------------------------------------
 
 def assert_passed_under_pressure(outcome: PressureRunOutcome) -> None:
+    """Raise MemoryPressureError when the run under the profile did not pass."""
     if not isinstance(outcome, PressureRunOutcome):
         raise MemoryPressureError("expects PressureRunOutcome")
     if not outcome.passed:

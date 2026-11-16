@@ -67,6 +67,7 @@ class WtFrame:
         return bytes(self.payload).decode(encoding, errors="replace")
 
     def as_json(self) -> Any:
+        """Return the payload parsed as JSON; raises ``WebTransportAssertError`` when it is not JSON."""
         try:
             return json.loads(self.as_text())
         except ValueError as error:
@@ -75,6 +76,9 @@ class WtFrame:
             ) from error
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the payload replaced by ``payload_b64``
+        (which, despite the name, holds the hex encoding of the bytes).
+        """
         out = asdict(self)
         out["payload_b64"] = bytes(self.payload).hex()
         out.pop("payload", None)
@@ -93,6 +97,7 @@ class WtFrameRecorder:
         return len(self._frames)
 
     def record(self, frame: WtFrame) -> None:
+        """Append a frame; raises ``WebTransportAssertError`` when it is not a ``WtFrame``."""
         if not isinstance(frame, WtFrame):
             raise WebTransportAssertError(
                 f"record() expects WtFrame, got {type(frame).__name__}"
@@ -100,9 +105,11 @@ class WtFrameRecorder:
         self._frames.append(frame)
 
     def record_sent_datagram(self, payload: bytes) -> None:
+        """Record a datagram the page sent."""
         self.record(WtFrame(direction=SENT, channel=DATAGRAM, payload=payload))
 
     def record_received_datagram(self, payload: bytes) -> None:
+        """Record a datagram the page received."""
         self.record(WtFrame(direction=RECEIVED, channel=DATAGRAM, payload=payload))
 
     def record_stream_chunk(
@@ -113,12 +120,14 @@ class WtFrameRecorder:
         *,
         fin: bool = False,
     ) -> None:
+        """Record a chunk on stream ``stream_id``; ``fin`` marks the last chunk of the stream."""
         self.record(WtFrame(
             direction=direction, channel=STREAM,
             payload=payload, stream_id=stream_id, fin=fin,
         ))
 
     def clear(self) -> None:
+        """Drop every recorded frame."""
         self._frames.clear()
 
     def frames(
@@ -128,6 +137,9 @@ class WtFrameRecorder:
         channel: str | None = None,
         stream_id: int | None = None,
     ) -> list[WtFrame]:
+        """Return the recorded frames, narrowed by the filters that are given.
+        Raises ``WebTransportAssertError`` for an unknown direction or channel.
+        """
         if direction is not None and direction not in _DIRECTIONS:
             raise WebTransportAssertError(f"unknown direction {direction!r}")
         if channel is not None and channel not in _CHANNELS:
@@ -144,6 +156,7 @@ class WtFrameRecorder:
         return out
 
     def stream_ids(self) -> list[int]:
+        """Return the sorted ids of the streams that carried at least one frame."""
         return sorted({f.stream_id for f in self._frames if f.stream_id is not None})
 
 

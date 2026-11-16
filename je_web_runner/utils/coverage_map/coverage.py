@@ -78,19 +78,24 @@ def _path_for(url: str) -> str:
 
 @dataclass
 class CoverageMap:
+    """Two-way index between action files and the URL routes they visit."""
     routes_by_file: dict[str, set[str]] = field(default_factory=dict)
     files_by_route: dict[str, set[str]] = field(default_factory=dict)
 
     def files_for(self, route: str) -> list[str]:
+        """Return the action files that visit ``route``, sorted."""
         return sorted(self.files_by_route.get(route, set()))
 
     def routes_for(self, file_path: str) -> list[str]:
+        """Return the routes ``file_path`` visits, sorted."""
         return sorted(self.routes_by_file.get(file_path, set()))
 
     def all_routes(self) -> list[str]:
+        """Return every route some action file visits, sorted."""
         return sorted(self.files_by_route.keys())
 
     def uncovered(self, declared_routes: Iterable[str]) -> list[str]:
+        """Return the routes of ``declared_routes`` that no action file visits, sorted."""
         return sorted(set(declared_routes) - set(self.files_by_route.keys()))
 
 

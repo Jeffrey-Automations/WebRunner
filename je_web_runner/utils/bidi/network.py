@@ -126,6 +126,6 @@ def clear_network_handlers(driver) -> bool:
         if clear_responses is not None:
             clear_responses()
         return True
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # driver boundary: logged, reported as False
         web_runner_logger.error(f"clear_network_handlers failed: {error!r}")
         return False

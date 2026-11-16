@@ -1,3 +1,8 @@
+"""
+產生 HTML 測試報告
+Build the HTML test report from the recorded test actions and write it to disk.
+"""
+
 import html
 from threading import Lock
 
@@ -13,7 +18,7 @@ _lock = Lock()
 
 # HTML 主體模板
 # Main HTML template
-_html_string = """
+_HTML_STRING = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,7 +85,7 @@ _html_string = """
 
 # 單一事件表格模板
 # Template for a single event table
-_event_table = \
+_EVENT_TABLE = \
     r"""
     <table class="main_table">
         <thead>
@@ -127,7 +132,7 @@ def make_html_table(event_str: str, record_data: dict, table_head: str) -> str:
     event_str = "".join(
         [
             event_str,
-            _event_table.format(
+            _EVENT_TABLE.format(
                 table_head_class=html.escape(table_head, quote=True),
                 function_name=html.escape(str(record_data.get("function_name")), quote=True),
                 param=html.escape(str(record_data.get("local_param")), quote=True),
@@ -159,7 +164,7 @@ def generate_html() -> str:
             event_str = make_html_table(event_str, record_data, "event_table_head")
         else:
             event_str = make_html_table(event_str, record_data, "failure_table_head")
-    new_html_string = _html_string.format(event_table=event_str)
+    new_html_string = _HTML_STRING.format(event_table=event_str)
     return new_html_string
 
 

@@ -96,6 +96,7 @@ class RepairPlan:
     risks: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 

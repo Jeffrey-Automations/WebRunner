@@ -71,13 +71,15 @@ HARVEST_SCRIPT = r"""
 
 
 class TargetException(str, Enum):
+    """The SC 2.5.8 exceptions under which a small target is still allowed."""
     INLINE_TEXT = "inline-in-text"
     USER_AGENT = "user-agent-control"
     SPACING = "spacing-circle"
 
 
 @dataclass
-class Target:
+class Target:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
+    """One interactive element measured in the page: its box, label and exception flags."""
     tag: str = ""
     role: str = ""
     width: float = 0
@@ -91,11 +93,13 @@ class Target:
 
     @property
     def smallest_side(self) -> float:
+        """The smaller of the width and the height."""
         return min(self.width, self.height)
 
 
 @dataclass
 class Violation:
+    """A target that is too small and falls under no exception."""
     label: str
     tag: str
     width: float
@@ -103,10 +107,14 @@ class Violation:
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
 def parse_targets(payload: Any) -> list[Target]:
+    """Turn the list measured in the page into ``Target`` records, skipping entries
+    that are not objects. Raises ``Wcag22TouchTargetError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise Wcag22TouchTargetError("payload must be a list")
     out: list[Target] = []
@@ -176,6 +184,7 @@ def audit(targets: list[Target]) -> list[Violation]:
 
 
 def assert_no_violations(violations: Iterable[Violation]) -> None:
+    """Raise ``Wcag22TouchTargetError`` listing the labels of the violating targets."""
     items = list(violations)
     if items:
         raise Wcag22TouchTargetError(

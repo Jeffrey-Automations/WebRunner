@@ -26,6 +26,7 @@ class PushDeliveryError(WebRunnerException):
 
 
 class Provider(str, Enum):
+    """The push services whose payloads are checked: FCM and APNs."""
     FCM = "fcm"
     APNS = "apns"
 
@@ -44,6 +45,9 @@ _PII_PATTERNS = (
 
 
 def assert_fcm_payload(payload: dict[str, Any]) -> None:
+    """Raise PushDeliveryError unless ``payload`` is a usable FCM v1 message: a ``message`` dict
+    with a target, within the size limit, no PII in the notification, a valid Android TTL.
+    """
     if not isinstance(payload, dict):
         raise PushDeliveryError("payload must be a dict")
     if "message" not in payload:
@@ -62,6 +66,9 @@ def assert_fcm_payload(payload: dict[str, Any]) -> None:
 
 
 def assert_apns_payload(payload: dict[str, Any]) -> None:
+    """Raise PushDeliveryError unless ``payload`` is a usable APNs payload: an ``aps`` dict with
+    at least one delivery key, within the size limit, no PII in a dict alert.
+    """
     if not isinstance(payload, dict):
         raise PushDeliveryError("payload must be a dict")
     aps = payload.get("aps")

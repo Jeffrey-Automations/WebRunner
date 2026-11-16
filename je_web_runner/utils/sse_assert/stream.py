@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Iterable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
 class SseAssertError(WebRunnerException):
@@ -48,6 +49,7 @@ class SseEvent:
             ) from error
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -146,15 +148,18 @@ class SseRecorder:
         return len(new_events)
 
     def feed_event(self, event: SseEvent) -> None:
+        """Append an already parsed event; raises ``SseAssertError`` for any other type."""
         if not isinstance(event, SseEvent):
             raise SseAssertError("feed_event expects SseEvent")
         self._events.append(event)
 
     def clear(self) -> None:
+        """Drop the recorded events and any buffered partial event."""
         self._events.clear()
         self._buffer = ""
 
     def events(self, *, event_type: str | None = None) -> list[SseEvent]:
+        """Return a copy of the recorded events, only those of ``event_type`` when it is given."""
         if event_type is None:
             return list(self._events)
         return [e for e in self._events if e.event == event_type]
@@ -195,8 +200,8 @@ def assert_received_event(
         try:
             if predicate(event):
                 return event
-        except Exception:  # nosec B112 — user predicate may legitimately raise; skip + continue
-            continue
+        except Exception as error:  # pylint: disable=broad-exception-caught  # user predicate; logged, skipped
+            web_runner_logger.warning(f"sse predicate raised: {error!r}")
     raise SseAssertError(f"no SSE event matched: {description}")
 
 

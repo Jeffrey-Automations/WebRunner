@@ -54,6 +54,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class SyncFire:
+    """One ``sync`` event the service worker received."""
     tag: str
     last_chance: bool = False
     ts_ms: int = 0
@@ -61,11 +62,13 @@ class SyncFire:
 
 @dataclass
 class SyncLog:
+    """The tags the page registered and the sync events that fired."""
     registered: list[str] = field(default_factory=list)
     fired: list[SyncFire] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> SyncLog:
+    """Build a ``SyncLog`` from the page's harvested payload; raise ``BackgroundSyncAssertError`` if it is malformed."""
     if not isinstance(payload, dict):
         raise BackgroundSyncAssertError("payload must be a dict")
     registered = list(payload.get("registered") or [])
@@ -86,6 +89,7 @@ def parse_log(payload: Any) -> SyncLog:
 
 
 def assert_registered(log: SyncLog, *, tag: str) -> None:
+    """Raise ``BackgroundSyncAssertError`` unless ``tag`` was registered."""
     if not tag:
         raise BackgroundSyncAssertError("tag must be non-empty")
     if tag not in log.registered:
@@ -95,6 +99,7 @@ def assert_registered(log: SyncLog, *, tag: str) -> None:
 
 
 def assert_fired(log: SyncLog, *, tag: str, at_least: int = 1) -> None:
+    """Raise ``BackgroundSyncAssertError`` unless a sync event for ``tag`` fired at least ``at_least`` times."""
     if at_least < 1:
         raise BackgroundSyncAssertError("at_least must be >= 1")
     count = sum(1 for f in log.fired if f.tag == tag)

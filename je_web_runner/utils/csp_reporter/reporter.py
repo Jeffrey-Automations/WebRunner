@@ -46,6 +46,7 @@ _READ_VIOLATIONS = "JSON.stringify(window.__wrCspViolations || [])"
 
 @dataclass
 class CspViolation:
+    """One ``securitypolicyviolation`` event read back from the page."""
     violated_directive: str
     blocked_uri: str
     source_file: str | None
@@ -60,6 +61,7 @@ class CspViolationCollector:
         self._violations: list[CspViolation] = []
 
     def install(self, driver: Any) -> None:
+        """Inject the violation listener into the page; raise ``CspReporterError`` if the driver cannot run it."""
         from je_web_runner.utils.driver_dispatch import (
             DriverDispatchError, run_script,
         )
@@ -69,6 +71,7 @@ class CspViolationCollector:
             raise CspReporterError(str(error)) from error
 
     def collect(self, driver: Any) -> list[CspViolation]:
+        """Read the violations recorded by the page, keep them on the collector and return them."""
         from je_web_runner.utils.driver_dispatch import (
             DriverDispatchError, evaluate_expression,
         )
@@ -96,9 +99,11 @@ class CspViolationCollector:
         return list(self._violations)
 
     def violations(self) -> list[CspViolation]:
+        """Return a copy of the violations from the last ``collect``."""
         return list(self._violations)
 
     def assert_none(self) -> None:
+        """Raise ``CspReporterError`` when the last ``collect`` found any violation."""
         if self._violations:
             sample = [
                 {"directive": v.violated_directive, "blocked": v.blocked_uri}
@@ -107,20 +112,24 @@ class CspViolationCollector:
             raise CspReporterError(f"{len(self._violations)} CSP violations: {sample}")
 
     def assert_no_directive(self, directive: str) -> None:
+        """Raise ``CspReporterError`` when the last ``collect`` found a violation of ``directive``."""
         match = [v for v in self._violations if v.violated_directive == directive]
         if match:
             raise CspReporterError(f"{len(match)} violation(s) for {directive!r}")
 
 
 def install_listener(driver: Any) -> None:
+    """Inject the violation listener into the page of ``driver``."""
     CspViolationCollector().install(driver)
 
 
 def collect_violations(driver: Any) -> list[CspViolation]:
+    """Return the violations the page of ``driver`` has recorded."""
     return CspViolationCollector().collect(driver)
 
 
 def assert_no_violations(driver: Any, allow_directives: Iterable[str] | None = None) -> None:
+    """Raise ``CspReporterError`` when the page recorded a violation of a directive not in ``allow_directives``."""
     collector = CspViolationCollector()
     violations = collector.collect(driver)
     allowed = set(allow_directives or [])

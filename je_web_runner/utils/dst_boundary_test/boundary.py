@@ -34,12 +34,14 @@ class DstBoundaryError(WebRunnerException):
 
 
 class Transition(str, Enum):
+    """The direction of a DST change: a gap in local time or a repeated hour."""
     SPRING_FORWARD = "spring_forward"   # gap — local time skips ahead
     FALL_BACK = "fall_back"             # overlap — local time repeats
 
 
 @dataclass
 class DstBoundary:
+    """One DST change of a time zone: the UTC instant and the UTC offsets before and after it."""
     moment_utc: datetime
     transition: Transition
     offset_before: timedelta
@@ -48,6 +50,7 @@ class DstBoundary:
 
     @property
     def shift(self) -> timedelta:
+        """How far the UTC offset moves at this boundary (``offset_after - offset_before``)."""
         return self.offset_after - self.offset_before
 
 
@@ -119,6 +122,7 @@ def is_ambiguous_local_time(tz_name: str, wall_clock: datetime) -> bool:
 
 @dataclass
 class ScheduledFire:
+    """One firing of a scheduled job: the UTC instant and the local wall-clock label it corresponds to."""
     moment_utc: datetime
     local_label: str
 

@@ -40,18 +40,22 @@ class ImpactIndex:
     by_command: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
 
     def files_for_locator(self, name: str) -> list[str]:
+        """Sorted action files that use the locator ``name``."""
         return sorted(self.by_locator.get(name, set()))
 
     def files_for_url(self, fragment: str) -> list[str]:
+        """Sorted action files that open a URL containing ``fragment``."""
         return sorted({
             file for url, files in self.by_url.items()
             for file in files if fragment in url
         })
 
     def files_for_template(self, name: str) -> list[str]:
+        """Sorted action files that use the template ``name``."""
         return sorted(self.by_template.get(name, set()))
 
     def files_for_command(self, command: str) -> list[str]:
+        """Sorted action files that call ``command``."""
         return sorted(self.by_command.get(command, set()))
 
 

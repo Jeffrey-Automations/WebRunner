@@ -26,6 +26,7 @@ class ActionTemplateError(WebRunnerException):
 
 @dataclass
 class ActionTemplate:
+    """A reusable action list with the names of the parameters it expects."""
     name: str
     actions: list[Any]
     parameters: Sequence[str] = field(default_factory=tuple)
@@ -85,10 +86,12 @@ _BUILTIN_TEMPLATES: dict[str, ActionTemplate] = {
 
 
 def available_templates() -> list[str]:
+    """Return the names of the registered templates, sorted."""
     return sorted(_BUILTIN_TEMPLATES.keys())
 
 
 def get_template(name: str) -> ActionTemplate:
+    """Return the template registered under ``name``; raise ``ActionTemplateError`` if there is none."""
     if name not in _BUILTIN_TEMPLATES:
         raise ActionTemplateError(
             f"unknown template {name!r}; available: {available_templates()}"
@@ -97,6 +100,7 @@ def get_template(name: str) -> ActionTemplate:
 
 
 def register_template(template: ActionTemplate) -> None:
+    """Register ``template`` under its name, replacing any template already using that name."""
     if not isinstance(template, ActionTemplate):
         raise ActionTemplateError("template must be an ActionTemplate instance")
     _BUILTIN_TEMPLATES[template.name] = template

@@ -56,6 +56,7 @@ class GrpcCall:
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the call as a dict with the status as its enum name."""
         return {**asdict(self), "status": self.status.name}
 
 
@@ -70,7 +71,8 @@ class GrpcCallRecorder:
     def __len__(self) -> int:
         return len(self._calls)
 
-    def record(self, call: GrpcCall) -> None:
+    def record(self, call: GrpcCall) -> None:  # pylint: disable=redefined-outer-name  # public parameter name
+        """Append a call to the log; raises GrpcTesterError for anything but a GrpcCall."""
         if not isinstance(call, GrpcCall):
             raise GrpcTesterError(
                 f"record() expects GrpcCall, got {type(call).__name__}"
@@ -78,6 +80,7 @@ class GrpcCallRecorder:
         self._calls.append(call)
 
     def clear(self) -> None:
+        """Forget every recorded call."""
         self._calls.clear()
 
     def calls(
@@ -86,6 +89,7 @@ class GrpcCallRecorder:
         method: str | None = None,
         status: GrpcStatus | None = None,
     ) -> list[GrpcCall]:
+        """Return the recorded calls, optionally only those with the given method and/or status."""
         out: list[GrpcCall] = []
         for c in self._calls:
             if method is not None and c.method != method:
@@ -117,23 +121,7 @@ def call(
         raise GrpcTesterError("stub_method must be callable")
     metadata = list(metadata or [])
     started = time.monotonic()
-    status = GrpcStatus.OK
-    response = None
-    error: str | None = None
-    try:
-        kwargs: dict[str, Any] = {}
-        if metadata:
-            kwargs["metadata"] = metadata
-        if timeout is not None:
-            kwargs["timeout"] = timeout
-        response = stub_method(request, **kwargs)
-    except Exception as exc:
-        # Try to read .code() like grpc.RpcError; fall back to UNKNOWN.
-        code_obj = getattr(exc, "code", None)
-        # pylint: disable=not-callable — guarded by callable() above.
-        code_val = code_obj() if callable(code_obj) else code_obj
-        status = _coerce_status(code_val)
-        error = repr(exc)
+    response, status, error = _invoke(stub_method, request, metadata, timeout)
     duration = round((time.monotonic() - started) * 1000.0, 3)
     record = GrpcCall(
         method=method, request=request, response=response,
@@ -145,24 +133,49 @@ def call(
     return record
 
 
-def _coerce_status(value: Any) -> GrpcStatus:
-    if value is None:
-        return GrpcStatus.UNKNOWN
-    if isinstance(value, GrpcStatus):
-        return value
+def _invoke(
+    stub_method: Callable[..., Any],
+    request: Any,
+    metadata: list[tuple[str, str]],
+    timeout: float | None,
+) -> tuple[Any, GrpcStatus, str | None]:
+    """Call the stub and return ``(response, status, error)``; a raised error becomes the status."""
+    kwargs: dict[str, Any] = {}
+    if metadata:
+        kwargs["metadata"] = metadata
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    try:
+        return stub_method(request, **kwargs), GrpcStatus.OK, None
+    except Exception as exc:  # pylint: disable=broad-exception-caught  # any stub failure is recorded on the call
+        # Try to read .code() like grpc.RpcError; fall back to UNKNOWN.
+        code_obj = getattr(exc, "code", None)
+        # pylint: disable-next=not-callable  # guarded by callable()
+        code_val = code_obj() if callable(code_obj) else code_obj
+        return None, _coerce_status(code_val), repr(exc)
+
+
+def _status_number(value: Any) -> int | None:
+    """The numeric code of an int or of a ``grpc.StatusCode``-like object, else None."""
     if isinstance(value, int):
-        try:
-            return GrpcStatus(value)
-        except ValueError:
-            return GrpcStatus.UNKNOWN
+        return value
     # grpc.StatusCode has a .value tuple (int, str)
     code = getattr(value, "value", None)
     if isinstance(code, tuple) and code and isinstance(code[0], int):
-        try:
-            return GrpcStatus(code[0])
-        except ValueError:
-            return GrpcStatus.UNKNOWN
-    return GrpcStatus.UNKNOWN
+        return code[0]
+    return None
+
+
+def _coerce_status(value: Any) -> GrpcStatus:
+    if isinstance(value, GrpcStatus):
+        return value
+    number = _status_number(value)
+    if number is None:
+        return GrpcStatus.UNKNOWN
+    try:
+        return GrpcStatus(number)
+    except ValueError:
+        return GrpcStatus.UNKNOWN
 
 
 # ---------- gRPC-Web framing ------------------------------------------

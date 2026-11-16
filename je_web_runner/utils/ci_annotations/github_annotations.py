@@ -121,5 +121,4 @@ def _iter_testcases(root) -> Iterable:
     if root.tag == "testcase":
         yield root
         return
-    for testcase in root.iter("testcase"):
-        yield testcase
+    yield from root.iter("testcase")

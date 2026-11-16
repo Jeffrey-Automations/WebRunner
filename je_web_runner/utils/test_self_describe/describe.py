@@ -32,24 +32,26 @@ _SCROLL = {"scroll_to_element", "scroll_to", "scroll"}
 
 @dataclass
 class StepSummary:
+    """One action rendered as a sentence, with the Gherkin phase it belongs to."""
     phase: str          # "Given" | "When" | "Then"
     sentence: str       # natural-language sentence
 
 
+_STEP_KINDS = (
+    ("navigation", _NAVIGATION),
+    ("input", _INPUT),
+    ("click", _CLICK),
+    ("wait", _WAIT),
+    ("assert", _ASSERT),
+    ("scroll", _SCROLL),
+)
+
+
 def _step_kind(action: dict[str, Any]) -> str:
     name = (action.get("action_name") or action.get("function") or "").lower()
-    if name in _NAVIGATION:
-        return "navigation"
-    if name in _INPUT:
-        return "input"
-    if name in _CLICK:
-        return "click"
-    if name in _WAIT:
-        return "wait"
-    if name in _ASSERT:
-        return "assert"
-    if name in _SCROLL:
-        return "scroll"
+    for kind, names in _STEP_KINDS:
+        if name in names:
+            return kind
     return "other"
 
 
@@ -113,6 +115,9 @@ def _sentence_for(action: dict[str, Any]) -> StepSummary:
 
 
 def summarise(actions: Sequence[dict[str, Any]]) -> list[StepSummary]:
+    """Turn each action into a ``StepSummary``, in order. Raises ``SelfDescribeError``
+    when the list is empty, is not a sequence or holds a non-dict action.
+    """
     if not isinstance(actions, (list, tuple)):
         raise SelfDescribeError("actions must be a sequence")
     if not actions:
@@ -144,6 +149,7 @@ def describe(actions: Sequence[dict[str, Any]], title: str = "") -> str:
 
 
 def assert_mentions(description: str, *needles: str) -> None:
+    """Raise ``SelfDescribeError`` listing the ``needles`` that ``description`` does not contain."""
     if not isinstance(description, str):
         raise SelfDescribeError("description must be string")
     if not needles:

@@ -30,18 +30,21 @@ class CoopCoepAuditError(WebRunnerException):
 # ---------- enums ------------------------------------------------------
 
 class CoopValue(str, Enum):
+    """The values of the ``Cross-Origin-Opener-Policy`` header."""
     UNSAFE_NONE = "unsafe-none"
     SAME_ORIGIN_ALLOW_POPUPS = "same-origin-allow-popups"
     SAME_ORIGIN = "same-origin"
 
 
 class CoepValue(str, Enum):
+    """The values of the ``Cross-Origin-Embedder-Policy`` header."""
     UNSAFE_NONE = "unsafe-none"
     CREDENTIALLESS = "credentialless"
     REQUIRE_CORP = "require-corp"
 
 
 class CorpValue(str, Enum):
+    """The values of the ``Cross-Origin-Resource-Policy`` header."""
     SAME_SITE = "same-site"
     SAME_ORIGIN = "same-origin"
     CROSS_ORIGIN = "cross-origin"
@@ -66,6 +69,7 @@ class PagePolicy:
     coep: CoepValue = CoepValue.UNSAFE_NONE
 
     def isolated(self) -> bool:
+        """True when COOP is ``same-origin`` and COEP is ``require-corp`` or ``credentialless``."""
         return (
             self.coop == CoopValue.SAME_ORIGIN
             and self.coep in (CoepValue.REQUIRE_CORP, CoepValue.CREDENTIALLESS)
@@ -229,9 +233,11 @@ class IsolationReport:
     notes: list[str] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True when the page is isolated and no resource violates the embedder policy."""
         return self.isolated and not self.resource_findings
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a JSON-serialisable dict."""
         return {
             "page_url": self.page_url,
             "policy": {
@@ -276,6 +282,7 @@ def audit_isolation(
 
 
 def assert_isolated(report: IsolationReport) -> None:
+    """Raise ``CoopCoepAuditError`` when the page is not isolated or a resource violates COEP."""
     if not isinstance(report, IsolationReport):
         raise CoopCoepAuditError("assert_isolated expects IsolationReport")
     if report.passed():

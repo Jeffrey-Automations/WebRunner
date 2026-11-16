@@ -22,7 +22,7 @@ from je_web_runner.utils.test_record.test_record_class import test_record_instan
 
 
 @dataclass(frozen=True)
-class RunSettings:
+class RunSettings:  # pylint: disable=too-many-instance-attributes  # value object: one field per run setting
     """What a run needs set up before its first action; picklable, so a worker process can receive it."""
 
     recording: bool = False

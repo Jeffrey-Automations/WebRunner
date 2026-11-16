@@ -11,7 +11,7 @@ from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_fail
 from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 
-class _NavigationMixin(_WrapperBase):
+class _NavigationMixin(_WrapperBase):  # pylint: disable=too-many-public-methods  # one method per command
     """URL 導航、捲動、tab / window 切換、視窗大小位置。
 
     URL navigation, scrolling, tab/window switching, and window geometry.
@@ -28,7 +28,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.get(url)
             record_action_to_list("webdriver wrapper to_url", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper to_url failed: {error!r}")
             record_action_to_list("webdriver wrapper to_url", param, error)
             settle_wrapper_failure(error)
@@ -39,7 +39,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.forward()
             record_action_to_list("webdriver wrapper forward", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper forward failed: {error!r}")
             record_action_to_list("webdriver wrapper forward", None, error)
             settle_wrapper_failure(error)
@@ -50,7 +50,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.back()
             record_action_to_list("webdriver wrapper back", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper back failed: {error!r}")
             record_action_to_list("webdriver wrapper back", None, error)
             settle_wrapper_failure(error)
@@ -61,7 +61,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.refresh()
             record_action_to_list("webdriver wrapper refresh", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper refresh failed: {error!r}")
             record_action_to_list("webdriver wrapper refresh", None, error)
             settle_wrapper_failure(error)
@@ -91,7 +91,7 @@ class _NavigationMixin(_WrapperBase):
                 element,
             )
             record_action_to_list("webdriver wrapper scroll_to_element", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper scroll_to_element failed: {error!r}")
             record_action_to_list("webdriver wrapper scroll_to_element", None, error)
             settle_wrapper_failure(error)
@@ -102,7 +102,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.execute_script("window.scrollTo(0, 0);")
             record_action_to_list("webdriver wrapper scroll_to_top", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper scroll_to_top failed: {error!r}")
             record_action_to_list("webdriver wrapper scroll_to_top", None, error)
             settle_wrapper_failure(error)
@@ -115,7 +115,7 @@ class _NavigationMixin(_WrapperBase):
                 "window.scrollTo(0, document.body.scrollHeight);"
             )
             record_action_to_list("webdriver wrapper scroll_to_bottom", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper scroll_to_bottom failed: {error!r}")
             record_action_to_list("webdriver wrapper scroll_to_bottom", None, error)
             settle_wrapper_failure(error)
@@ -162,14 +162,14 @@ class _NavigationMixin(_WrapperBase):
             if original is not None:
                 self.current_webdriver.switch_to.window(original)
             return False
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # logged; the switch answers False
             web_runner_logger.error(
                 f"WebDriverWrapper _switch_to_window_by_attr failed: {error!r}"
             )
             if original is not None:
                 try:
                     self.current_webdriver.switch_to.window(original)
-                except Exception as restore_error:
+                except Exception as restore_error:  # pylint: disable=broad-exception-caught  # restore is best-effort
                     web_runner_logger.debug(
                         f"WebDriverWrapper _switch_to_window_by_attr restore failed: "
                         f"{restore_error!r}"
@@ -186,7 +186,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_current_url", None, None)
             return self.current_webdriver.current_url
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_current_url failed: {error!r}")
             record_action_to_list("webdriver wrapper get_current_url", None, error)
             settle_wrapper_failure(error)
@@ -201,7 +201,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_title", None, None)
             return self.current_webdriver.title
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_title failed: {error!r}")
             record_action_to_list("webdriver wrapper get_title", None, error)
             settle_wrapper_failure(error)
@@ -216,7 +216,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_page_source", None, None)
             return self.current_webdriver.page_source
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_page_source failed: {error!r}")
             record_action_to_list("webdriver wrapper get_page_source", None, error)
             settle_wrapper_failure(error)
@@ -231,7 +231,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_window_handles", None, None)
             return self.current_webdriver.window_handles
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_window_handles failed: {error!r}")
             record_action_to_list("webdriver wrapper get_window_handles", None, error)
             settle_wrapper_failure(error)
@@ -246,7 +246,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_current_window_handle", None, None)
             return self.current_webdriver.current_window_handle
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_current_window_handle failed: {error!r}")
             record_action_to_list("webdriver wrapper get_current_window_handle", None, error)
             settle_wrapper_failure(error)
@@ -264,7 +264,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.switch_to.new_window(type_hint)
             record_action_to_list("webdriver wrapper new_window", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper new_window failed: {error!r}")
             record_action_to_list("webdriver wrapper new_window", param, error)
             settle_wrapper_failure(error)
@@ -278,7 +278,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.close()
             record_action_to_list("webdriver wrapper close_window", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper close_window failed: {error!r}")
             record_action_to_list("webdriver wrapper close_window", None, error)
             settle_wrapper_failure(error)
@@ -321,7 +321,7 @@ class _NavigationMixin(_WrapperBase):
             if switch_type in ["default_content", "parent_frame"]:
                 return target()
             return target(switch_target_name)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper switch failed: {error!r}")
             record_action_to_list("webdriver wrapper switch", param, error)
             settle_wrapper_failure(error)
@@ -337,7 +337,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.maximize_window()
             record_action_to_list("webdriver wrapper maximize_window", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper maximize_window failed: {error!r}")
             record_action_to_list("webdriver wrapper maximize_window", None, error)
             settle_wrapper_failure(error)
@@ -351,7 +351,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.fullscreen_window()
             record_action_to_list("webdriver wrapper fullscreen_window", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper fullscreen_window failed: {error!r}")
             record_action_to_list("webdriver wrapper fullscreen_window", None, error)
             settle_wrapper_failure(error)
@@ -365,7 +365,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             self.current_webdriver.minimize_window()
             record_action_to_list("webdriver wrapper minimize_window", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper minimize_window failed: {error!r}")
             record_action_to_list("webdriver wrapper minimize_window", None, error)
             settle_wrapper_failure(error)
@@ -388,7 +388,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper set_window_size", param, None)
             self.current_webdriver.set_window_size(width, height, window_handle)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper set_window_size failed: {error!r}"
             )
@@ -413,7 +413,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper set_window_position", param, None)
             return self.current_webdriver.set_window_position(x, y, window_handle)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper set_window_position failed: {error!r}"
             )
@@ -434,7 +434,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_window_position", param, None)
             return self.current_webdriver.get_window_position(window_handle)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_window_position failed: {error!r}")
             record_action_to_list("webdriver wrapper get_window_position", param, error)
             settle_wrapper_failure(error)
@@ -451,7 +451,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper get_window_rect", None, None)
             return self.current_webdriver.get_window_rect()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper get_window_rect failed: {error!r}")
             record_action_to_list("webdriver wrapper get_window_rect", None, error)
             settle_wrapper_failure(error)
@@ -475,7 +475,7 @@ class _NavigationMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper set_window_rect", param, None)
             return self.current_webdriver.set_window_rect(x, y, width, height)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper set_window_rect failed: {error!r}")
             record_action_to_list("webdriver wrapper set_window_rect", param, error)
             settle_wrapper_failure(error)

@@ -1,3 +1,8 @@
+"""
+動態載入套件並把其成員註冊到執行器
+Import packages at runtime and register their members as executor commands, behind an allowlist.
+"""
+
 import re
 from importlib import import_module
 from importlib.util import find_spec
@@ -11,6 +16,11 @@ _VALID_MODULE_NAME = re.compile(r"^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$", re.ASCII)
 
 
 class PackageManager:
+    """
+    套件管理器：載入套件並把函式、內建函式與類別加入執行器的 event_dict
+    Imports packages and adds their functions, builtins and classes to an executor's ``event_dict``
+    as ``<package>_<member>``. Only allowlisted packages load unless the gate is opened.
+    """
 
     def __init__(self):
         # 已安裝套件快取，避免重複載入
@@ -142,7 +152,7 @@ class PackageManager:
             self.get_member(package=package, predicate=isfunction, target=target)
             self.get_member(package=package, predicate=isbuiltin, target=target)
             self.get_member(package=package, predicate=isclass, target=target)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # a faulty package must not stop the run
             print(repr(error), file=stderr)
 
 

@@ -26,6 +26,7 @@ class RagGroundingError(WebRunnerException):
 
 @dataclass
 class Chunk:
+    """A retrieved passage and the id it is cited by; the id must not be empty."""
     chunk_id: str
     text: str
 
@@ -36,6 +37,7 @@ class Chunk:
 
 @dataclass
 class RagAnswer:
+    """The generated answer text and the ids of the chunks it cites."""
     text: str
     cited_chunk_ids: list[str] = field(default_factory=list)
 
@@ -61,6 +63,7 @@ def assert_citations_in_retrieved(
 
 
 def assert_min_citations(answer: RagAnswer, *, minimum: int) -> None:
+    """Raise RagGroundingError when the answer cites fewer than ``minimum`` chunks."""
     if minimum < 1:
         raise RagGroundingError("minimum must be >= 1")
     if len(answer.cited_chunk_ids) < minimum:
@@ -89,6 +92,9 @@ def assert_grounded(
     *,
     min_overlap: float = 0.5,
 ) -> None:
+    """Raise RagGroundingError when the lexical overlap between the answer and the retrieved
+    chunks is below ``min_overlap`` (which must be within [0, 1]).
+    """
     if not 0 <= min_overlap <= 1:
         raise RagGroundingError("min_overlap must be in [0, 1]")
     score = lexical_overlap_score(answer, retrieved)
@@ -126,6 +132,9 @@ def assert_no_hallucination(
     max_unsupported_phrases: int = 0,
     min_phrase_len: int = 4,
 ) -> None:
+    """Raise RagGroundingError when the answer has more than ``max_unsupported_phrases`` word
+    sequences of length ``min_phrase_len`` that no retrieved chunk supports.
+    """
     unsupported = find_unsupported_claims(
         answer, retrieved, min_phrase_len=min_phrase_len,
     )

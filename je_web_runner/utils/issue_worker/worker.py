@@ -29,7 +29,7 @@ class IssueCancelled(IssueWorkerError):
     """Human requirements, eligibility or ownership changed during an automated run."""
 
 
-class IssueWorker:
+class IssueWorker:  # pylint: disable=too-many-instance-attributes  # coordinator holding its collaborators
     """A trusted host coordinator; model actions never receive publishing credentials."""
 
     def __init__(self, config: IssueWorkerConfig, providers: dict[str, Any] | None = None,
@@ -77,7 +77,7 @@ class IssueWorker:
                 raise IssueWorkerError("deliver the pending progress report before retrying review")
             if job["data"].get("review_rounds", 0) >= self.config.max_review_rounds:
                 raise IssueWorkerError("review round limit reached; increase the host limit explicitly first")
-            provider, snapshot = self.inbox._fetch(key)
+            provider, snapshot = self.inbox._fetch(key)  # pylint: disable=protected-access  # package-internal
             if snapshot.closed or snapshot.assignee != provider.bot or "automation-review" not in snapshot.labels:
                 raise IssueWorkerError("review retry requires an open, bot-owned issue with automation-review")
             if MANUAL_LABELS & {label.casefold() for label in snapshot.labels}:
@@ -188,7 +188,7 @@ class IssueWorker:
         except EnvironmentUnavailable:
             job["data"]["environment_error"] = "local model or container dependency is unavailable"
             self._save(job, job["status"], time.time() + self.config.poll_seconds)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # any failure ends the job as failed
             message = self.redactor.clean(f"{type(error).__name__}: {error}")
             web_runner_logger.warning("issue processing stopped: %s", message)
             code = "time_budget" if job["data"].get("reason_code") == "time_budget" else "execution_error"

@@ -80,6 +80,9 @@ class HeaderTampering:
     def set_header(self, header: str, value: str,
                    url_substring: str | None = None,
                    name: str | None = None) -> HeaderRule:
+        """Add and return a rule that sets ``header`` to ``value``, on every URL or only on those
+        containing ``url_substring``.
+        """
         rule = HeaderRule(
             name=name or f"set:{header}",
             header=header,
@@ -92,6 +95,9 @@ class HeaderTampering:
 
     def remove_header(self, header: str,
                       url_substring: str | None = None) -> HeaderRule:
+        """Add and return a rule that removes ``header``, on every URL or only on those
+        containing ``url_substring``.
+        """
         rule = HeaderRule(
             name=f"remove:{header}",
             header=header,

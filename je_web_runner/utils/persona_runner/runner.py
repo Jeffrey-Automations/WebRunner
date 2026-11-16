@@ -102,6 +102,11 @@ class PersonaRunner:
             raise PersonaRunnerError("duplicate action_files in matrix")
 
     def run(self) -> list[PersonaCaseResult]:
+        """Run every action file as every persona and return one result per case.
+
+        A case that raises is recorded as failed, except PersonaRunnerError, which propagates.
+        With ``stop_on_first_failure`` the run returns at the first failed case.
+        """
         results: list[PersonaCaseResult] = []
         for persona in self.personas:
             for action_file in self.action_files:
@@ -112,7 +117,7 @@ class PersonaRunner:
                     passed = True
                 except PersonaRunnerError:
                     raise
-                except Exception as exc:
+                except Exception as exc:  # pylint: disable=broad-exception-caught  # a failing case is recorded, logged
                     passed = False
                     error = repr(exc)
                     web_runner_logger.warning(
@@ -158,6 +163,20 @@ def summarise(results: Iterable[PersonaCaseResult]) -> MatrixSummary:
             bucket["failed"] += 1
             failures_by_persona.setdefault(result.persona, []).append(result.action_file)
             failures_by_file.setdefault(result.action_file, []).append(result.persona)
+    return MatrixSummary(
+        total=total,
+        passed=passed_count,
+        failed=total - passed_count,
+        by_persona=by_persona,
+        persona_only_failures=sorted(_persona_only_failures(failures_by_persona, failures_by_file)),
+        file_only_failures=sorted(_file_only_failures(failures_by_file, len(seen_personas))),
+    )
+
+
+def _persona_only_failures(
+    failures_by_persona: dict[str, list[str]], failures_by_file: dict[str, list[str]],
+) -> list[str]:
+    """Personas whose failed files failed under no other persona."""
     persona_only: list[str] = []
     for persona, failed_files in failures_by_persona.items():
         # A persona "only" fails if every other persona passes the same files
@@ -167,18 +186,16 @@ def summarise(results: Iterable[PersonaCaseResult]) -> MatrixSummary:
             for file in failed_files
         ):
             persona_only.append(persona)
+    return persona_only
+
+
+def _file_only_failures(failures_by_file: dict[str, list[str]], persona_count: int) -> list[str]:
+    """Files that failed under at least ``persona_count`` distinct personas, i.e. under every persona seen."""
     file_only: list[str] = []
     for file, failing_personas in failures_by_file.items():
-        if len(set(failing_personas)) >= len(seen_personas):
+        if len(set(failing_personas)) >= persona_count:
             file_only.append(file)
-    return MatrixSummary(
-        total=total,
-        passed=passed_count,
-        failed=total - passed_count,
-        by_persona=by_persona,
-        persona_only_failures=sorted(persona_only),
-        file_only_failures=sorted(file_only),
-    )
+    return file_only
 
 
 # ---------- formatting --------------------------------------------------

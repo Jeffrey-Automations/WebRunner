@@ -135,7 +135,7 @@ def _har_entry(request_params: dict[str, Any], response_params: dict[str, Any]) 
     }
 
 
-class SeleniumBidiEvents:
+class SeleniumBidiEvents:  # pylint: disable=too-many-instance-attributes  # facade over three BiDi features
     """Event capture, HAR recording and response mocks for the current Selenium driver."""
 
     def __init__(self) -> None:

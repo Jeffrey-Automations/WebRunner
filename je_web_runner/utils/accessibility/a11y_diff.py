@@ -27,20 +27,24 @@ class _Finding:
 
 @dataclass
 class A11yDiff:
+    """Violations split into those new in the current run, those fixed since the baseline, and those in both."""
     added: list[dict[str, Any]] = field(default_factory=list)
     resolved: list[dict[str, Any]] = field(default_factory=list)
     persisting: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def regressed(self) -> bool:
+        """True when the current run has at least one violation the baseline did not have."""
         return bool(self.added)
 
     @property
     def total_baseline(self) -> int:
+        """Number of violations in the baseline run (resolved plus persisting)."""
         return len(self.resolved) + len(self.persisting)
 
     @property
     def total_current(self) -> int:
+        """Number of violations in the current run (added plus persisting)."""
         return len(self.added) + len(self.persisting)
 
 

@@ -30,6 +30,7 @@ class ThreeDSecureFlowError(WebRunnerException):
 
 
 class TransStatus(str, Enum):
+    """The ``transStatus`` values an issuer can return in 3-D Secure 2.x."""
     AUTHENTICATED = "Y"          # frictionless approval
     NOT_AUTHENTICATED = "N"      # issuer says no
     CHALLENGE = "C"              # ACS challenge required
@@ -39,6 +40,7 @@ class TransStatus(str, Enum):
 
 
 class Outcome(str, Enum):
+    """The branch a 3-D Secure flow ended in."""
     FRICTIONLESS_OK = "frictionless_ok"
     CHALLENGE_OK = "challenge_ok"
     REJECTED = "rejected"
@@ -64,6 +66,7 @@ class Flow:
             )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``trans_status`` enum replaced by its string value."""
         return {**asdict(self), "trans_status": self.trans_status.value}
 
 
@@ -100,6 +103,9 @@ def classify(flow: Flow) -> Outcome:
 
 
 def assert_outcome(flow: Flow, *, expected: Outcome) -> None:
+    """Raise ``ThreeDSecureFlowError`` unless ``classify(flow)`` equals ``expected``;
+    the message includes the flow.
+    """
     if not isinstance(expected, Outcome):
         raise ThreeDSecureFlowError(
             f"expected must be Outcome, got {type(expected).__name__}"

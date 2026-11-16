@@ -126,9 +126,11 @@ class SlaReport:
     overall_runs: int = 0
 
     def passed(self) -> bool:
+        """True when the overall SLA-met percentage reaches the target percentage."""
         return self.overall_pct >= self.target.target_pass_pct
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the target, the buckets, the overall figures and the verdict as a plain dict."""
         return {
             "target": asdict(self.target),
             "buckets": [asdict(b) for b in self.buckets],

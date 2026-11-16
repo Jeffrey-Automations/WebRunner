@@ -28,6 +28,7 @@ class ApiVersionCompatError(WebRunnerException):
 
 @dataclass
 class FieldSpec:
+    """A field of a request or response: its name, JSON type and whether it is required."""
     name: str
     type: str       # "string" | "integer" | "number" | "boolean" | "object" | "array"
     required: bool = True
@@ -85,6 +86,7 @@ def _check_request(
 def assert_response_compatible(
     contract: ApiContract, response: Mapping[str, Any],
 ) -> None:
+    """Raise ``ApiVersionCompatError`` when ``response`` does not satisfy what the old client's contract expects."""
     if not isinstance(contract, ApiContract):
         raise ApiVersionCompatError("contract must be ApiContract")
     if not isinstance(response, Mapping):
@@ -100,6 +102,7 @@ def assert_response_compatible(
 def assert_request_compatible(
     contract: ApiContract, server_required_fields: Iterable[str],
 ) -> None:
+    """Raise ``ApiVersionCompatError`` when the server requires a request field the old client does not send."""
     if not isinstance(contract, ApiContract):
         raise ApiVersionCompatError("contract must be ApiContract")
     server_required = set(server_required_fields)
@@ -114,6 +117,7 @@ def assert_request_compatible(
 
 @dataclass
 class CompatMatrixRow:
+    """The outcome of one client version run against one server version."""
     client_version: str
     server_version: str
     passed: bool
@@ -121,11 +125,13 @@ class CompatMatrixRow:
 
 
 def matrix_summary(rows: Iterable[CompatMatrixRow]) -> list[dict[str, Any]]:
+    """Return the matrix rows as plain dicts (client, server, passed, notes)."""
     return [{"client": r.client_version, "server": r.server_version,
              "passed": r.passed, "notes": r.notes} for r in rows]
 
 
 def assert_full_matrix_passes(rows: Iterable[CompatMatrixRow]) -> None:
+    """Raise ``ApiVersionCompatError`` listing every client/server pair that did not pass."""
     fails = [r for r in rows if not r.passed]
     if fails:
         raise ApiVersionCompatError(

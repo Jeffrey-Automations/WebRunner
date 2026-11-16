@@ -27,6 +27,7 @@ class LcpImageAuditError(WebRunnerException):
 
 @dataclass
 class LcpCandidate:
+    """The image the browser reported as the Largest Contentful Paint element."""
     url: str
     element_tag: str = ""
     render_time_ms: float = 0
@@ -34,6 +35,10 @@ class LcpCandidate:
 
 
 def parse_candidate(payload: Any) -> LcpCandidate:
+    """Build an LcpCandidate from a dict; the URL is read from ``url`` or ``src``.
+
+    Raises LcpImageAuditError when the payload is not a dict or has no URL.
+    """
     if not isinstance(payload, dict):
         raise LcpImageAuditError("payload must be a dict")
     url = payload.get("url") or payload.get("src") or ""
@@ -73,6 +78,9 @@ def assert_lcp_preloaded(
     candidate: LcpCandidate, html: str,
     *, link_header_urls: Sequence[str] = (),
 ) -> None:
+    """Raise LcpImageAuditError unless the LCP image is preloaded, by a ``<link rel=preload>``
+    in ``html`` or by one of ``link_header_urls``.
+    """
     preloaded = set(_extract_preloaded_image_urls(html)) | set(link_header_urls)
     if candidate.url not in preloaded and not any(
         candidate.url.endswith("/" + u) or u.endswith(candidate.url)
@@ -87,6 +95,7 @@ def assert_lcp_preloaded(
 def assert_lcp_not_lazy_loaded(
     candidate: LcpCandidate, html: str,
 ) -> None:
+    """Raise LcpImageAuditError when the LCP image's ``<img>`` tag in ``html`` has ``loading="lazy"``."""
     if not isinstance(html, str):
         raise LcpImageAuditError(_HTML_TYPE_ERROR)
     pattern = re.compile(
@@ -104,6 +113,9 @@ def assert_lcp_not_lazy_loaded(
 def assert_fetchpriority_high(
     candidate: LcpCandidate, html: str,
 ) -> None:
+    """Raise LcpImageAuditError unless the LCP image's ``<img>`` tag in ``html`` has
+    ``fetchpriority="high"``, before or after its ``src``.
+    """
     if not isinstance(html, str):
         raise LcpImageAuditError(_HTML_TYPE_ERROR)
     pattern = re.compile(

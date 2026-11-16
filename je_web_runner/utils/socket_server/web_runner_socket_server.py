@@ -1,3 +1,6 @@
+"""以 TCP socket 接收 action JSON 並交給執行器的伺服器。
+TCP socket server that receives action JSON and hands it to the action executor.
+"""
 import codecs
 import json
 import socketserver
@@ -115,6 +118,7 @@ class _RequestFrameScanner:
         self._unbalanced_close = False
 
     def feed(self, chunk: bytes) -> None:
+        """Decode ``chunk`` incrementally and scan each character of it."""
         for char in self._decoder.decode(chunk):
             self._consume(char)
 
@@ -143,6 +147,9 @@ class _RequestFrameScanner:
 
     @property
     def is_complete(self) -> bool:
+        """True once the bytes fed so far hold one whole top-level JSON value, or a
+        closing bracket that nothing opened (so the request can be rejected at once).
+        """
         if self._unbalanced_close:
             return True
         if self._in_string:

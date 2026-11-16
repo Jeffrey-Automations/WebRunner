@@ -30,6 +30,10 @@ class WatchSnapshot:
 
 
 def snapshot_dir(directory: str, glob: str = "**/*.json") -> WatchSnapshot:
+    """記錄目錄下符合 ``glob`` 的檔案狀態
+    Record ``(mtime, size)`` of every file under ``directory`` matching ``glob``.
+    Raises ``WatchModeError`` when the directory does not exist.
+    """
     base = Path(directory)
     if not base.is_dir():
         raise WatchModeError(f"watch directory missing: {directory!r}")
@@ -44,16 +48,24 @@ def snapshot_dir(directory: str, glob: str = "**/*.json") -> WatchSnapshot:
 
 @dataclass
 class WatchDiff:
+    """兩次快照之間新增 / 移除 / 變更的檔案
+    Paths added, removed and changed between two snapshots.
+    """
     added: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
     changed: list[str] = field(default_factory=list)
 
     @property
     def has_changes(self) -> bool:
+        """True when any path was added, removed or changed."""
         return bool(self.added or self.removed or self.changed)
 
 
 def poll_changes(previous: WatchSnapshot, current: WatchSnapshot) -> WatchDiff:
+    """比較兩次快照
+    Compare two snapshots: paths only in ``current`` are added, paths only in
+    ``previous`` are removed, and paths whose mtime or size differ are changed.
+    """
     diff = WatchDiff()
     prev_keys = set(previous.entries.keys())
     curr_keys = set(current.entries.keys())

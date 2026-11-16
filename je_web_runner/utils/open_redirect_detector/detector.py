@@ -28,6 +28,7 @@ class OpenRedirectError(WebRunnerException):
 
 
 class ProbeOutcome(str, Enum):
+    """Where a probed redirect ended: blocked (safe), allowed off-origin (vulnerable) or unclear."""
     BLOCKED = "blocked"        # safe — redirect stayed same-origin or rejected
     ALLOWED = "allowed"        # vulnerable — went off-origin
     AMBIGUOUS = "ambiguous"    # unclear — neither rejected nor clearly off-origin
@@ -91,6 +92,7 @@ class ProbeResult:
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the payload, the final location, the status and the outcome as a dict."""
         return {
             "payload_label": self.payload.label,
             "payload_value": self.payload.value,
@@ -194,9 +196,11 @@ class ProbeReport:
     results: list[ProbeResult] = field(default_factory=list)
 
     def vulnerable(self) -> list[ProbeResult]:
+        """The results whose redirect went off-origin."""
         return [r for r in self.results if r.outcome == ProbeOutcome.ALLOWED]
 
     def passed(self) -> bool:
+        """Return True when no probe was redirected off-origin."""
         return not self.vulnerable()
 
 

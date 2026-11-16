@@ -27,7 +27,7 @@ class RoiScorerError(WebRunnerException):
 
 
 @dataclass
-class RoiMetrics:
+class RoiMetrics:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """All historical numbers needed to score one test."""
 
     name: str
@@ -52,23 +52,27 @@ class RoiMetrics:
 
 @dataclass
 class Weights:
+    """Share of each ingredient in the ROI score; the four must sum to 1."""
     find_rate: float = 0.5
     cost: float = 0.2
     coverage: float = 0.2
     recency: float = 0.1
 
     def total(self) -> float:
+        """Sum of the four weights."""
         return self.find_rate + self.cost + self.coverage + self.recency
 
 
 @dataclass
 class RoiScore:
+    """The 0..1 score of one test, its per-ingredient components and the verdict."""
     name: str
     score: float
     components: dict
     verdict: str   # "keep" | "review" | "consider-removing"
 
     def to_dict(self) -> dict:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -104,6 +108,10 @@ def _recency_score(m: RoiMetrics) -> float:
 
 
 def score_one(m: RoiMetrics, weights: Weights | None = None) -> RoiScore:
+    """Score one test as the weighted sum of its find-rate, cost, coverage and recency
+    components. The verdict is ``keep`` from 0.7, ``review`` from 0.4, else
+    ``consider-removing``. Raises ``RoiScorerError`` when the weights do not sum to 1.
+    """
     if weights is None:
         weights = Weights()
     if not isinstance(m, RoiMetrics):
@@ -135,6 +143,7 @@ def score_one(m: RoiMetrics, weights: Weights | None = None) -> RoiScore:
 def score_many(
     metrics: Sequence[RoiMetrics], weights: Weights | None = None,
 ) -> list[RoiScore]:
+    """Score every test and return the scores, highest first."""
     if not isinstance(metrics, (list, tuple)):
         raise RoiScorerError("metrics must be a sequence")
     if weights is None:
@@ -146,6 +155,9 @@ def score_many(
 def removal_candidates(
     scores: Iterable[RoiScore], *, max_score: float = 0.3,
 ) -> list[RoiScore]:
+    """Return the scores at or below ``max_score``; raises ``RoiScorerError`` when
+    ``max_score`` is outside 0..1.
+    """
     if not 0 <= max_score <= 1:
         raise RoiScorerError("max_score must be in [0, 1]")
     return [s for s in scores if s.score <= max_score]

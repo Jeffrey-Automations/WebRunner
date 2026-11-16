@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import dataclasses
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerWebDriverIsNoneException
@@ -36,6 +35,18 @@ def page_source(command: str) -> str:
     return str(selenium_driver(command).page_source)
 
 
+def _plain_collection(value: Any) -> Any:
+    """The second half of :func:`to_plain`: mappings, sequences, bytes, then ``str`` for the rest."""
+    if isinstance(value, dict):
+        # An enum key gives its value ("script"), not its repr ("AssetKind.SCRIPT").
+        return {str(to_plain(key)): to_plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [to_plain(item) for item in value]
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
 def to_plain(value: Any) -> Any:
     """
     ``value`` as JSON values: dataclasses and objects with ``to_dict`` become objects, enums their value,
@@ -49,13 +60,4 @@ def to_plain(value: Any) -> Any:
         return to_plain(value.to_dict())
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {field.name: to_plain(getattr(value, field.name)) for field in dataclasses.fields(value)}
-    if isinstance(value, dict):
-        # An enum key gives its value ("script"), not its repr ("AssetKind.SCRIPT").
-        return {str(to_plain(key)): to_plain(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [to_plain(item) for item in value]
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    if isinstance(value, Path):
-        return str(value)
-    return str(value)
+    return _plain_collection(value)

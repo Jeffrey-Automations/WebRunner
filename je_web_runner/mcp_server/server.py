@@ -84,6 +84,7 @@ class McpServer:
     protocol_version: str = SUPPORTED_PROTOCOL_VERSIONS[0]
 
     def register(self, tool: Tool) -> None:
+        """Add ``tool``; raises ``McpServerError`` when a tool of that name is already there."""
         if tool.name in self.tools:
             raise McpServerError(f"tool {tool.name!r} already registered")
         self.tools[tool.name] = tool
@@ -129,7 +130,7 @@ class McpServer:
             result = self._run(method, params)
         except McpProtocolError as error:
             return self._error(request_id, error.code, str(error), error.data)
-        except Exception as error:  # pylint: disable=broad-except — answered as -32603 and logged
+        except Exception as error:  # pylint: disable=broad-exception-caught  # answered as -32603, logged
             web_runner_logger.error(
                 f"mcp handler crashed in {method!r}: {error!r}\n{traceback.format_exc()}"
             )
@@ -234,7 +235,7 @@ class McpServer:
             return _text_result("invalid arguments: " + "; ".join(problems), is_error=True)
         try:
             result = self.tools[name].handler(arguments)
-        except Exception as error:  # pylint: disable=broad-except — a tool failure is a result, not a crash
+        except Exception as error:  # pylint: disable=broad-exception-caught  # a tool failure is a result
             web_runner_logger.warning(
                 f"mcp tool {name!r} failed: {error!r}\n{traceback.format_exc()}"
             )
@@ -270,6 +271,7 @@ def _value_result(value: Any, *, is_error: bool) -> dict[str, Any]:
 
 
 def make_default_server() -> McpServer:
+    """A server with the default and browser tools and the default resources, templates and prompts."""
     # Imported lazily so ``server`` can be imported without dragging the
     # full executor (and therefore Selenium / Playwright) into modules that
     # only need the protocol skeleton.
@@ -303,7 +305,7 @@ def serve_stdio(
     anything else written to stdout (``print``, C extensions, child processes) goes to
     stderr, so only protocol messages reach the client.
     """
-    in_stream = stdin or open(  # noqa: SIM115 — wraps the process stdin; the OS closes it
+    in_stream = stdin or open(  # noqa: SIM115  # pylint: disable=consider-using-with  # wraps stdin, closed by the OS
         sys.stdin.fileno(), encoding="utf-8", closefd=False,
     )
     out_stream = stdout or _claim_stdout()

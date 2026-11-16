@@ -51,6 +51,7 @@ class CorrelatedLog:
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the log entry as a plain dict."""
         return asdict(self)
 
 
@@ -267,7 +268,7 @@ def correlate(
             merged.extend(fetcher(trace_id))
         except BackendLogCorrelatorError:
             raise
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # the other fetchers still run
             web_runner_logger.warning(f"correlator fetcher failed: {error!r}")
     return merged
 

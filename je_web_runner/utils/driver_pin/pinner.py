@@ -28,6 +28,7 @@ class DriverPinError(WebRunnerException):
 
 @dataclass
 class PinnedDriver:
+    """A driver binary pinned to one version and download URL."""
     name: str            # "geckodriver" / "chromedriver" / "msedgedriver"
     version: str
     url: str             # direct download URL (CDN, GitHub release asset, etc.)
@@ -37,6 +38,7 @@ class PinnedDriver:
     cache_subdir: str | None = None  # default: f"{name}/{version}"
 
     def matches_current_platform(self) -> bool:
+        """True when the pin lists no platform or lists the current one."""
         if not self.platforms:
             return True
         marker = current_platform_marker()
@@ -57,6 +59,7 @@ def current_platform_marker() -> str:
 
 
 def load_pinfile(path: str | Path) -> list[PinnedDriver]:
+    """Read the pinned drivers from a JSON pin file; raise ``DriverPinError`` if it is missing or malformed."""
     fp = Path(path)
     if not fp.is_file():
         raise DriverPinError(f"pin file not found: {path!r}")
@@ -71,6 +74,7 @@ def load_pinfile(path: str | Path) -> list[PinnedDriver]:
 
 
 def save_pinfile(path: str | Path, drivers: list[PinnedDriver]) -> Path:
+    """Write ``drivers`` to a JSON pin file, creating its directory, and return the path."""
     fp = Path(path)
     fp.parent.mkdir(parents=True, exist_ok=True)
     document = {"drivers": [
@@ -154,7 +158,7 @@ def download_pinned(
 
 
 def _default_fetch(url: str) -> bytes:
-    if not (url.startswith(("https://", "http://"))):  # NOSONAR — guarded above
+    if not url.startswith(("https://", "http://")):  # NOSONAR — guarded above
         raise DriverPinError(f"refusing non-http(s) url: {url!r}")
     ssl_context = ssl.create_default_context()  # NOSONAR — Py3.10+ default enforces TLS 1.2+
     with urllib.request.urlopen(url, context=ssl_context, timeout=120) as response:  # nosec B310 — scheme validated

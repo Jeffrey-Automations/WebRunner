@@ -130,7 +130,7 @@ class GitHubPublisher:
         data = job["data"]
         path = self.prefix + f"/issues/{data['pr']['number']}/comments"
         marker = f"<!-- webrunner-revision:{job['key']}:r{job['run']}:{data['review']['round']} -->"
-        rows = self.provider._pages(path)
+        rows = self.provider._pages(path)  # pylint: disable=protected-access  # package-internal provider call
         if any((row.get("body") or "").startswith(marker + "\n") and
                row.get("user", {}).get("login", "").casefold() == self.config.github_bot.casefold() for row in rows):
             return

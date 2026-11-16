@@ -69,6 +69,7 @@ class Utterance:
     node_index: int
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -82,6 +83,7 @@ class Violation:
     detail: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``kind`` enum replaced by its string value."""
         return {**asdict(self), "kind": self.kind.value}
 
 
@@ -97,6 +99,7 @@ class ScreenReaderTranscript:
         return " ".join(u.text for u in self.utterances if u.text)
 
     def passed(self) -> bool:
+        """True when the walk recorded no accessibility violation."""
         return not self.violations
 
 

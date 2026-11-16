@@ -20,6 +20,7 @@ class NotificationsAuditError(WebRunnerException):
 
 
 class PermissionResult(str, Enum):
+    """The three answers ``Notification.requestPermission`` can give."""
     GRANTED = "granted"
     DENIED = "denied"
     DEFAULT = "default"
@@ -37,6 +38,7 @@ class PermissionRequest:
     page_age_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the request as a dict with the result as its string value."""
         return {**asdict(self), "result": self.result.value}
 
 
@@ -119,6 +121,7 @@ _INSTALL_TEMPLATE = """
 
 
 def build_install_script() -> str:
+    """Return the JavaScript that instruments the Notification API in the page."""
     return _INSTALL_TEMPLATE
 
 

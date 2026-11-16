@@ -42,30 +42,36 @@ class FailureBundle:
     _entries: dict[str, bytes] = field(default_factory=dict)
 
     def add_screenshot(self, png_bytes: bytes, name: str = "screenshot.png") -> None:
+        """Add a PNG screenshot under ``artifacts/``; raise ``FailureBundleError`` if it is not bytes."""
         if not isinstance(png_bytes, (bytes, bytearray)):
             raise FailureBundleError("screenshot must be bytes")
         self._entries[f"artifacts/{name}"] = bytes(png_bytes)
 
     def add_dom(self, html: str, name: str = "dom.html") -> None:
+        """Add the page HTML under ``artifacts/``."""
         self._entries[f"artifacts/{name}"] = html.encode("utf-8")
 
     def add_console(self, messages: list[dict[str, Any]]) -> None:
+        """Add the console messages as ``artifacts/console.json``."""
         self._entries["artifacts/console.json"] = json.dumps(
             messages, ensure_ascii=False, indent=2
         ).encode("utf-8")
 
     def add_network(self, responses: list[dict[str, Any]]) -> None:
+        """Add the network responses as ``artifacts/network.json``."""
         self._entries["artifacts/network.json"] = json.dumps(
             responses, ensure_ascii=False, indent=2
         ).encode("utf-8")
 
     def add_trace(self, trace_path: str | Path) -> None:
+        """Add a trace file under ``artifacts/``; raise ``FailureBundleError`` if it does not exist."""
         path = Path(trace_path)
         if not path.is_file():
             raise FailureBundleError(f"trace file not found: {trace_path!r}")
         self._entries[f"artifacts/{path.name}"] = path.read_bytes()
 
     def add_file(self, source: str | Path, inside_name: str | None = None) -> None:
+        """Add any file, under ``inside_name`` or ``artifacts/<file name>``; raise if it does not exist."""
         path = Path(source)
         if not path.is_file():
             raise FailureBundleError(f"file not found: {source!r}")
@@ -73,6 +79,7 @@ class FailureBundle:
         self._entries[target] = path.read_bytes()
 
     def add_text(self, name: str, text: str) -> None:
+        """Add ``text`` as a UTF-8 file under ``artifacts/``."""
         self._entries[f"artifacts/{name}"] = text.encode("utf-8")
 
     def _manifest(self) -> dict[str, Any]:
@@ -88,6 +95,7 @@ class FailureBundle:
         }
 
     def write(self, output_path: str | Path) -> Path:
+        """Write the manifest and every entry to a zip at ``output_path`` and return that path."""
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:

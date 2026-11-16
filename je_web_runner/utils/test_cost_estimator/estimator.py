@@ -86,8 +86,6 @@ def _run_row(raw: Any) -> RunRow | None:
             runner=runner,
             duration_seconds=float(duration),
         )
-    except TestCostEstimatorError:
-        raise
     except (TypeError, ValueError):
         return None
 
@@ -125,7 +123,7 @@ class CostBreakdown:
 
 
 @dataclass
-class CostEstimate:
+class CostEstimate:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """Aggregate estimate returned by :func:`estimate_runs`."""
 
     total_runs: int
@@ -138,6 +136,7 @@ class CostEstimate:
     generated_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the estimate as a plain dict, with amounts rounded to four decimals."""
         return {
             "total_runs": self.total_runs,
             "total_billed_minutes": round(self.total_billed_minutes, 4),

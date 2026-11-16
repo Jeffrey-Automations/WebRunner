@@ -1,3 +1,5 @@
+"""Compare the state of a WebDriver or WebElement with expected values and raise on a mismatch."""
+
 import typing
 
 from selenium.webdriver.remote.webdriver import WebDriver

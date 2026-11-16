@@ -51,16 +51,22 @@ async (canvasSelector) => {
 
 @dataclass
 class CanvasFrame:
+    """A canvas readback: its size and the raw RGBA bytes, four per pixel."""
     width: int
     height: int
     rgba: bytes
 
     @property
     def pixel_count(self) -> int:
+        """Number of pixels, width times height."""
         return self.width * self.height
 
 
 def parse_frame(payload: dict) -> CanvasFrame:
+    """Build a ``CanvasFrame`` from the harvested dict (``width``, ``height``, ``rgba_b64``).
+    Raises ``WebgpuPixelVerifyError`` when a field is missing or invalid, or when the
+    decoded data is not exactly ``width * height * 4`` bytes.
+    """
     if not isinstance(payload, dict):
         raise WebgpuPixelVerifyError("payload must be a dict")
     try:
@@ -90,6 +96,7 @@ def parse_frame(payload: dict) -> CanvasFrame:
 
 
 def mean_rgba(frame: CanvasFrame) -> tuple[float, float, float, float]:
+    """Return the mean of each channel as ``(r, g, b, a)``; zeros for a frame without pixels."""
     n = frame.pixel_count
     if n == 0:
         return (0.0, 0.0, 0.0, 0.0)
@@ -105,6 +112,9 @@ def assert_mean_in_band(
     *, channel: str,
     min_value: float, max_value: float,
 ) -> None:
+    """Raise ``WebgpuPixelVerifyError`` unless the mean of ``channel`` (``r``, ``g``, ``b``
+    or ``a``) lies within ``[min_value, max_value]``.
+    """
     if channel not in "rgba" or len(channel) != 1:
         raise WebgpuPixelVerifyError("channel must be one of 'r','g','b','a'")
     if min_value > max_value:
@@ -181,6 +191,7 @@ def _tile_mean_diff(a: CanvasFrame, b: CanvasFrame,
 def assert_similar(
     a: CanvasFrame, b: CanvasFrame, *, max_diff: float = 0.05,
 ) -> None:
+    """Raise ``WebgpuPixelVerifyError`` when the tile diff score of the two frames exceeds ``max_diff``."""
     if max_diff < 0 or max_diff > 1:
         raise WebgpuPixelVerifyError("max_diff must be in [0, 1]")
     diff = tile_diff_score(a, b)

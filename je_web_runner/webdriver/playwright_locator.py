@@ -19,6 +19,20 @@ class PlaywrightLocatorError(WebRunnerException):
     """Raised when a TestObject cannot be turned into a valid selector."""
 
 
+# The selector each locator strategy becomes; ``{}`` is the TestObject's name.
+_SELECTOR_FORMATS = {
+    "": "{}",
+    "CSS_SELECTOR": "{}",
+    "XPATH": "xpath={}",
+    "ID": "#{}",
+    "NAME": "[name=\"{}\"]",
+    "CLASS_NAME": ".{}",
+    "TAG_NAME": "{}",
+    "LINK_TEXT": "text={}",
+    "PARTIAL_LINK_TEXT": ":has-text(\"{}\")",
+}
+
+
 def _normalise(strategy: str) -> str:
     return (strategy or "").strip().upper()
 
@@ -35,22 +49,9 @@ def test_object_to_selector(test_object: TestObject) -> str:
         raise PlaywrightLocatorError("test_object is None")
     name = test_object.test_object_name
     strategy = _normalise(test_object.test_object_type)
-    if strategy in {"", "CSS_SELECTOR"}:
-        return name
-    if strategy == "XPATH":
-        return f"xpath={name}"
-    if strategy == "ID":
-        return f"#{name}"
-    if strategy == "NAME":
-        return f"[name=\"{name}\"]"
-    if strategy == "CLASS_NAME":
-        return f".{name}"
-    if strategy == "TAG_NAME":
-        return name
-    if strategy == "LINK_TEXT":
-        return f"text={name}"
-    if strategy == "PARTIAL_LINK_TEXT":
-        return f":has-text(\"{name}\")"
+    selector_format = _SELECTOR_FORMATS.get(strategy)
+    if selector_format is not None:
+        return selector_format.format(name)
     raise PlaywrightLocatorError(f"unsupported locator strategy for Playwright: {strategy!r}")
 
 

@@ -30,6 +30,7 @@ class SnapshotDiffApprovalError(WebRunnerException):
 
 
 class Status(str, Enum):
+    """Review state of a snapshot in the registry."""
     BASELINE = "baseline"
     PENDING = "pending"
     REJECTED = "rejected"
@@ -37,6 +38,7 @@ class Status(str, Enum):
 
 @dataclass
 class SnapshotEntry:
+    """One snapshot in the registry: its content hash, review state and who reviewed it."""
     name: str
     sha256: str
     status: Status
@@ -45,6 +47,7 @@ class SnapshotEntry:
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``status`` enum replaced by its string value."""
         return {**asdict(self), "status": self.status.value}
 
 
@@ -60,16 +63,22 @@ def _hash(payload: bytes) -> str:
 
 @dataclass
 class DiffResult:
+    """Baseline hash and new hash of one snapshot, as compared by a test run."""
     name: str
     baseline_sha: str
     head_sha: str
 
     @property
     def changed(self) -> bool:
+        """True when the new hash differs from the baseline hash."""
         return self.baseline_sha != self.head_sha
 
 
 def load(path: str) -> dict[str, SnapshotEntry]:
+    """Read the registry file into a ``name -> SnapshotEntry`` dict.
+    A missing file gives an empty registry; entries that are not objects are skipped.
+    Raises ``SnapshotDiffApprovalError`` when the file is not a JSON object.
+    """
     if not isinstance(path, str) or not path:
         raise SnapshotDiffApprovalError("path must be non-empty string")
     if not os.path.exists(path):
@@ -96,6 +105,7 @@ def load(path: str) -> dict[str, SnapshotEntry]:
 
 
 def save(path: str, registry: dict[str, SnapshotEntry]) -> None:
+    """Write the registry to ``path`` as JSON, sorted by snapshot name."""
     if not isinstance(path, str) or not path:
         raise SnapshotDiffApprovalError("path must be non-empty string")
     serialised = {name: e.to_dict() for name, e in registry.items()}
@@ -132,6 +142,10 @@ def capture(
 def approve(
     registry: dict[str, SnapshotEntry], *, name: str, reviewer: str,
 ) -> SnapshotEntry:
+    """Promote the pending snapshot ``name`` to baseline and record ``reviewer``.
+    Raises ``SnapshotDiffApprovalError`` when the snapshot is unknown or not pending,
+    or when ``reviewer`` is empty.
+    """
     entry = registry.get(name)
     if entry is None:
         raise SnapshotDiffApprovalError(f"unknown snapshot {name!r}")
@@ -151,6 +165,9 @@ def reject(
     registry: dict[str, SnapshotEntry], *, name: str,
     reviewer: str, note: str = "",
 ) -> SnapshotEntry:
+    """Mark the snapshot ``name`` as rejected, recording ``reviewer`` and an optional note.
+    Raises ``SnapshotDiffApprovalError`` when the snapshot is unknown or ``reviewer`` is empty.
+    """
     entry = registry.get(name)
     if entry is None:
         raise SnapshotDiffApprovalError(f"unknown snapshot {name!r}")
@@ -165,10 +182,12 @@ def reject(
 
 
 def list_pending(registry: dict[str, SnapshotEntry]) -> list[SnapshotEntry]:
+    """Return the entries still waiting for review."""
     return [e for e in registry.values() if e.status == Status.PENDING]
 
 
 def assert_no_pending(registry: dict[str, SnapshotEntry]) -> None:
+    """Raise ``SnapshotDiffApprovalError`` naming every snapshot still pending review."""
     pending = list_pending(registry)
     if pending:
         names = [e.name for e in pending]

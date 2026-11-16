@@ -30,6 +30,7 @@ class CookieRecord:
     expires: int | None = None  # epoch ms
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the cookie as a plain dict."""
         return asdict(self)
 
 
@@ -141,6 +142,7 @@ def assert_cookie_present(
 def assert_cookie_absent(
     cookies: Iterable[CookieRecord], *, name: str,
 ) -> None:
+    """Raise ``CookieStoreApiError`` when a cookie called ``name`` is among ``cookies``."""
     for c in cookies:
         if c.name == name:
             raise CookieStoreApiError(f"cookie {name!r} unexpectedly present")

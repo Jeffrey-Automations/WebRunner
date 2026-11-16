@@ -32,6 +32,7 @@ class FlakinessGraveyardError(WebRunnerException):
 
 
 class Status(str, Enum):
+    """Where a flaky test stands: quarantined, brought back, or given up on."""
     QUARANTINED = "quarantined"
     REVIVED = "revived"
     BURIED = "buried"
@@ -39,6 +40,7 @@ class Status(str, Enum):
 
 @dataclass
 class GraveEntry:
+    """A quarantined test: when it was quarantined, when it last flaked, its owner and ticket."""
     test_name: str
     quarantined_at: str
     last_flake_date: str
@@ -53,6 +55,7 @@ class GraveEntry:
         _parse_date(self.last_flake_date, "last_flake_date")
 
     def to_dict(self) -> dict[str, str]:
+        """Return the entry as a dict, with the status as its string value."""
         return {**asdict(self), "status": self.status.value}
 
 
@@ -101,6 +104,7 @@ def register_flake(
 
 
 def revive(registry: list[GraveEntry], test_name: str) -> GraveEntry:
+    """Mark ``test_name`` as revived and return its entry; raise if it is unknown or already buried."""
     for entry in registry:
         if entry.test_name == test_name:
             if entry.status == Status.BURIED:
@@ -131,6 +135,7 @@ def due_for_burial(
 
 
 def bury(registry: list[GraveEntry], test_name: str) -> GraveEntry:
+    """Mark ``test_name`` as buried and return its entry; raise if it is unknown or not quarantined."""
     for entry in registry:
         if entry.test_name == test_name:
             if entry.status != Status.QUARANTINED:
@@ -143,6 +148,7 @@ def bury(registry: list[GraveEntry], test_name: str) -> GraveEntry:
 
 
 def load(path: str) -> list[GraveEntry]:
+    """Read the registry from a JSON file; a missing file gives an empty list."""
     if not isinstance(path, str) or not path:
         raise FlakinessGraveyardError("path must be non-empty string")
     if not os.path.exists(path):
@@ -169,6 +175,7 @@ def load(path: str) -> list[GraveEntry]:
 
 
 def save(path: str, registry: Iterable[GraveEntry]) -> None:
+    """Write the registry to ``path`` as a JSON array."""
     if not isinstance(path, str) or not path:
         raise FlakinessGraveyardError("path must be non-empty string")
     serialized = [e.to_dict() for e in registry]

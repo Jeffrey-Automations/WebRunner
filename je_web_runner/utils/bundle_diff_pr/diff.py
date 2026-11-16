@@ -33,10 +33,12 @@ class AssetDelta:
 
     @property
     def delta(self) -> int:
+        """Size change in bytes from base to head (negative when the asset shrank)."""
         return self.head_bytes - self.base_bytes
 
     @property
     def percent(self) -> float:
+        """Size change as a percentage of the base size; a new asset counts as 100%."""
         if self.base_bytes == 0:
             return 100.0 if self.head_bytes > 0 else 0.0
         return (self.delta / self.base_bytes) * 100.0
@@ -117,6 +119,7 @@ def diff_hars(
 def assert_under_max_growth(
     diff: BundleDiff, *, max_growth_bytes: int,
 ) -> None:
+    """Raise ``BundleDiffPrError`` when the total bundle growth exceeds ``max_growth_bytes``."""
     if max_growth_bytes < 0:
         raise BundleDiffPrError("max_growth_bytes must be >= 0")
     if diff.total_delta_bytes > max_growth_bytes:

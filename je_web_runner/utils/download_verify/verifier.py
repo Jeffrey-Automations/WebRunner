@@ -34,7 +34,38 @@ class DownloadVerifyError(WebRunnerException):
 
 # ---------- waiting -------------------------------------------------------
 
-def wait_for_download(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def _finished_download(
+    directory: Path,
+    regex: Pattern[str],
+    excluded: tuple[str, ...],
+    seen: dict[str, tuple[int, float]],
+    stable_for: float,
+    time_fn: Callable[[], float],
+) -> Path | None:
+    """
+    One poll of ``directory``: the first matching, non-empty file whose size has not changed for
+    ``stable_for`` seconds, else None. ``seen`` keeps each file's last size and when it was first seen.
+    """
+    for entry in directory.iterdir():
+        if not entry.is_file():
+            continue
+        name = entry.name
+        if any(name.lower().endswith(suffix) for suffix in excluded):
+            continue
+        if not regex.search(name):
+            continue
+        size = entry.stat().st_size
+        previous = seen.get(name)
+        now = time_fn()
+        if previous is None or previous[0] != size:
+            seen[name] = (size, now)
+        elif now - previous[1] >= stable_for and size > 0:
+            web_runner_logger.info(f"wait_for_download: matched {entry}")
+            return entry.resolve()
+    return None
+
+
+def wait_for_download(  # pylint: disable=too-many-arguments  # public signature
     download_dir: str | Path,
     *,
     pattern: str | Pattern[str] = r".+",
@@ -59,27 +90,11 @@ def wait_for_download(  # NOSONAR S3776 — cohesive logic; planned refactor in 
     regex = re.compile(pattern) if isinstance(pattern, str) else pattern
     excluded = tuple(e.lower() for e in exclude_extensions)
     start = time_fn()
-    last_seen_size: dict[str, int] = {}
-    last_seen_time: dict[str, float] = {}
+    seen: dict[str, tuple[int, float]] = {}
     while True:
-        for entry in directory.iterdir():
-            if not entry.is_file():
-                continue
-            name = entry.name
-            if any(name.lower().endswith(suffix) for suffix in excluded):
-                continue
-            if not regex.search(name):
-                continue
-            size = entry.stat().st_size
-            prev_size = last_seen_size.get(name)
-            now = time_fn()
-            if prev_size == size:
-                if now - last_seen_time.get(name, now) >= stable_for and size > 0:
-                    web_runner_logger.info(f"wait_for_download: matched {entry}")
-                    return entry.resolve()
-            else:
-                last_seen_size[name] = size
-                last_seen_time[name] = now
+        finished = _finished_download(directory, regex, excluded, seen, stable_for, time_fn)
+        if finished is not None:
+            return finished
         if time_fn() - start >= timeout:
             raise DownloadVerifyError(
                 f"timeout waiting for {pattern!r} in {directory} after {timeout}s"
@@ -283,6 +298,7 @@ def read_excel_rows(
 # ---------- JSON ----------------------------------------------------------
 
 def read_json_file(path: str | Path) -> Any:
+    """Return the parsed content of a JSON file; raise ``DownloadVerifyError`` if it is missing or invalid."""
     p = Path(path)
     if not p.is_file():
         raise DownloadVerifyError(f"JSON file not found: {p}")

@@ -53,7 +53,7 @@ def api_url(value: str) -> str:
 
 
 @dataclass(frozen=True)
-class IssueSnapshot:
+class IssueSnapshot:  # pylint: disable=too-many-instance-attributes  # value object, one field per property
     """Normalized issue requirements; progress labels do not change the revision."""
 
     source: str
@@ -93,7 +93,7 @@ class IssueSnapshot:
 
 
 @dataclass
-class IssueWorkerConfig:
+class IssueWorkerConfig:  # pylint: disable=too-many-instance-attributes  # one field per host setting
     """Trusted host settings; issue text and MCP callers cannot override these fields."""
 
     state_dir: str

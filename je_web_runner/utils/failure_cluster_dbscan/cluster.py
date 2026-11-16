@@ -29,6 +29,7 @@ class FailureClusterDbscanError(WebRunnerException):
 
 @dataclass
 class FailureRecord:
+    """A failed test and its failure message."""
     test_name: str
     message: str
 
@@ -70,11 +71,13 @@ def _jaccard_distance(a: set[str], b: set[str]) -> float:
 
 @dataclass
 class Cluster:
+    """A group of tests whose failure messages are alike, with one representative message."""
     representative: str
     members: list[str] = field(default_factory=list)
 
     @property
     def size(self) -> int:
+        """Number of tests in the cluster."""
         return len(self.members)
 
 
@@ -164,6 +167,7 @@ def cluster(
 
 
 def cluster_summary(clusters: Iterable[Cluster]) -> list[dict[str, Any]]:
+    """Return each cluster as a dict: truncated representative, size and up to five test names."""
     return [{"representative": c.representative[:120],
              "size": c.size,
              "tests": c.members[:5]} for c in clusters]

@@ -25,6 +25,7 @@ class OauthPkceReplayError(WebRunnerException):
 
 
 class ReplayOutcome(str, Enum):
+    """What the server did with a replayed request: rejected it, accepted it, or unclear."""
     REJECTED = "rejected"           # server returned an error → good
     ACCEPTED = "accepted"           # server issued a token → BUG
     AMBIGUOUS = "ambiguous"         # unexpected status / network issue
@@ -75,12 +76,14 @@ class ReplayCase:
 
 @dataclass
 class ReplayResult:
+    """The outcome of one replay case, with the HTTP status the server answered."""
     case: str
     outcome: ReplayOutcome
     status_code: int
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the result as a dict with the outcome as its string value."""
         return {**asdict(self), "outcome": self.outcome.value}
 
 
@@ -123,6 +126,7 @@ def replay(case: ReplayCase, probe: ProbeFn) -> ReplayResult:
 
 
 def run_cases(cases: Sequence[ReplayCase], probe: ProbeFn) -> list[ReplayResult]:
+    """Replay every case through ``probe``; raises OauthPkceReplayError when there are no cases."""
     if not cases:
         raise OauthPkceReplayError("cases must be non-empty")
     return [replay(c, probe) for c in cases]

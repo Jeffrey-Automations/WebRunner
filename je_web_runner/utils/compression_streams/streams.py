@@ -24,6 +24,7 @@ class CompressionStreamsError(WebRunnerException):
 
 
 class Algorithm(str, Enum):
+    """The compression formats ``CompressionStream`` accepts."""
     GZIP = "gzip"
     DEFLATE = "deflate"
     DEFLATE_RAW = "deflate-raw"
@@ -96,6 +97,7 @@ def _decompress_brotli(data: bytes) -> bytes:
 
 
 def decompress(data: bytes, algorithm: Algorithm) -> bytes:
+    """Decompress ``data`` with ``algorithm``; raise ``CompressionStreamsError`` for a wrong argument type."""
     if not isinstance(data, (bytes, bytearray)):
         raise CompressionStreamsError("data must be bytes")
     if not isinstance(algorithm, Algorithm):
@@ -126,6 +128,7 @@ def assert_round_trip(
 
 
 def compression_ratio(original_size: int, compressed_size: int) -> float:
+    """Return compressed size divided by original size; raise if the original size is not positive."""
     if original_size <= 0:
         raise CompressionStreamsError("original_size must be positive")
     return compressed_size / original_size

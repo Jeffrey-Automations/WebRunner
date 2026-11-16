@@ -1,3 +1,8 @@
+"""
+產生 JSON 測試報告
+Build the success and failure JSON test reports from the recorded test actions.
+"""
+
 import json
 from threading import Lock
 

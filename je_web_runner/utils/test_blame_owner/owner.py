@@ -26,17 +26,23 @@ class BlameOwnerError(WebRunnerException):
 
 @dataclass
 class BlameLine:
+    """Author and commit of one line of ``git blame`` output."""
     author: str = ""
     commit: str = ""
 
 
 @dataclass
 class CodeownersRule:
+    """One CODEOWNERS line: a path pattern and the owners it names."""
     pattern: str
     owners: list[str] = field(default_factory=list)
 
 
 def parse_codeowners(text: str) -> list[CodeownersRule]:
+    """Parse CODEOWNERS text into rules in file order, dropping comments, lines
+    without an owner and the leading ``@`` of each owner.
+    Raises ``BlameOwnerError`` when ``text`` is not a string.
+    """
     if not isinstance(text, str):
         raise BlameOwnerError("CODEOWNERS text must be a string")
     rules: list[CodeownersRule] = []
@@ -75,12 +81,14 @@ def owners_from_codeowners(
 def owners_from_blame(
     blame: Iterable[BlameLine],
 ) -> list[str]:
+    """Return up to three authors, those with the most blamed lines first."""
     counts = Counter(b.author for b in blame if b.author)
     return [name for name, _ in counts.most_common(3)]
 
 
 @dataclass
 class OwnerVerdict:
+    """Who to notify for a test, the backups, and which source decided it."""
     primary: str
     backups: list[str] = field(default_factory=list)
     source: str = ""   # "codeowners" | "blame" | "head" | "default"
@@ -111,6 +119,7 @@ def resolve_owner(
 
 
 def assert_has_owner(verdict: OwnerVerdict) -> None:
+    """Raise ``BlameOwnerError`` when the verdict names no primary owner."""
     if not verdict.primary:
         raise BlameOwnerError(
             "verdict.primary is empty — every test must have an owner"

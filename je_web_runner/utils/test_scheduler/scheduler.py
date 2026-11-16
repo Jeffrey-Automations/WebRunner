@@ -39,7 +39,7 @@ class TestSchedulerError(WebRunnerException):
 # ---------- data ---------------------------------------------------------
 
 @dataclass
-class TestCandidate:
+class TestCandidate:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """One test the scheduler can choose to run."""
 
     __test__ = False  # dataclass, not a pytest test class
@@ -69,6 +69,7 @@ class TestCandidate:
                 )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -85,6 +86,7 @@ class Schedule:
     value_recovered: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -134,7 +136,40 @@ def _checked_pinned_ids(
     return pinned
 
 
-def schedule_tests(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+@dataclass
+class _Selection:
+    """Running totals of the tests chosen so far."""
+
+    ids: list[str] = field(default_factory=list)
+    seen: set[str] = field(default_factory=set)
+    seconds: float = 0.0
+    cloud_slots: int = 0
+    value: float = 0.0
+
+    def overrun(
+        self,
+        candidate: TestCandidate,
+        time_budget_seconds: float,
+        cloud_slot_budget: int | None,
+    ) -> str | None:
+        """Name the budget (``time`` / ``cloud slot``) that adding ``candidate`` would exceed, else None."""
+        if self.seconds + candidate.duration_seconds > time_budget_seconds:
+            return "time"
+        cloud_cost = 1 if candidate.needs_cloud_session else 0
+        if cloud_slot_budget is not None and self.cloud_slots + cloud_cost > cloud_slot_budget:
+            return "cloud slot"
+        return None
+
+    def add(self, candidate: TestCandidate) -> None:
+        """Select ``candidate`` and add its duration, cloud slot and value to the totals."""
+        self.ids.append(candidate.test_id)
+        self.seen.add(candidate.test_id)
+        self.seconds += candidate.duration_seconds
+        self.cloud_slots += 1 if candidate.needs_cloud_session else 0
+        self.value += value_of(candidate)
+
+
+def schedule_tests(
     candidates: Sequence[TestCandidate],
     *,
     time_budget_seconds: float,
@@ -153,67 +188,42 @@ def schedule_tests(  # NOSONAR S3776 — cohesive logic; planned refactor in fol
     """
     pinned = _checked_pinned_ids(candidates, time_budget_seconds, cloud_slot_budget, pinned_test_ids)
 
-    selected_ids: list[str] = []
-    selected_cost = 0.0
-    selected_cloud = 0
-    value_recovered = 0.0
-    seen_selected: set = set()
+    chosen = _Selection()
 
     # 1. Take pinned first, in input order so the user sees a stable list.
     for candidate in candidates:
         if candidate.test_id not in pinned:
             continue
-        cost = candidate.duration_seconds
-        cloud_cost = 1 if candidate.needs_cloud_session else 0
-        if selected_cost + cost > time_budget_seconds:
+        overrun = chosen.overrun(candidate, time_budget_seconds, cloud_slot_budget)
+        if overrun is not None:
             raise TestSchedulerError(
-                f"pinned test {candidate.test_id!r} would overrun time budget"
+                f"pinned test {candidate.test_id!r} would overrun {overrun} budget"
             )
-        if (cloud_slot_budget is not None and
-                selected_cloud + cloud_cost > cloud_slot_budget):
-            raise TestSchedulerError(
-                f"pinned test {candidate.test_id!r} would overrun cloud slot budget"
-            )
-        selected_ids.append(candidate.test_id)
-        seen_selected.add(candidate.test_id)
-        selected_cost += cost
-        selected_cloud += cloud_cost
-        value_recovered += value_of(candidate)
+        chosen.add(candidate)
 
     # 2. Greedy fill by value-density.
     ranked = sorted(
-        (c for c in candidates if c.test_id not in seen_selected),
+        (c for c in candidates if c.test_id not in chosen.seen),
         key=lambda c: (-value_density(c), c.test_id),
     )
     for candidate in ranked:
-        cost = candidate.duration_seconds
-        cloud_cost = 1 if candidate.needs_cloud_session else 0
-        if selected_cost + cost > time_budget_seconds:
-            continue
-        if (cloud_slot_budget is not None and
-                selected_cloud + cloud_cost > cloud_slot_budget):
-            continue
-        selected_ids.append(candidate.test_id)
-        seen_selected.add(candidate.test_id)
-        selected_cost += cost
-        selected_cloud += cloud_cost
-        value_recovered += value_of(candidate)
+        if chosen.overrun(candidate, time_budget_seconds, cloud_slot_budget) is None:
+            chosen.add(candidate)
 
-    skipped = [c.test_id for c in candidates if c.test_id not in seen_selected]
     schedule = Schedule(
-        selected=selected_ids,
-        skipped=skipped,
-        total_seconds=round(selected_cost, 2),
-        total_cloud_slots=selected_cloud,
-        leftover_seconds=round(time_budget_seconds - selected_cost, 2),
+        selected=chosen.ids,
+        skipped=[c.test_id for c in candidates if c.test_id not in chosen.seen],
+        total_seconds=round(chosen.seconds, 2),
+        total_cloud_slots=chosen.cloud_slots,
+        leftover_seconds=round(time_budget_seconds - chosen.seconds, 2),
         leftover_cloud_slots=(
             -1 if cloud_slot_budget is None
-            else cloud_slot_budget - selected_cloud
+            else cloud_slot_budget - chosen.cloud_slots
         ),
-        value_recovered=round(value_recovered, 4),
+        value_recovered=round(chosen.value, 4),
     )
     web_runner_logger.info(
-        f"schedule_tests: selected={len(selected_ids)}/{len(candidates)} "
+        f"schedule_tests: selected={len(chosen.ids)}/{len(candidates)} "
         f"time={schedule.total_seconds}/{time_budget_seconds} "
         f"value={schedule.value_recovered:.2f}"
     )
@@ -248,6 +258,36 @@ def _bucket_runs(runs: list[Any]) -> dict[str, dict[str, Any]]:
     return buckets
 
 
+def _ledger_runs(ledger_path: str | Path) -> list[Any] | None:
+    """Return the ``runs`` list of the ledger file, or None when the file does not exist."""
+    path = Path(ledger_path)
+    if not path.exists():
+        return None
+    try:
+        with open(path, encoding="utf-8") as fp:
+            data = json.load(fp)
+    except (OSError, ValueError) as error:
+        raise TestSchedulerError(
+            f"cannot read ledger {ledger_path}: {error!r}"
+        ) from error
+    runs = data.get("runs") if isinstance(data, dict) else None
+    if not isinstance(runs, list):
+        raise TestSchedulerError(f"ledger missing 'runs': {ledger_path}")
+    return runs
+
+
+def _average_duration(rec: dict[str, Any], default_duration_seconds: float) -> float:
+    """Mean recorded duration of one test, or the default when no run recorded one."""
+    if rec["duration_count"]:
+        return rec["duration_sum"] / rec["duration_count"]
+    return default_duration_seconds
+
+
+def _ledger_fail_rate(rec: dict[str, Any]) -> float:
+    """Share of one test's ledger runs that failed."""
+    return (rec["fails"] / rec["runs"]) if rec["runs"] else 0.0
+
+
 def build_candidates_from_ledger(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     ledger_path: str | Path,
     *,
@@ -264,36 +304,20 @@ def build_candidates_from_ledger(  # NOSONAR S3776 — cohesive logic; planned r
     """
     import time
 
-    path = Path(ledger_path)
-    if not path.exists():
+    runs = _ledger_runs(ledger_path)
+    if runs is None:
         return []
-    try:
-        with open(path, encoding="utf-8") as fp:
-            data = json.load(fp)
-    except (OSError, ValueError) as error:
-        raise TestSchedulerError(
-            f"cannot read ledger {ledger_path}: {error!r}"
-        ) from error
-    runs = data.get("runs") if isinstance(data, dict) else None
-    if not isinstance(runs, list):
-        raise TestSchedulerError(f"ledger missing 'runs': {ledger_path}")
     now = now_epoch if now_epoch is not None else time.time()
     fail_rates = fail_rate_lookup or {}
     impacts = impact_lookup or {}
     cloud_set = set(cloud_tests or [])
-    buckets = _bucket_runs(runs)
 
     candidates: list[TestCandidate] = []
-    for test_id, rec in buckets.items():
-        avg_duration = (
-            rec["duration_sum"] / rec["duration_count"]
-            if rec["duration_count"] else default_duration_seconds
-        )
-        ledger_fail_rate = (rec["fails"] / rec["runs"]) if rec["runs"] else 0.0
+    for test_id, rec in _bucket_runs(runs).items():
         candidates.append(TestCandidate(
             test_id=test_id,
-            duration_seconds=max(0.001, avg_duration),
-            fail_rate=fail_rates.get(test_id, ledger_fail_rate),
+            duration_seconds=max(0.001, _average_duration(rec, default_duration_seconds)),
+            fail_rate=fail_rates.get(test_id, _ledger_fail_rate(rec)),
             impact_score=impacts.get(test_id, 0.0),
             last_run_age_hours=(
                 max(0.0, (now - rec["latest_epoch"]) / 3600.0)

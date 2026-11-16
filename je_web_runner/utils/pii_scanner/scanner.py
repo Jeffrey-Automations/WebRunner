@@ -31,6 +31,7 @@ class PiiScannerError(WebRunnerException):
 
 @dataclass
 class PiiFinding:
+    """One PII match: its category, its span in the text and a redacted rendering."""
     category: str
     start: int
     end: int

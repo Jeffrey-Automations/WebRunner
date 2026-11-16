@@ -27,7 +27,7 @@ class FailureNarratorError(WebRunnerException):
 # ---------- bundle inputs ----------------------------------------------
 
 @dataclass
-class FailureBundle:
+class FailureBundle:  # pylint: disable=too-many-instance-attributes  # value object: the facts of one failure
     """Pre-digested failure facts used to build the prompt."""
 
     test_id: str
@@ -101,7 +101,8 @@ def _read_lines(path: Path) -> list[str]:
 class NarratorClient(Protocol):
     """The LLM client interface."""
 
-    def complete(self, prompt: str) -> str: ...
+    def complete(self, prompt: str) -> str:
+        """Return the model's answer to ``prompt``."""
 
 
 # ---------- prompt ------------------------------------------------------
@@ -181,9 +182,11 @@ class NarrationReport:
     raw: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a plain dict."""
         return asdict(self)
 
     def markdown(self) -> str:
+        """Render the summary, likely cause and next step as Markdown."""
         return (
             f"**Why this failed**: {self.summary}\n\n"
             f"**Likely cause** ({self.confidence}): {self.likely_cause}\n\n"

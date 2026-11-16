@@ -69,6 +69,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class Utterance:
+    """One ``SpeechSynthesisUtterance`` captured by the install script."""
     text: str = ""
     lang: str = ""
     rate: float = 1.0
@@ -76,6 +77,7 @@ class Utterance:
     volume: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -92,6 +94,9 @@ def _coerce_float(value: Any, default: float) -> float:
 
 
 def parse_spoken(payload: Any) -> list[Utterance]:
+    """Turn the list harvested from the page into ``Utterance`` records, skipping
+    entries that are not objects. Raises ``SpeechApiAssertError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise SpeechApiAssertError("payload must be a list")
     out: list[Utterance] = []
@@ -112,6 +117,9 @@ def assert_spoke(
     utterances: Iterable[Utterance],
     *, text_contains: str,
 ) -> Utterance:
+    """Return the first utterance whose text contains ``text_contains``;
+    raises ``SpeechApiAssertError`` when none does.
+    """
     if not text_contains:
         raise SpeechApiAssertError("text_contains must be non-empty")
     for u in utterances:
@@ -125,6 +133,9 @@ def assert_spoke(
 def assert_lang(
     utterances: Iterable[Utterance], *, expected_lang: str,
 ) -> None:
+    """Raise ``SpeechApiAssertError`` when an utterance that declares a language
+    declares one other than ``expected_lang``.
+    """
     if not expected_lang:
         raise SpeechApiAssertError("expected_lang must be non-empty")
     wrong = [u for u in utterances
@@ -137,6 +148,7 @@ def assert_lang(
 
 
 def assert_no_speech(utterances: Iterable[Utterance]) -> None:
+    """Raise ``SpeechApiAssertError`` when anything was spoken, quoting the first three texts."""
     items = list(utterances)
     if items:
         previews = [u.text[:40] for u in items[:3]]
@@ -149,6 +161,9 @@ def assert_no_speech(utterances: Iterable[Utterance]) -> None:
 def assert_within_volume(
     utterances: Iterable[Utterance], *, min_volume: float, max_volume: float,
 ) -> None:
+    """Raise ``SpeechApiAssertError`` when an utterance's volume lies outside
+    ``[min_volume, max_volume]``, or when the bounds are not within 0..1 in order.
+    """
     if not 0 <= min_volume <= max_volume <= 1:
         raise SpeechApiAssertError(
             "volume bounds must satisfy 0<=min<=max<=1"

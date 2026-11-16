@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Hashable, Protocol
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
 class PaginationAuditError(WebRunnerException):
@@ -51,7 +52,7 @@ KeyFn = Callable[[Any], Hashable]
 # ---------- audit ------------------------------------------------------
 
 @dataclass
-class PaginationFindings:
+class PaginationFindings:  # pylint: disable=too-many-instance-attributes  # report record, one field per finding kind
     """Result of :func:`walk_all_pages`."""
 
     page_count: int = 0
@@ -65,6 +66,7 @@ class PaginationFindings:
     item_keys_by_page: list[list[Hashable]] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """Return True when the walk found no duplicate, no cursor loop and stopped before the page limit."""
         return not self.duplicates and not self.cursor_loop and not self.hit_max_pages
 
 
@@ -156,7 +158,8 @@ def _hashable_cursor(cursor: Any) -> Hashable:
         return cursor
     try:
         return repr(cursor)
-    except Exception:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # a cursor's __repr__ is user code
+        web_runner_logger.warning(f"cursor repr failed, using its id instead: {error!r}")
         return id(cursor)
 
 

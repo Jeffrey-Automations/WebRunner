@@ -43,6 +43,7 @@ KNOWN_DRIVER_NAMES = (
 
 @dataclass
 class OrphanFinding:
+    """A running process: its pid, executable name and command line."""
     pid: int
     name: str
     command_line: str = ""
@@ -110,12 +111,17 @@ def _tasklist_windows_lister() -> list[OrphanFinding]:
 
 
 def default_lister() -> list[OrphanFinding]:
+    """List the running processes with ``tasklist`` on Windows and ``ps`` elsewhere."""
     if os.name == "nt":
         return _tasklist_windows_lister()
     return _ps_unix_lister()
 
 
 def default_killer(pid: int) -> bool:
+    """Force-kill ``pid`` (``taskkill /F`` on Windows, signal 9 elsewhere).
+
+    Returns False, after logging a warning, when the kill fails.
+    """
     try:
         if os.name == "nt":
             # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
@@ -144,6 +150,10 @@ class ProcessSupervisor:
     killer: ProcessKiller = field(default=default_killer)
 
     def list_orphans(self, names: Iterable[str] = KNOWN_DRIVER_NAMES) -> list[OrphanFinding]:
+        """Return the running processes whose name is in ``names`` (case-insensitive).
+
+        Raises ProcessSupervisorError when the lister does not return a list.
+        """
         target_set = {name.lower() for name in names}
         all_processes = self.lister()
         if not isinstance(all_processes, list):
@@ -159,6 +169,10 @@ class ProcessSupervisor:
         names: Iterable[str] = KNOWN_DRIVER_NAMES,
         protected_pids: Iterable[int] | None = None,
     ) -> dict[int, bool]:
+        """Kill the processes named in ``names`` and return ``{pid: killed}``.
+
+        ``protected_pids`` and the current process are never killed.
+        """
         protected = set(protected_pids or [])
         results: dict[int, bool] = {}
         for finding in self.list_orphans(names):

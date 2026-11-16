@@ -43,6 +43,7 @@ class RetryPolicy:
     history: list[RetryDecision] = field(default_factory=list)
 
     def budget_for(self, category: str) -> int:
+        """Return how many retries a failure of ``category`` gets; 0 for an unknown category."""
         return {
             "transient": self.transient_max,
             "flaky": self.flaky_max,
@@ -51,6 +52,7 @@ class RetryPolicy:
         }.get(category, 0)
 
     def backoff_for(self, attempt: int) -> float:
+        """Return the delay before retry ``attempt``: exponential from ``base_backoff``, capped at ``max_backoff``."""
         delay = self.base_backoff * (2 ** max(0, attempt - 1))
         return min(self.max_backoff, delay)
 

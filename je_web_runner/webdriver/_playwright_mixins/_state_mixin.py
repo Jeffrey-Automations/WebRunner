@@ -17,14 +17,17 @@ class _StateMixin(_PlaywrightHost):
     """
 
     def get_cookies(self) -> list[dict]:
+        """Every cookie of the context, as a list of dicts."""
         return self.context.cookies()
 
     @recorded(hidden=("cookies",))
     def add_cookies(self, cookies: list[dict]) -> None:
+        """Add ``cookies`` (a list of cookie dicts) to the context."""
         self.context.add_cookies(cookies)
 
     @recorded()
     def clear_cookies(self) -> None:
+        """Delete every cookie of the context."""
         self.context.clear_cookies()
 
     def get_cookie(self, name: str) -> dict | None:
@@ -56,10 +59,12 @@ class _StateMixin(_PlaywrightHost):
 
     @recorded()
     def screenshot(self, path: str, full_page: bool = False) -> str:
+        """Save a screenshot of the page to ``path`` (the whole page with ``full_page``); returns ``path``."""
         self.page.screenshot(path=path, full_page=full_page)
         return path
 
     def screenshot_bytes(self, full_page: bool = False) -> bytes:
+        """The page screenshot as image bytes (the whole scrollable page with ``full_page``)."""
         return self.page.screenshot(full_page=full_page)
 
     def screenshot_base64(self, full_page: bool = False) -> str:
@@ -76,12 +81,14 @@ class _StateMixin(_PlaywrightHost):
 
     @recorded()
     def wait_for_selector(self, selector: str, timeout: float | None = None, state: str = "visible"):
+        """Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds."""
         if timeout is None:
             return self._target.wait_for_selector(selector, state=state)
         return self._target.wait_for_selector(selector, timeout=timeout, state=state)
 
     @recorded()
     def wait_for_load_state(self, state: str = "load", timeout: float | None = None) -> None:
+        """Wait until the page reaches the load state ``state``; ``timeout`` is in milliseconds."""
         if timeout is None:
             self.page.wait_for_load_state(state)
         else:
@@ -89,10 +96,12 @@ class _StateMixin(_PlaywrightHost):
 
     @recorded()
     def wait_for_timeout(self, timeout_ms: float) -> None:
+        """Pause for ``timeout_ms`` milliseconds."""
         self.page.wait_for_timeout(timeout_ms)
 
     @recorded()
     def wait_for_url(self, url: str, timeout: float | None = None) -> None:
+        """Wait until the page has navigated to ``url``; ``timeout`` is in milliseconds."""
         if timeout is None:
             self.page.wait_for_url(url)
         else:
@@ -102,9 +111,11 @@ class _StateMixin(_PlaywrightHost):
 
     @recorded()
     def set_viewport_size(self, width: int, height: int) -> None:
+        """Resize the page's viewport to ``width`` x ``height`` pixels."""
         self.page.set_viewport_size({"width": width, "height": height})
 
     def viewport_size(self) -> dict | None:
+        """The page's viewport as ``{width, height}``, or None when it has none."""
         return self.page.viewport_size
 
     @recorded()
@@ -125,7 +136,7 @@ class _StateMixin(_PlaywrightHost):
         if "content_type" in response:
             fulfill_kwargs["content_type"] = response["content_type"]
 
-        def _handler(route, request):
+        def _handler(route, _request):
             route.fulfill(**fulfill_kwargs)
 
         self.page.route(url_pattern, _handler)

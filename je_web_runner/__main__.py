@@ -16,7 +16,7 @@ def run() -> int:
     """
     try:
         return main()
-    except Exception as error:  # the last resort: one line on stderr, exit code 1
+    except Exception as error:  # pylint: disable=broad-exception-caught  # last resort: one stderr line, exit code 1
         print(repr(error), file=sys.stderr)
         return 1
 

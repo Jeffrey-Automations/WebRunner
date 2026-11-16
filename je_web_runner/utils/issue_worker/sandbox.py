@@ -109,7 +109,7 @@ class PodmanSandbox:
         deadline = time.monotonic() + timeout
         reason = ""
         with output.open("wb") as stream:
-            process = subprocess.Popen(  # nosec B603
+            process = subprocess.Popen(  # nosec B603  # pylint: disable=consider-using-with  # reaped below
                 argv, stdout=stream, stderr=subprocess.STDOUT, env=transport_environment(),
             )
             try:

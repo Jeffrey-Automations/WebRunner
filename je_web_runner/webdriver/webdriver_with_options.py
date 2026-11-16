@@ -65,7 +65,7 @@ def set_webdriver_options_argument(
             webdriver_options.add_argument(value)
         record_action_to_list("webdriver with options set_webdriver_options_argument", param, None)
         return webdriver_options
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the caller gets None
         web_runner_logger.error(
             f"set_webdriver_options_argument, webdriver_name: {webdriver_name}, "
             f"argument_iterable: {argument_iterable}, failed: {error!r}"
@@ -100,7 +100,7 @@ def set_webdriver_options_capability_wrapper(
             webdriver_options.set_capability(key, value)
         record_action_to_list("webdriver with options set_webdriver_options_capability_wrapper", param, None)
         return webdriver_options
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the caller gets None
         web_runner_logger.error(
             f"set_webdriver_options_capability_wrapper, webdriver_name: {webdriver_name}, "
             f"key_and_vale_dict: {key_and_vale_dict}, failed: {error!r}"

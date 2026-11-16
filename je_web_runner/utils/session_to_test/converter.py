@@ -66,6 +66,7 @@ class ConversionStats:
     reasons: dict[str, int] = field(default_factory=dict)
 
     def note_skip(self, reason: str) -> None:
+        """Count one skipped event and tally it under ``reason``."""
         self.skipped_events += 1
         self.reasons[reason] = self.reasons.get(reason, 0) + 1
 
@@ -177,6 +178,31 @@ def _load_events(payload: str | Path | Sequence[dict[str, Any]]) -> list[dict[st
 
 # ---------- rrweb mappings ----------------------------------------------
 
+def _convert_rrweb_mouse(data: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
+    """Map an rrweb mouse interaction to a click / double-click action; other types are skipped."""
+    kind = data.get("type")
+    selector = _selector_for_node(data.get("id"))
+    if selector is None:
+        stats.note_skip("mouse without node id")
+        return None
+    if kind == _RRWEB_MI_CLICK:
+        return {"WR_click_element": [_CSS_SELECTOR_BY, selector]}
+    if kind == _RRWEB_MI_DOUBLE_CLICK:
+        return {"WR_double_click_element": [_CSS_SELECTOR_BY, selector]}
+    stats.note_skip(f"mouse type {kind!r}")
+    return None
+
+
+def _convert_rrweb_input(data: dict[str, Any], stats: ConversionStats) -> dict[str, Any] | None:
+    """Map an rrweb input event to an input action; skipped when it names no node."""
+    selector = _selector_for_node(data.get("id"))
+    value = data.get("text", "")
+    if selector is None:
+        stats.note_skip("input without node id")
+        return None
+    return {"WR_input_to_element": [_CSS_SELECTOR_BY, selector, str(value)]}
+
+
 def _convert_rrweb_incremental(
     event: dict[str, Any],
     stats: ConversionStats,
@@ -187,24 +213,9 @@ def _convert_rrweb_incremental(
         return None
     source = data.get("source")
     if source == _RRWEB_SRC_MOUSE_INTERACTION:
-        kind = data.get("type")
-        selector = _selector_for_node(data.get("id"))
-        if selector is None:
-            stats.note_skip("mouse without node id")
-            return None
-        if kind == _RRWEB_MI_CLICK:
-            return {"WR_click_element": [_CSS_SELECTOR_BY, selector]}
-        if kind == _RRWEB_MI_DOUBLE_CLICK:
-            return {"WR_double_click_element": [_CSS_SELECTOR_BY, selector]}
-        stats.note_skip(f"mouse type {kind!r}")
-        return None
+        return _convert_rrweb_mouse(data, stats)
     if source == _RRWEB_SRC_INPUT:
-        selector = _selector_for_node(data.get("id"))
-        value = data.get("text", "")
-        if selector is None:
-            stats.note_skip("input without node id")
-            return None
-        return {"WR_input_to_element": [_CSS_SELECTOR_BY, selector, str(value)]}
+        return _convert_rrweb_input(data, stats)
     if source == _RRWEB_SRC_SCROLL:
         x = data.get("x", 0)
         y = data.get("y", 0)
@@ -269,7 +280,7 @@ def _generic_wait(event: dict[str, Any], stats: ConversionStats) -> dict[str, An
 _GENERIC_DISPATCH = {
     "navigate": lambda event, locator, stats: _generic_navigate(event, stats),
     "click": lambda event, locator, stats: _generic_click(locator, stats),
-    "input": lambda event, locator, stats: _generic_input(event, locator, stats),
+    "input": _generic_input,
     "submit": lambda event, locator, stats: _generic_submit(locator),
     "wait": lambda event, locator, stats: _generic_wait(event, stats),
 }

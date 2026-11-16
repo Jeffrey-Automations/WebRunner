@@ -49,6 +49,9 @@ class CostTrend:
     previous_usd: float
 
     def delta_pct(self) -> float:
+        """Percentage change from the previous to the current cost. With no previous
+        cost it is 0 when the current cost is also zero, else 100.
+        """
         if self.previous_usd <= 0:
             return 0.0 if self.current_usd <= 0 else 100.0
         return ((self.current_usd - self.previous_usd) / self.previous_usd) * 100.0

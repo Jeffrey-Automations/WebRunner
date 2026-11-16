@@ -34,6 +34,7 @@ _ACCEPTABLE_VERSIONS = ("TLSv1.2", "TLSv1.3")
 
 @dataclass
 class TlsHandshakeReport:
+    """What one TLS handshake with ``host:port`` negotiated."""
     host: str
     port: int = 443
     version: str | None = None
@@ -42,6 +43,7 @@ class TlsHandshakeReport:
     cert_subject: str = ""
 
     def to_dict(self) -> dict:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -86,6 +88,7 @@ def handshake(
 
 
 def assert_modern_tls(report: TlsHandshakeReport) -> None:
+    """Raise ``TlsCipherAuditError`` when the negotiated TLS version is not an accepted one."""
     if report.version not in _ACCEPTABLE_VERSIONS:
         raise TlsCipherAuditError(
             f"negotiated TLS version {report.version!r} not in {_ACCEPTABLE_VERSIONS}"
@@ -96,6 +99,9 @@ def assert_cipher_safe(
     report: TlsHandshakeReport,
     *, banned_tokens: Sequence[str] = _DEFAULT_BANNED_TOKENS,
 ) -> None:
+    """Raise ``TlsCipherAuditError`` when no cipher suite was negotiated or its name
+    contains one of ``banned_tokens``.
+    """
     if not report.cipher_suite:
         raise TlsCipherAuditError("no cipher suite negotiated")
     upper = report.cipher_suite.upper()
@@ -109,6 +115,7 @@ def assert_cipher_safe(
 def assert_subject_matches(
     report: TlsHandshakeReport, *, contains: str,
 ) -> None:
+    """Raise ``TlsCipherAuditError`` unless the certificate subject contains ``contains``."""
     if not contains:
         raise TlsCipherAuditError("contains must be non-empty")
     if contains not in report.cert_subject:

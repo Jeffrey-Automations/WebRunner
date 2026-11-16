@@ -33,6 +33,7 @@ class FontLoadingStrategyError(WebRunnerException):
 
 
 class Display(str, Enum):
+    """The ``font-display`` values, plus ``MISSING`` for a block that does not set one."""
     AUTO = "auto"
     BLOCK = "block"      # FOIT
     SWAP = "swap"        # FOUT
@@ -43,6 +44,7 @@ class Display(str, Enum):
 
 @dataclass
 class FontFace:
+    """One ``@font-face`` block: family, source and the descriptors that affect loading."""
     family: str
     src: str = ""
     display: Display = Display.MISSING
@@ -60,6 +62,7 @@ _DECL_RE = re.compile(r"([\w-]+)\s*:\s*([^;]*)(?:;|$)")  # NOSONAR python:S5852
 
 
 def parse_font_faces(css: str) -> list[FontFace]:
+    """Parse the ``@font-face`` blocks of ``css``; blocks without a family are skipped."""
     if not isinstance(css, str):
         raise FontLoadingStrategyError("css must be a string")
     out: list[FontFace] = []
@@ -85,6 +88,7 @@ def parse_font_faces(css: str) -> list[FontFace]:
 
 
 def assert_no_missing_display(faces: Iterable[FontFace]) -> None:
+    """Raise ``FontLoadingStrategyError`` naming the families whose block has no ``font-display``."""
     missing = [f for f in faces if f.display == Display.MISSING]
     if missing:
         families = sorted({f.family for f in missing})
@@ -97,6 +101,7 @@ def assert_no_missing_display(faces: Iterable[FontFace]) -> None:
 def assert_display_strategy(
     faces: Iterable[FontFace], *, strategy: Display,
 ) -> None:
+    """Raise ``FontLoadingStrategyError`` unless every face uses ``strategy`` as its ``font-display``."""
     if strategy in (Display.AUTO, Display.MISSING):
         raise FontLoadingStrategyError(
             f"strategy must be one of swap/fallback/optional/block; "

@@ -26,6 +26,7 @@ class CriticalCssAuditError(WebRunnerException):
 
 @dataclass
 class CssReport:
+    """What the ``<head>`` holds: inline style blocks, render-blocking stylesheets and preloaded ones."""
     inline_blocks: int = 0
     inline_bytes: int = 0
     external_blocking: list[str] = field(default_factory=list)
@@ -46,6 +47,7 @@ def _attr(tag: str, name: str) -> str:
 
 
 def analyse(html: str) -> CssReport:
+    """Scan the ``<head>`` of ``html`` (the whole text if it has none) and return its ``CssReport``."""
     if not isinstance(html, str):
         raise CriticalCssAuditError("html must be a string")
     head_match = _HEAD_RE.search(html)
@@ -68,6 +70,7 @@ def analyse(html: str) -> CssReport:
 
 
 def assert_has_inline_critical(report: CssReport) -> None:
+    """Raise ``CriticalCssAuditError`` when the head has no inline ``<style>`` block."""
     if report.inline_blocks == 0:
         raise CriticalCssAuditError(
             "no inline <style> in <head> — above-the-fold rendering "
@@ -89,6 +92,7 @@ def assert_inline_within_budget(
 
 
 def assert_external_preloaded(report: CssReport) -> None:
+    """Raise ``CriticalCssAuditError`` listing the render-blocking stylesheets that are not preloaded."""
     missing = [href for href in report.external_blocking
                if href not in report.preloaded]
     if missing:

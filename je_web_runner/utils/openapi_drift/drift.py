@@ -25,6 +25,7 @@ class OpenapiDriftError(WebRunnerException):
 
 @dataclass
 class ApiObservation:
+    """One method, path and status seen on the live API, with how often it was seen."""
     method: str
     path: str
     status_code: int
@@ -33,6 +34,9 @@ class ApiObservation:
 
 @dataclass
 class DriftReport:
+    """Where the live API and the spec disagree: calls the spec does not document (paths, methods,
+    statuses) and ``zombie`` spec entries that were never called.
+    """
     undocumented: list[str] = field(default_factory=list)
     zombie: list[str] = field(default_factory=list)
     undocumented_methods: list[str] = field(default_factory=list)
@@ -124,6 +128,7 @@ def _collect_zombies(
 def diff(
     spec: Mapping[str, Any], observations: Sequence[ApiObservation],
 ) -> DriftReport:
+    """Compare the observed calls with the spec and return the drift between them."""
     spec_map = _collect_spec(spec)
     report = DriftReport()
     seen_paths: set[str] = set()
@@ -137,6 +142,7 @@ def diff(
 
 
 def assert_no_undocumented(report: DriftReport) -> None:
+    """Raise OpenapiDriftError when a path or method was observed that the spec lacks."""
     if report.undocumented or report.undocumented_methods:
         raise OpenapiDriftError(
             f"undocumented endpoints: paths={report.undocumented}, "
@@ -145,6 +151,7 @@ def assert_no_undocumented(report: DriftReport) -> None:
 
 
 def assert_no_zombies(report: DriftReport, *, max_zombies: int = 0) -> None:
+    """Raise OpenapiDriftError when more than ``max_zombies`` spec endpoints were never called."""
     if max_zombies < 0:
         raise OpenapiDriftError("max_zombies must be >= 0")
     if len(report.zombie) > max_zombies:

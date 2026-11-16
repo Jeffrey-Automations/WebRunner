@@ -26,6 +26,7 @@ class PomCodegenError(WebRunnerException):
 
 @dataclass
 class DiscoveredElement:
+    """An element found in the page, with the Python name and locator generated for it."""
     name: str           # python identifier
     strategy: str       # ID / NAME / CSS_SELECTOR / data-testid
     value: str          # locator value

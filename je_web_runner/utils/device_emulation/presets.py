@@ -21,6 +21,7 @@ class DeviceEmulationError(WebRunnerException):
 
 @dataclass(frozen=True)
 class DevicePreset:
+    """The viewport, pixel ratio, touch support and user agent that emulate one device."""
     name: str
     width: int
     height: int
@@ -98,10 +99,12 @@ _PRESETS: dict[str, DevicePreset] = {
 
 
 def available_presets() -> list[str]:
+    """Return the names of the built-in device presets, sorted."""
     return sorted(_PRESETS.keys())
 
 
 def get_preset(name: str) -> DevicePreset:
+    """Return the preset called ``name``; raise ``DeviceEmulationError`` if there is none."""
     if name not in _PRESETS:
         raise DeviceEmulationError(
             f"unknown device preset {name!r}; available: {available_presets()}"

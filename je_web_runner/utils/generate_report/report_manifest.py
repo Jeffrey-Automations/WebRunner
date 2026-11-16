@@ -109,7 +109,7 @@ def generate_all_reports(
     ):
         try:
             run()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # any generator failure is recorded
             errors[label] = repr(error)
             web_runner_logger.warning(f"generate_all_reports[{label}] failed: {error!r}")
 
@@ -117,7 +117,7 @@ def generate_all_reports(
     if allure_dir:
         try:
             allure_paths = generate_allure_report(allure_dir) or []
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # any generator failure is recorded
             errors["allure"] = repr(error)
 
     produced: dict[str, list[str]] = {

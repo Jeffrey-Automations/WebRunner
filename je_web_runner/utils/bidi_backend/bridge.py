@@ -45,6 +45,7 @@ class BidiSubscription:
     detach: Callable[[], None]
 
     def unsubscribe(self) -> None:
+        """Detach the listener; a failure to detach is logged, not raised."""
         try:
             self.detach()
         except Exception as error:  # pylint: disable=broad-except
@@ -142,6 +143,7 @@ class BidiBridge:
         }
 
     def detect_backend(self, target: Any) -> str:
+        """Return ``"selenium"`` or ``"playwright"`` from the attributes of ``target``; raise if it is neither."""
         if hasattr(target, "script") and hasattr(target, "current_url"):
             return "selenium"
         if hasattr(target, "on") and hasattr(target, "remove_listener"):
@@ -151,6 +153,7 @@ class BidiBridge:
         )
 
     def register_translator(self, backend: str, event: str, translator: Translator) -> None:
+        """Register the function that attaches ``event`` listeners for ``backend``."""
         self._translators.setdefault(backend, {})[event] = translator
 
     def subscribe(
@@ -160,6 +163,7 @@ class BidiBridge:
         callback: Callable[[BidiEvent], None],
         backend: str | None = None,
     ) -> BidiSubscription:
+        """Attach ``callback`` to ``event`` on ``target`` and return the subscription; raise if no translator exists."""
         used_backend = backend or self.detect_backend(target)
         translator = self._translators.get(used_backend, {}).get(event)
         if translator is None:
@@ -180,10 +184,12 @@ class BidiBridge:
         return sub
 
     def unsubscribe(self, subscription: BidiSubscription) -> None:
+        """Detach ``subscription`` and stop tracking it."""
         subscription.unsubscribe()
         self._subscriptions.pop(subscription.subscription_id, None)
 
     def unsubscribe_all(self) -> None:
+        """Detach every subscription this bridge still tracks."""
         # The list() snapshot is required because ``self.unsubscribe``
         # mutates ``self._subscriptions`` during iteration, which would
         # raise ``RuntimeError`` if iterated lazily.
@@ -192,4 +198,5 @@ class BidiBridge:
             self.unsubscribe(sub)
 
     def active_subscriptions(self) -> list[BidiSubscription]:
+        """Return the subscriptions that have not been unsubscribed."""
         return list(self._subscriptions.values())

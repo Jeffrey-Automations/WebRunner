@@ -71,6 +71,7 @@ class PageObservation:
     step: int = 0
 
     def actionable(self) -> list[InteractiveElement]:
+        """Return the elements that are both visible and enabled."""
         return [e for e in self.elements if e.is_visible and e.is_enabled]
 
 
@@ -102,6 +103,7 @@ class BugSignal:
     detail: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the bug signal as a plain dict."""
         return asdict(self)
 
 
@@ -116,6 +118,7 @@ class ExplorationReport:
     stopped_reason: str = ""
 
     def has_bugs(self) -> bool:
+        """True when at least one bug signal was recorded."""
         return bool(self.bugs)
 
 
@@ -124,13 +127,15 @@ class ExplorationReport:
 class PageObserver(Protocol):
     """Implementations wrap a browser driver to produce observations."""
 
-    def observe(self, step: int) -> PageObservation: ...
+    def observe(self, step: int) -> PageObservation:
+        """Return what the page looks like at ``step``."""
 
 
 class ActionPlanner(Protocol):
     """Decides the next action. Stateful planners may carry their own memory."""
 
-    def plan(self, observation: PageObservation) -> PlannedAction: ...
+    def plan(self, observation: PageObservation) -> PlannedAction:
+        """Return the action to take next for ``observation``."""
 
 
 # ---------- planners ----------------------------------------------------
@@ -157,6 +162,7 @@ class RandomPlanner:
         self._type_bias = type_bias
 
     def plan(self, observation: PageObservation) -> PlannedAction:
+        """Pick a random action: fill a random input (with probability ``type_bias``), else click; DONE if none."""
         actionable = observation.actionable()
         if not actionable:
             return PlannedAction(
@@ -206,6 +212,7 @@ class Explorer:
             raise ExploratoryAiError("stop_on_bugs must be >= 0")
 
     def run(self) -> ExplorationReport:  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+        """Observe, plan and act up to ``max_steps`` times, collecting bug signals, and return the report."""
         report = ExplorationReport(steps_taken=0)
         repeat_counter: dict[str, int] = {}
         for step in range(self.max_steps):
@@ -230,7 +237,7 @@ class Explorer:
             report.actions.append(action)
             try:
                 self.executor(action)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # a failing action is a bug signal
                 report.bugs.append(BugSignal(
                     step=step,
                     url=observation.url,
@@ -244,9 +251,7 @@ class Explorer:
 
     def _safe_observe(self, step: int) -> PageObservation:
         try:
-            # pylint: disable=assignment-from-no-return — Protocol body is `...`;
-            # pylint can't see the real implementation's return.
-            obs = self.observer.observe(step)
+            obs = self.observer.observe(step)  # pylint: disable=assignment-from-no-return  # Protocol has no body
         except Exception as error:
             raise ExploratoryAiError(
                 f"observer.observe failed at step {step}: {error!r}"
@@ -264,9 +269,8 @@ class Explorer:
         repeat_counter: dict[str, int],
     ) -> PlannedAction | None:
         try:
-            # pylint: disable=assignment-from-no-return — Protocol body is `...`.
-            action = self.planner.plan(observation)
-        except Exception as error:
+            action = self.planner.plan(observation)  # pylint: disable=assignment-from-no-return  # Protocol has no body
+        except Exception as error:  # pylint: disable=broad-exception-caught  # a failing planner is logged and recorded
             web_runner_logger.warning(f"planner failed; stopping: {error!r}")
             report.bugs.append(BugSignal(
                 step=observation.step,

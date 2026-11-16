@@ -93,7 +93,7 @@ class SuccessCondition:
 
 
 @dataclass
-class TaskSpec:
+class TaskSpec:  # pylint: disable=too-many-instance-attributes  # value object: the fields of a task file
     """One local task. All success conditions must pass; steps need no model."""
 
     goal: str

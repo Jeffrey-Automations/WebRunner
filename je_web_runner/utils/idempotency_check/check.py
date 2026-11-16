@@ -33,6 +33,7 @@ class IdemResponse:
     side_effect_count: int = 0
 
     def body_hash(self) -> str:
+        """SHA-256 of the body serialised as key-sorted JSON (its ``repr`` when it cannot be serialised)."""
         try:
             serialised = json.dumps(self.body, sort_keys=True, default=str)
         except (TypeError, ValueError):
@@ -52,9 +53,11 @@ class IdempotencyReport:
     violations: list[str] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """Return True when no violation was recorded."""
         return not self.violations
 
     def to_dict(self) -> dict[str, Any]:
+        """Return both responses, the three state snapshots, the violations and the verdict as a dict."""
         return {
             "first": asdict(self.first),
             "second": asdict(self.second),

@@ -43,6 +43,7 @@ class WriteEvent:
     data: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the write event as a plain dict."""
         return asdict(self)
 
 

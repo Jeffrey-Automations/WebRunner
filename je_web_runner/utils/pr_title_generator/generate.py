@@ -46,6 +46,7 @@ _VERB_PREFIX = re.compile(
 
 @dataclass
 class DiffStat:
+    """The files a change touches, with its added and deleted line counts."""
     files: list[str]
     additions: int = 0
     deletions: int = 0
@@ -128,6 +129,10 @@ def suggest_title_with_llm(
     commits: Sequence[str],
     titler: LlmTitler,
 ) -> str:
+    """Ask ``titler`` for a title and return it stripped and cut to 72 characters.
+
+    Raises PrTitleGeneratorError when ``titler`` is not callable, raises, or returns no text.
+    """
     if not callable(titler):
         raise PrTitleGeneratorError("titler must be callable")
     try:
@@ -140,6 +145,7 @@ def suggest_title_with_llm(
 
 
 def assert_conventional(title: str) -> None:
+    """Raise PrTitleGeneratorError unless ``title`` follows Conventional Commits."""
     if not isinstance(title, str):
         raise PrTitleGeneratorError("title must be string")
     pattern = re.compile(

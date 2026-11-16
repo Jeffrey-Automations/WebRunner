@@ -34,14 +34,17 @@ class _MetricResult:
 
 @dataclass
 class DriftReport:
+    """The drift result of every metric that was compared."""
     metrics: list[_MetricResult] = field(default_factory=list)
 
     @property
     def regressions(self) -> list[_MetricResult]:
+        """The metrics that drifted in the ``regressed`` direction."""
         return [m for m in self.metrics if m.drifted and m.direction == "regressed"]
 
     @property
     def has_regressions(self) -> bool:
+        """True when at least one metric regressed."""
         return bool(self.regressions)
 
 

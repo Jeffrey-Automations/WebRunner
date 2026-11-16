@@ -256,8 +256,8 @@ class ImapProvider(OtpProvider):
         for method_name in ("close", "logout"):
             try:
                 getattr(conn, method_name)()
-            except Exception:  # nosec B110 — best-effort cleanup
-                pass
+            except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
+                web_runner_logger.warning(f"IMAP {method_name} failed during cleanup: {error!r}")
 
     def fetch_messages(
         self,
@@ -289,7 +289,8 @@ def _imap_bytes_to_message(message_id: str, raw_bytes: bytes) -> InterceptedMess
 
     try:
         msg = email.message_from_bytes(raw_bytes, policy=policy.default)
-    except Exception:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # an unparseable message is skipped, logged
+        web_runner_logger.warning(f"IMAP message {message_id!r} could not be parsed: {error!r}")
         return None
     body = ""
     if msg.is_multipart():
@@ -300,7 +301,8 @@ def _imap_bytes_to_message(message_id: str, raw_bytes: bytes) -> InterceptedMess
     else:
         try:
             body = msg.get_content()
-        except Exception:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # an undecodable body reads as empty
+            web_runner_logger.warning(f"IMAP message {message_id!r} body not decodable: {error!r}")
             body = ""
     return InterceptedMessage(
         message_id=message_id,
@@ -375,9 +377,11 @@ class InMemoryProvider(OtpProvider):
         self.messages: list[InterceptedMessage] = []
 
     def push(self, message: InterceptedMessage) -> None:
+        """Add a message for later fetches to return."""
         self.messages.append(message)
 
     def clear(self) -> None:
+        """Remove every stored message."""
         self.messages.clear()
 
     def fetch_messages(
@@ -477,7 +481,7 @@ def _validate_wait_args(
         raise OtpInterceptError("poll_interval must be positive")
 
 
-def wait_for_otp(
+def wait_for_otp(  # pylint: disable=too-many-arguments  # public signature
     provider: OtpProvider,
     recipient: str,
     *,

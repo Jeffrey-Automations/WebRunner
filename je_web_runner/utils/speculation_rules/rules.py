@@ -26,6 +26,7 @@ class SpeculationRulesError(WebRunnerException):
 
 
 class RuleKind(str, Enum):
+    """The speculation action a rule asks the browser for."""
     PREFETCH = "prefetch"
     PRERENDER = "prerender"
 
@@ -110,6 +111,10 @@ class PrerenderLog:
 
 
 def parse_log(payload: Any) -> PrerenderLog:
+    """Build a ``PrerenderLog`` from the dict harvested from the page.
+    Raises ``SpeculationRulesError`` when the payload or its ``events`` / ``fires`` fields
+    have the wrong type.
+    """
     if not isinstance(payload, dict):
         raise SpeculationRulesError(
             f"log payload must be dict, got {type(payload).__name__}"
@@ -148,6 +153,7 @@ def assert_no_double_fire(log: PrerenderLog, *, names: Sequence[str]) -> None:
 
 
 def assert_fire_count(log: PrerenderLog, *, name: str, expected: int) -> None:
+    """Raise ``SpeculationRulesError`` unless the event ``name`` fired exactly ``expected`` times."""
     actual = log.fires.get(name, 0)
     if actual != expected:
         raise SpeculationRulesError(

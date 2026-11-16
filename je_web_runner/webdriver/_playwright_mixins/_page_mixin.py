@@ -60,6 +60,7 @@ class _PageMixin(_PlaywrightHost):
 
     @recorded()
     def switch_to_page(self, index: int) -> None:
+        """Make the page at ``index`` in the page list current; ``PlaywrightBackendError`` if out of range."""
         if index < 0 or index >= len(self._pages):
             raise PlaywrightBackendError(f"page index {index} out of range")
         self._page_index = index
@@ -67,6 +68,7 @@ class _PageMixin(_PlaywrightHost):
 
     @recorded()
     def close_page(self, index: int | None = None) -> None:
+        """Close the page at ``index`` (the current page when None); ``PlaywrightBackendError`` if out of range."""
         target_index = self._page_index if index is None else index
         if target_index < 0 or target_index >= len(self._pages):
             raise PlaywrightBackendError(f"page index {target_index} out of range")
@@ -96,60 +98,72 @@ class _PageMixin(_PlaywrightHost):
         return False
 
     def page_count(self) -> int:
+        """How many pages (tabs and popups) of the context are open."""
         return len(self._pages)
 
     # ----- navigation --------------------------------------------------
 
     def to_url(self, url: str, **goto_options: Any) -> None:
+        """Navigate the current page to ``url`` (``goto_options`` go to ``goto``); a failure is recorded, not raised."""
         web_runner_logger.info(f"playwright to_url: {url}")
         params = {"url": url}
         try:
             self._frame = None
             self.page.goto(url, **goto_options)
             record("to_url", params, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"playwright to_url failed: {error!r}")
             record("to_url", params, error)
 
     @recorded()
     def forward(self) -> None:
+        """Go forward one entry in the current page's history."""
         self._frame = None
         self.page.go_forward()
 
     @recorded()
     def back(self) -> None:
+        """Go back one entry in the current page's history."""
         self._frame = None
         self.page.go_back()
 
     @recorded()
     def refresh(self) -> None:
+        """Reload the current page."""
         self._frame = None
         self.page.reload()
 
     def url(self) -> str:
+        """The current page's URL."""
         return self.page.url
 
     def title(self) -> str:
+        """The current page's title."""
         return self.page.title()
 
     def content(self) -> str:
+        """The current page's full HTML source."""
         return self.page.content()
 
     @recorded()
     def set_default_timeout(self, timeout_ms: float) -> None:
+        """Set the default timeout, in milliseconds, of the current page's actions and waits."""
         self.page.set_default_timeout(timeout_ms)
 
     @recorded()
     def set_default_navigation_timeout(self, timeout_ms: float) -> None:
+        """Set the default timeout, in milliseconds, of the current page's navigations."""
         self.page.set_default_navigation_timeout(timeout_ms)
 
     # ----- finding -----------------------------------------------------
 
     def find_element(self, selector: str):
+        """The first element matching ``selector`` in the current frame or page, or None; it does not wait."""
         web_runner_logger.info(f"playwright find_element: {selector}")
         return self._target.query_selector(selector)
 
     def find_elements(self, selector: str) -> list[Any]:
+        """Every element matching ``selector`` in the current frame or page (an empty list when none)."""
         web_runner_logger.info(f"playwright find_elements: {selector}")
         return self._target.query_selector_all(selector)
 
@@ -164,6 +178,7 @@ class _PageMixin(_PlaywrightHost):
         return element
 
     def find_elements_with_test_object_record(self, element_name: str):
+        """Resolve ``element_name`` from ``test_object_record`` and capture every match (the first as current)."""
         selector = selector_for_recorded_name(element_name)
         elements = self._target.query_selector_all(selector)
         self.element_wrapper.current_element_list = list(elements)

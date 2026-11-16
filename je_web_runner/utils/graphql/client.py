@@ -38,6 +38,7 @@ _INTROSPECTION_QUERY = """
 
 @dataclass
 class GraphQLClient:
+    """HTTP client for one GraphQL endpoint; the endpoint must be an http(s) URL."""
     endpoint: str
     headers: dict[str, str] | None = None
     timeout: float = 10.0
@@ -56,6 +57,10 @@ class GraphQLClient:
         variables: dict[str, Any] | None = None,
         operation_name: str | None = None,
     ) -> dict[str, Any]:
+        """Send a query or mutation and return the decoded response payload.
+
+        Raises GraphQLError when the response carries a non-empty ``errors`` list.
+        """
         request = self._build_request(query, variables, operation_name)
         payload = self._send(request)
         web_runner_logger.info(
@@ -93,6 +98,7 @@ class GraphQLClient:
             raise GraphQLError(f"GraphQL transport failed: {error!r}") from error
 
     def introspect(self) -> dict[str, Any]:
+        """Run the standard introspection query and return its response payload."""
         return self.execute(_INTROSPECTION_QUERY)
 
 

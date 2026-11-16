@@ -40,7 +40,7 @@ SessionDestructor = Callable[[Any], None]
 HealthCheck = Callable[[Any], bool]
 
 
-class BrowserPool:
+class BrowserPool:  # pylint: disable=too-many-instance-attributes  # the pool's settings and its bookkeeping
     """Thread-safe browser instance pool."""
 
     def __init__(
@@ -86,6 +86,7 @@ class BrowserPool:
         return session
 
     def checkout(self, timeout: float = 30.0) -> PooledSession:
+        """Return a healthy session, waiting up to ``timeout`` seconds; raise ``BrowserPoolError`` if there is none."""
         if self._closed:
             raise BrowserPoolError("pool is closed")
         deadline = time.monotonic() + timeout
@@ -133,6 +134,7 @@ class BrowserPool:
             ) from None
 
     def checkin(self, session: PooledSession) -> None:
+        """Give a session back; it is destroyed instead when the pool is closed, it is worn out or unhealthy."""
         if self._closed:
             self._destroy(session)
             return
@@ -144,6 +146,7 @@ class BrowserPool:
 
     @contextlib.contextmanager
     def session(self, timeout: float = 30.0) -> Iterator[PooledSession]:
+        """Context manager that checks a session out and checks it back in on exit."""
         ses = self.checkout(timeout=timeout)
         try:
             yield ses
@@ -151,6 +154,7 @@ class BrowserPool:
             self.checkin(ses)
 
     def close(self) -> None:
+        """Close the pool and destroy every session it tracks."""
         with self._lock:
             self._closed = True
             tracked = list(self._tracked)
@@ -188,5 +192,6 @@ class BrowserPool:
 
     @property
     def tracked_count(self) -> int:
+        """Number of sessions the pool currently owns, checked out or idle."""
         with self._lock:
             return len(self._tracked)

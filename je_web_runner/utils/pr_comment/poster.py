@@ -28,6 +28,7 @@ _MARKER = "<!-- webrunner-summary -->"
 
 @dataclass
 class PrSummary:
+    """The test counts, duration and extra Markdown sections shown in the PR comment."""
     total: int
     passed: int
     failed: int
@@ -38,6 +39,9 @@ class PrSummary:
 
 
 def build_summary_markdown(summary: PrSummary, run_url: str | None = None) -> str:
+    """Render the summary as the Markdown body of the PR comment, starting with the marker
+    that identifies the comment; ``run_url`` adds a link to the run.
+    """
     pass_pct = (summary.passed / summary.total * 100) if summary.total else 0.0
     pieces = [
         _MARKER,
@@ -73,7 +77,7 @@ def _request(
     payload: dict[str, Any] | None = None,
     timeout: float = 15.0,
 ) -> Any:
-    if not (url.startswith(("https://api.github.com/", "http://api.github.com/"))):  # NOSONAR — allow-list
+    if not url.startswith(("https://api.github.com/", "http://api.github.com/")):  # NOSONAR — allow-list
         raise PrCommentError(f"refusing to call non-GitHub URL: {url!r}")
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method=method)

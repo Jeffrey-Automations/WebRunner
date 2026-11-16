@@ -45,7 +45,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_api_version_compat_check_response` | `(endpoint: 'str', response_fields: 'list[dict[str, Any]]', response: 'dict[str, Any]') -> 'dict[str, Any]'` | Check a new server's response against the fields an old client reads, without failing the run. |
 | `WR_api_version_compat_matrix` | `(rows: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Summarise client/server rows (``client_version``, ``server_version``, ``passed``, ``notes``). |
 | `WR_appium_android_caps` | `(app: 'str', device_name: 'str' = 'Android Emulator', platform_version: 'str' = '13', automation_name: 'str' = 'UiAutomator2', extra: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` | Convenience: build a capabilities dict for Android. |
-| `WR_appium_ios_caps` | `(app: 'str', device_name: 'str' = 'iPhone 15', platform_version: 'str' = '17', automation_name: 'str' = 'XCUITest', extra: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` |  |
+| `WR_appium_ios_caps` | `(app: 'str', device_name: 'str' = 'iPhone 15', platform_version: 'str' = '17', automation_name: 'str' = 'XCUITest', extra: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` | Build the Appium capabilities dict for an iOS app (XCUITest by default). |
 | `WR_appium_quit` | `() -> 'None'` | Quit whatever driver is currently registered on the WebRunner wrapper. |
 | `WR_appium_start` | `(server_url: 'str', capabilities: 'dict[str, Any]', register: 'bool' = True) -> 'Any'` | 建立 Appium WebDriver 並註冊到 ``webdriver_wrapper_instance`` |
 | `WR_apw_assert_text` | `(selector: 'str', expected: 'str') -> 'str'` | Fail unless the element's text contains ``expected``; returns the text. |
@@ -66,9 +66,9 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_apw_wait_for_selector` | `(selector: 'str', state: 'str' = 'visible', timeout: 'float' = 10.0) -> 'None'` | Wait until ``selector`` is ``attached`` / ``detached`` / ``visible`` / ``hidden`` (``timeout`` in seconds). |
 | `WR_apw_wait_for_websocket_message` | `(contains: 'str', timeout: 'float' = 10.0) -> 'dict[str, Any]'` | Wait until a received WebSocket frame contains ``contains``; returns it. |
 | `WR_apw_websocket_messages` | `(direction: 'str | None' = None) -> 'list[dict[str, Any]]'` | Every WebSocket frame the session's pages sent or received: ``{url, direction, payload}``. |
-| `WR_assert_no_4xx_or_5xx` | `() -> 'None'` |  |
-| `WR_assert_no_5xx` | `() -> 'None'` |  |
-| `WR_assert_no_console_errors` | `() -> 'None'` |  |
+| `WR_assert_no_4xx_or_5xx` | `() -> 'None'` | Raise EventCaptureError when a captured response has a status of 400 or more. |
+| `WR_assert_no_5xx` | `() -> 'None'` | Raise EventCaptureError when a captured response has a status of 500 or more. |
+| `WR_assert_no_console_errors` | `() -> 'None'` | Raise EventCaptureError when a console message of type ``error`` was captured. |
 | `WR_assert_no_secrets` | `(data: 'Any') -> 'None'` | 掃描並在有發現時拋例外 / Scan and raise ``SecretsFound`` on any hit. |
 | `WR_assert_title` | `(value: 'str') -> 'str'` | 斷言目前頁面標題等於 ``value`` |
 | `WR_assert_var` | `(var: 'str', op: 'str' = 'truthy', value: 'Any' = None) -> 'bool'` | 斷言變數符合條件 |
@@ -97,7 +97,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_bug_repro_stability_assert_min_repro_pct` | `(outcomes: 'list[Any]', minimum: 'float') -> 'Any'` | Fail when fewer than ``minimum`` percent of the recorded attempts failed. |
 | `WR_bug_repro_stability_markdown` | `(outcomes: 'list[Any]') -> 'str'` | Render the repro-stability summary of recorded attempts as markdown. |
 | `WR_bug_repro_stability_summarize` | `(outcomes: 'list[Any]') -> 'Any'` | Classify recorded attempts of one test as deterministic, flaky or non_reproducible. |
-| `WR_build_action_schema` | `() -> 'dict[str, Any]'` | 產生一份描述 action JSON 結構的 Draft 2020-12 Schema |
+| `WR_build_action_schema` | `(arguments: 'bool' = True) -> 'dict[str, Any]'` | 產生一份描述 action JSON 結構的 Draft 2020-12 Schema |
 | `WR_build_command_reference` | `(title: 'str' = 'WebRunner command reference') -> 'str'` | 產生整份命令參考（Markdown 字串） |
 | `WR_build_dependency_graph` | `(paths: 'Sequence[str]', *, allow_invalid: 'bool' = False) -> 'dict[str, list[str]]'` | 依基本檔名建立 ``{path: [dep_path, ...]}`` 圖 |
 | `WR_build_replay_html` | `(records: 'list[dict[str, Any]] | None' = None, screenshot_dir: 'str | None' = None, title: 'str' = 'WebRunner replay') -> 'str'` | 產生 self-contained HTML 報告字串 |
@@ -128,7 +128,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_classify_failures` | `(failures: 'Iterable[dict[str, Any]]', ledger_path: 'str | None' = None) -> 'dict[str, str]'` | 對 ``[{function_name, exception, file_path?}, ...]`` 各分類 |
 | `WR_CleanTestObject` | `() -> None` | 清空所有測試物件紀錄 |
 | `WR_clear_device_metrics` | `() -> 'None'` | 清除 ``set_device_metrics`` 設定。 |
-| `WR_clear_fallback_locators` | `() -> 'None'` |  |
+| `WR_clear_fallback_locators` | `() -> 'None'` | Forget every fallback in the shared ``healing_registry``. |
 | `WR_clear_geolocation_override` | `() -> 'None'` | 清除 ``set_geolocation`` 設定。 |
 | `WR_clear_origin_storage` | `(origin: 'str') -> 'None'` | 透過 CDP ``Storage.clearDataForOrigin`` 一次清掉指定 origin 的所有儲存 |
 | `WR_clear_permissions` | `() -> 'None'` | Reset every granted permission. |
@@ -196,8 +196,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_csp_violation_parser_assert_no_enforced` | `(reports: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Fail when a report is an enforced violation (report-only ones are returned, not failed). |
 | `WR_csp_violation_parser_parse` | `(reports: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Normalise CSP ``report-uri`` / ``report-to`` payloads into one violation record each. |
 | `WR_csp_violation_parser_summary` | `(reports: 'list[dict[str, Any]]', top_n: 'int' = 5, distinct_hosts_threshold: 'int' = 5) -> 'dict[str, Any]'` | Summarise CSP violation reports: count per directive, most blocked hosts, probable reconnaissance. |
-| `WR_dashboard_start` | `(host: 'str' = '127.0.0.1', port: 'int' = 0) -> 'str'` |  |
-| `WR_dashboard_stop` | `() -> 'None'` |  |
+| `WR_dashboard_start` | `(host: 'str' = '127.0.0.1', port: 'int' = 0) -> 'str'` | Start the module-wide dashboard on ``host``:``port`` (0 picks a free port) and return its URL. |
+| `WR_dashboard_stop` | `() -> 'None'` | Stop the module-wide dashboard. |
 | `WR_db_assert_count` | `(connection_url: 'str', sql: 'str', expected: 'int', params: 'dict[str, Any] | None' = None) -> 'None'` | 斷言 SQL 回傳列數等於 ``expected``。 |
 | `WR_db_assert_empty` | `(connection_url: 'str', sql: 'str', params: 'dict[str, Any] | None' = None) -> 'None'` | 斷言查詢沒有任何結果。 |
 | `WR_db_assert_exists` | `(connection_url: 'str', sql: 'str', params: 'dict[str, Any] | None' = None) -> 'None'` | 斷言查詢回傳至少一列。 |
@@ -307,19 +307,19 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_failure_triage_extract_signals` | `(bundle_path: 'str', steps: 'list[Any] | None' = None, max_steps: 'int' = 12) -> 'dict[str, Any]'` | Read a failure-bundle zip and return what a root-cause analysis needs: error, last steps, log tails. |
 | `WR_failure_triage_render_markdown` | `(report: 'dict[str, Any]', heading_level: 'int' = 2) -> 'str'` | Render a root-cause report as markdown for a PR comment. |
 | `WR_faker` | `(method: 'str', *args: 'Any', **kwargs: 'Any') -> 'Any'` | 任意 faker provider 的通用呼叫器 |
-| `WR_faker_address` | `() -> 'str'` |  |
-| `WR_faker_credit_card` | `() -> 'str'` |  |
-| `WR_faker_email` | `() -> 'str'` |  |
-| `WR_faker_first_name` | `() -> 'str'` |  |
-| `WR_faker_last_name` | `() -> 'str'` |  |
-| `WR_faker_name` | `() -> 'str'` |  |
-| `WR_faker_password` | `(length: 'int' = 12) -> 'str'` |  |
-| `WR_faker_phone` | `() -> 'str'` |  |
+| `WR_faker_address` | `() -> 'str'` | Return a random postal address from Faker. |
+| `WR_faker_credit_card` | `() -> 'str'` | Return a random credit card number from Faker. |
+| `WR_faker_email` | `() -> 'str'` | Return a random email address from Faker. |
+| `WR_faker_first_name` | `() -> 'str'` | Return a random first name from Faker. |
+| `WR_faker_last_name` | `() -> 'str'` | Return a random last name from Faker. |
+| `WR_faker_name` | `() -> 'str'` | Return a random full name from Faker. |
+| `WR_faker_password` | `(length: 'int' = 12) -> 'str'` | Return a random password of ``length`` characters from Faker. |
+| `WR_faker_phone` | `() -> 'str'` | Return a random phone number from Faker. |
 | `WR_faker_seed` | `(seed: 'int') -> 'None'` | Set a deterministic seed for reproducible runs. |
-| `WR_faker_text` | `(max_chars: 'int | None' = None) -> 'str'` |  |
-| `WR_faker_url` | `() -> 'str'` |  |
-| `WR_faker_user_agent` | `() -> 'str'` |  |
-| `WR_faker_uuid` | `() -> 'str'` |  |
+| `WR_faker_text` | `(max_chars: 'int | None' = None) -> 'str'` | Return random text from Faker, at most ``max_chars`` characters when that is given. |
+| `WR_faker_url` | `() -> 'str'` | Return a random URL from Faker. |
+| `WR_faker_user_agent` | `() -> 'str'` | Return a random browser User-Agent string from Faker. |
+| `WR_faker_uuid` | `() -> 'str'` | Return a random UUID4 from Faker, as a string. |
 | `WR_fetch_continue_request` | `(request_id: 'str', url: 'str | None' = None, method: 'str | None' = None, post_data=None, headers=None) -> 'None'` | 放行 (或改寫後放行) 一個被 ``Fetch.requestPaused`` 暫停的請求。 |
 | `WR_fetch_fail_request` | `(request_id: 'str', error_reason: 'str' = 'Aborted') -> 'None'` | 以指定錯誤理由讓被攔截的請求失敗 (用於阻擋 / 模擬網路錯誤)。 |
 | `WR_fetch_fulfill_request` | `(request_id: 'str', response_code: 'int', body=None, response_headers=None, response_phrase: 'str | None' = None) -> 'None'` | 以指定 response 回應一個被攔截的請求 (不再送出到原伺服器)。 |
@@ -432,11 +432,11 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_hsts_preload_audit_parse` | `(header: 'str') -> 'dict[str, Any]'` | Parse a ``Strict-Transport-Security`` value into ``max_age``, ``include_subdomains``, ``preload``. |
 | `WR_http_assert_json_contains` | `(key: 'str', expected: 'Any') -> 'None'` | 斷言上一次 JSON 回應於 ``key`` 的值等於 ``expected`` |
 | `WR_http_assert_status` | `(expected: 'int') -> 'None'` | 斷言上一次回應的 HTTP 狀態碼 |
-| `WR_http_delete` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
-| `WR_http_get` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
-| `WR_http_patch` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
-| `WR_http_post` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
-| `WR_http_put` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` |  |
+| `WR_http_delete` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` | Send a DELETE request through ``http_request`` and return its response dict. |
+| `WR_http_get` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` | Send a GET request through ``http_request`` and return its response dict. |
+| `WR_http_patch` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` | Send a PATCH request through ``http_request`` and return its response dict. |
+| `WR_http_post` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` | Send a POST request through ``http_request`` and return its response dict. |
+| `WR_http_put` | `(url: 'str', **kwargs: 'Any') -> 'dict[str, Any]'` | Send a PUT request through ``http_request`` and return its response dict. |
 | `WR_http_request` | `(method: 'str', url: 'str', timeout: 'int' = 30, headers: 'dict[str, str] | None' = None, params: 'dict[str, Any] | None' = None, json_body: 'Any' = None, data: 'Any' = None, **request_kwargs: 'Any') -> 'dict[str, Any]'` | 通用 HTTP 請求；其他 ``http_*`` 命令皆呼叫此函式 |
 | `WR_hydration_check_assert` | `(server_html: 'str | None' = None, client_html: 'str | None' = None, console_messages: 'list[str] | None' = None) -> 'dict[str, Any]'` | Fail (``HydrationCheckError``) on a hydration mismatch; arguments as ``WR_hydration_check_audit``. |
 | `WR_hydration_check_audit` | `(server_html: 'str | None' = None, client_html: 'str | None' = None, console_messages: 'list[str] | None' = None) -> 'dict[str, Any]'` | Look for SSR hydration mismatches in a server/client HTML pair and in console lines. |
@@ -499,7 +499,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_live_dashboard_summary` | `(ledger_path: 'str | None' = None, quarantine_path: 'str | None' = None, locator_findings_path: 'str | None' = None) -> 'dict[str, Any]'` | The counts the live dashboard's overview shows, read from the files given. |
 | `WR_live_dashboard_trend` | `(ledger_path: 'str') -> 'dict[str, Any]'` | Per-day pass and fail counts of a run ledger, as the live dashboard charts them: ``{daily, totals}``. |
 | `WR_llm_generate_actions` | `(request: 'str', context: 'str | None' = None) -> 'list[Any]'` | 把自然語言敘述轉成 WR_* action JSON 草稿 |
-| `WR_llm_has_callable` | `() -> 'bool'` |  |
+| `WR_llm_has_callable` | `() -> 'bool'` | True when an LLM callable has been registered. |
 | `WR_llm_self_heal_locator` | `(name: 'str', html_provider: 'Callable[[], str]') -> 'dict[str, str]'` | 當既有 fallback locator 都失敗時，呼叫 LLM 提供新的選擇器 |
 | `WR_llm_set_callable` | `(callable_obj: 'Callable[[str], str] | None') -> 'None'` | 登錄一個 ``Callable[[str], str]`` 用於後續所有 prompt。 |
 | `WR_llm_suggest_locator` | `(html: 'str', description: 'str') -> 'dict[str, str]'` | 讓 LLM 從 HTML 推斷一個合理的 locator |
@@ -511,11 +511,11 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_load_dataset_json` | `(path: 'str', encoding: 'str' = 'utf-8') -> 'list[dict[str, Any]]'` | 讀取 JSON 為 list of dict |
 | `WR_load_env` | `(env_name: 'str | None' = None, env_dir: 'str' = '.', override: 'bool' = False) -> 'str'` | 載入指定環境的 ``.env`` 檔 |
 | `WR_load_locators` | `(path: 'str') -> 'list'` | 載入共用的定位器檔 |
-| `WR_local_storage_all` | `() -> 'dict'` |  |
-| `WR_local_storage_clear` | `() -> 'None'` |  |
-| `WR_local_storage_get` | `(key: 'str') -> 'str | None'` |  |
-| `WR_local_storage_remove` | `(key: 'str') -> 'None'` |  |
-| `WR_local_storage_set` | `(key: 'str', value: 'str') -> 'None'` |  |
+| `WR_local_storage_all` | `() -> 'dict'` | Return every localStorage key and value as a dict, through the Selenium driver. |
+| `WR_local_storage_clear` | `() -> 'None'` | Empty localStorage through the Selenium driver. |
+| `WR_local_storage_get` | `(key: 'str') -> 'str | None'` | Return the localStorage value of ``key`` (``None`` when absent) through the Selenium driver. |
+| `WR_local_storage_remove` | `(key: 'str') -> 'None'` | Remove ``key`` from localStorage through the Selenium driver. |
+| `WR_local_storage_set` | `(key: 'str', value: 'str') -> 'None'` | Set ``key`` to ``value`` in localStorage through the Selenium driver. |
 | `WR_locator_hardener_build_prompt` | `(strategy: 'str', value: 'str', test_id: 'str' = 'action', dom_excerpt: 'str' = '', failure_history: 'int' = 0) -> 'str'` | Render the prompt that asks a language model for sturdier replacements of a locator. |
 | `WR_locator_hardener_parse_suggestions` | `(raw: 'str') -> 'list[dict[str, Any]]'` | Parse a model's locator suggestions, dropping malformed ones and those that are fragile again. |
 | `WR_locator_hardener_score` | `(strategy: 'str', value: 'str', test_id: 'str' = 'action', failure_history: 'int' = 0) -> 'dict[str, Any]'` | Score how fragile a locator is (0 to 1, with reasons); 0.5 and above is worth replacing. |
@@ -585,15 +585,15 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_number_currency_locale_assert_number` | `(rendered: 'str', locale: 'str') -> 'bool'` | Fail when a rendered number uses the wrong decimal separator or digit grouping for the locale. |
 | `WR_number_currency_locale_check` | `(rendered: 'str', locale: 'str', currency: 'bool' = False) -> 'dict[str, Any]'` | Report whether a rendered number (and, with ``currency``, its symbol) follows a locale's format. |
 | `WR_oauth_bearer_header` | `(access_token: 'str') -> 'dict[str, str]'` | Convenience: build the Authorization header for HTTP commands. |
-| `WR_oauth_clear_cache` | `() -> 'None'` |  |
+| `WR_oauth_clear_cache` | `() -> 'None'` | Forget every cached token. |
 | `WR_oauth_client_credentials` | `(token_url: 'str', client_id: 'str', client_secret: 'str', scope: 'str | None' = None, cache_key: 'str | None' = None, timeout: 'int' = 30) -> 'dict[str, Any]'` | OAuth2 client-credentials 流程 |
-| `WR_oauth_get_cached` | `(cache_key: 'str') -> 'dict[str, Any] | None'` |  |
+| `WR_oauth_get_cached` | `(cache_key: 'str') -> 'dict[str, Any] | None'` | Return the token cached under ``cache_key``, or None when there is none or it has expired. |
 | `WR_oauth_password_grant` | `(token_url: 'str', client_id: 'str', client_secret: 'str', username: 'str', password: 'str', scope: 'str | None' = None, cache_key: 'str | None' = None, timeout: 'int' = 30) -> 'dict[str, Any]'` | OAuth2 password grant（多數 IdP 已棄用，僅 legacy 系統用） |
 | `WR_oauth_pkce_replay_assert_all_rejected` | `(responses: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Fail when any recorded replay answer carries an ``access_token`` (or when no answer is given). |
 | `WR_oauth_pkce_replay_challenge` | `(verifier: 'str') -> 'str'` | Return the S256 ``code_challenge`` of a PKCE ``code_verifier``. |
 | `WR_oauth_pkce_replay_classify` | `(responses: 'list[dict[str, Any]]') -> 'list[dict[str, Any]]'` | Classify recorded token-endpoint answers to replayed OAuth values as rejected / accepted / ambiguous. |
 | `WR_oauth_pkce_replay_verifier` | `(length: 'int' = 64) -> 'dict[str, str]'` | Make a fresh PKCE ``code_verifier`` (43 to 128 characters) and its S256 ``code_challenge``. |
-| `WR_oauth_refresh_token` | `(token_url: 'str', client_id: 'str', client_secret: 'str', refresh_token: 'str', cache_key: 'str | None' = None, timeout: 'int' = 30) -> 'dict[str, Any]'` |  |
+| `WR_oauth_refresh_token` | `(token_url: 'str', client_id: 'str', client_secret: 'str', refresh_token: 'str', cache_key: 'str | None' = None, timeout: 'int' = 30) -> 'dict[str, Any]'` | Exchange a refresh token at ``token_url`` and return the token payload, cached under ``cache_key`` if given. |
 | `WR_ocr_assert_any` | `(image_path: 'str', candidates: 'list[str]', lang: 'str' = 'eng') -> 'dict[str, Any]'` | Fail unless the text recognised in an image file contains at least one of ``candidates``. |
 | `WR_ocr_assert_contains` | `(image_path: 'str', needle: 'str', case_sensitive: 'bool' = False, lang: 'str' = 'eng') -> 'dict[str, Any]'` | Fail unless the text recognised in an image file contains ``needle``. |
 | `WR_ocr_assert_extract_text` | `(image_path: 'str', lang: 'str' = 'eng') -> 'str'` | Read the text in an image file with Tesseract OCR (needs ``pytesseract`` and the tesseract binary). |
@@ -606,7 +606,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_openapi_drift_diff` | `(observations: 'list[dict[str, Any]]', spec: 'dict[str, Any] | None' = None, spec_path: 'str | None' = None) -> 'dict[str, Any]'` | Compare observed API traffic with an OpenAPI document (the object, or the path of its JSON file). |
 | `WR_openapi_to_e2e_generate` | `(spec: 'dict[str, Any] | None' = None, spec_path: 'str | None' = None, include_negative: 'bool' = True, method_filter: 'list[str] | None' = None, path_prefix_filter: 'str | None' = None) -> 'dict[str, Any]'` | Generate ``WR_http_*`` action lists from an OpenAPI 3 / Swagger 2 document. |
 | `WR_openapi_to_e2e_write` | `(output_dir: 'str', spec: 'dict[str, Any] | None' = None, spec_path: 'str | None' = None, include_negative: 'bool' = True, method_filter: 'list[str] | None' = None, path_prefix_filter: 'str | None' = None) -> 'list[str]'` | Generate the tests of an OpenAPI document and write one action file per test into ``output_dir``. |
-| `WR_order_factory` | `(default_currency: 'str' = 'USD') -> 'Factory'` |  |
+| `WR_order_factory` | `(default_currency: 'str' = 'USD') -> 'Factory'` | Return a factory of pending orders with a running id, an amount of 100 and ``default_currency``. |
 | `WR_otel_bridge_clear` | `() -> 'bool'` | Stop sending the trace headers ``WR_otel_bridge_inject`` added. |
 | `WR_otel_bridge_inject` | `(traceparent: 'str | None' = None, tracestate: 'str | None' = None) -> 'dict[str, Any]'` | Send a ``traceparent`` header with every request of the current Chromium browser. |
 | `WR_otel_bridge_new_context` | `(sampled: 'bool' = True) -> 'dict[str, Any]'` | Make a fresh W3C trace context. |
@@ -664,7 +664,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_press_keys` | `(keys: 'str | Sequence[str]') -> 'None'` | 對目前聚焦的元素按下並放開按鍵 |
 | `WR_print_page` | `(file_path: 'str', print_options=None) -> 'bool'` | 將當前頁面列印為 PDF 並存檔 (Selenium 4 內建 ``print_page``)。 |
 | `WR_process_supervisor_list_orphans` | `(names: 'list[str] | None' = None) -> 'list[dict[str, Any]]'` | List the running WebDriver processes (chromedriver, geckodriver, msedgedriver, IEDriverServer). |
-| `WR_product_factory` | `() -> 'Factory'` |  |
+| `WR_product_factory` | `() -> 'Factory'` | Return a factory of in-stock products with a running id, a name and a fixed price. |
 | `WR_prompt_drift_monitor_assert_no_drift` | `(baseline_path: 'str', current: 'list[dict[str, Any]]', similarity_threshold: 'float' = 0.85) -> 'int'` | Fail when any current answer drifted from the baseline file; returns how many were compared. |
 | `WR_prompt_drift_monitor_check` | `(baseline_path: 'str', current: 'list[dict[str, Any]]', similarity_threshold: 'float' = 0.85) -> 'dict[str, Any]'` | Compare today's answers with a baseline file: embedding similarity plus required / forbidden phrases. |
 | `WR_prompt_drift_monitor_load_baseline` | `(path: 'str') -> 'dict[str, Any]'` | Read a prompt-drift baseline file: its samples (with their prompts to ask again) and capture time. |
@@ -684,173 +684,173 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_push_delivery_assert` | `(payload: 'dict[str, Any]', provider: 'str | None' = None, collapse: 'bool' = False) -> 'str'` | Fail when a server-side push payload is invalid for FCM / APNs; returns the provider it was checked as. |
 | `WR_push_delivery_check` | `(payload: 'dict[str, Any]', provider: 'str | None' = None, collapse: 'bool' = False) -> 'dict[str, Any]'` | Validate a server-side push payload (FCM v1 ``{"message": ...}`` or APNs ``{"aps": ...}``) without |
 | `WR_pw_a11y_run_audit` | `(axe_source: 'str', options: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'` | 在當前 Playwright 頁面執行 axe.run，回傳結果 dict |
-| `WR_pw_add_cookies` | `(cookies: 'list[dict]') -> 'None'` |  |
-| `WR_pw_add_init_script` | `(source: 'str') -> 'None'` |  |
-| `WR_pw_assert_no_4xx_or_5xx` | `() -> 'None'` |  |
-| `WR_pw_assert_no_5xx` | `() -> 'None'` |  |
-| `WR_pw_assert_no_console_errors` | `() -> 'None'` |  |
-| `WR_pw_back` | `() -> 'None'` |  |
-| `WR_pw_block_urls` | `(patterns: 'list[str]') -> 'None'` |  |
-| `WR_pw_bring_to_front` | `() -> 'None'` |  |
-| `WR_pw_browser_count` | `() -> 'int'` |  |
+| `WR_pw_add_cookies` | `(cookies: 'list[dict]') -> 'None'` | Add ``cookies`` (a list of cookie dicts) to the context. |
+| `WR_pw_add_init_script` | `(source: 'str') -> 'None'` | Run the JavaScript ``source`` in every new document of the context before the page's own scripts. |
+| `WR_pw_assert_no_4xx_or_5xx` | `() -> 'None'` | Raise EventCaptureError when the shared capture holds a 4xx or 5xx response. |
+| `WR_pw_assert_no_5xx` | `() -> 'None'` | Raise EventCaptureError when the shared capture holds a 5xx response. |
+| `WR_pw_assert_no_console_errors` | `() -> 'None'` | Raise EventCaptureError when the shared capture holds a console error. |
+| `WR_pw_back` | `() -> 'None'` | Go back one entry in the current page's history. |
+| `WR_pw_block_urls` | `(patterns: 'list[str]') -> 'None'` | Abort requests whose whole URL matches any of ``patterns``, where ``*`` matches anything. |
+| `WR_pw_bring_to_front` | `() -> 'None'` | Activate the current page's tab. |
+| `WR_pw_browser_count` | `() -> 'int'` | How many browsers the Playwright wrapper holds. |
 | `WR_pw_cdp` | `(method: 'str', params: 'dict[str, Any] | None' = None) -> 'Any'` | 在當前 Playwright page 執行 CDP 命令 |
 | `WR_pw_cdp_reset_sessions` | `() -> 'None'` | Drop cached Playwright CDP sessions (e.g. after browser restart). |
-| `WR_pw_check` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_check_current_page` | `(check_dict: 'dict') -> 'None'` |  |
-| `WR_pw_clear_cookies` | `() -> 'None'` |  |
-| `WR_pw_clear_geolocation` | `() -> 'None'` |  |
-| `WR_pw_clear_permissions` | `() -> 'None'` |  |
-| `WR_pw_click` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_clock_install` | `(fake_now_ms: 'float | str | None' = None) -> 'None'` |  |
-| `WR_pw_clock_run_for` | `(duration_ms: 'float') -> 'None'` |  |
-| `WR_pw_clock_set_time` | `(time_ms: 'float | str') -> 'None'` |  |
-| `WR_pw_close_browser` | `() -> 'None'` |  |
-| `WR_pw_close_page` | `(index: 'int | None' = None) -> 'None'` |  |
-| `WR_pw_connect` | `(ws_endpoint: 'str', browser: 'str' = 'chromium', context_options: 'dict | None' = None) -> 'None'` |  |
-| `WR_pw_connect_over_cdp` | `(endpoint_url: 'str') -> 'None'` |  |
-| `WR_pw_console_messages` | `() -> 'list[dict[str, Any]]'` |  |
-| `WR_pw_content` | `() -> 'str'` |  |
-| `WR_pw_dblclick` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_delete_cookie` | `(name: 'str') -> 'None'` |  |
-| `WR_pw_download` | `(selector: 'str', save_to: 'str') -> 'str'` |  |
-| `WR_pw_drag_and_drop` | `(source_selector: 'str', target_selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_drag_and_drop_offset` | `(selector: 'str', target_x: 'float', target_y: 'float') -> 'None'` |  |
+| `WR_pw_check` | `(selector: 'str', **options: 'Any') -> 'None'` | Tick the checkbox or radio button matching ``selector``. |
+| `WR_pw_check_current_page` | `(check_dict: 'dict') -> 'None'` | Assert the ``title``, ``url``, ``viewport_size`` or ``page_count`` given in ``check_dict``. |
+| `WR_pw_clear_cookies` | `() -> 'None'` | Delete every cookie of the context. |
+| `WR_pw_clear_geolocation` | `() -> 'None'` | Remove the geolocation override. |
+| `WR_pw_clear_permissions` | `() -> 'None'` | Revoke every permission granted to the context. |
+| `WR_pw_click` | `(selector: 'str', **options: 'Any') -> 'None'` | Click the first element matching ``selector``; ``options`` go to Playwright's ``click``. |
+| `WR_pw_clock_install` | `(fake_now_ms: 'float | str | None' = None) -> 'None'` | Install Playwright's clock, starting at ``fake_now_ms`` (epoch milliseconds or an ISO date) when given. |
+| `WR_pw_clock_run_for` | `(duration_ms: 'float') -> 'None'` | Advance the installed clock by ``duration_ms`` milliseconds. |
+| `WR_pw_clock_set_time` | `(time_ms: 'float | str') -> 'None'` | Freeze the page clock at ``time_ms`` (epoch milliseconds or an ISO date string). |
+| `WR_pw_close_browser` | `() -> 'None'` | Close the current browser and continue with a remaining one; closing the last stops Playwright. |
+| `WR_pw_close_page` | `(index: 'int | None' = None) -> 'None'` | Close the page at ``index``, or the current page when ``index`` is None. |
+| `WR_pw_connect` | `(ws_endpoint: 'str', browser: 'str' = 'chromium', context_options: 'dict | None' = None) -> 'None'` | Connect to a Playwright browser server at ``ws_endpoint`` and open a context and page there. |
+| `WR_pw_connect_over_cdp` | `(endpoint_url: 'str') -> 'None'` | Attach to a Chromium started with ``--remote-debugging-port``; adopts its first context and pages. |
+| `WR_pw_console_messages` | `() -> 'list[dict[str, Any]]'` | Return a copy of the console messages the shared capture holds. |
+| `WR_pw_content` | `() -> 'str'` | The current page's full HTML source. |
+| `WR_pw_dblclick` | `(selector: 'str', **options: 'Any') -> 'None'` | Double-click the first element matching ``selector``; ``options`` go to Playwright's ``dblclick``. |
+| `WR_pw_delete_cookie` | `(name: 'str') -> 'None'` | Delete every cookie called ``name`` from the context. |
+| `WR_pw_download` | `(selector: 'str', save_to: 'str') -> 'str'` | Click ``selector``, wait for the download it starts, save it to ``save_to`` and return the saved path. |
+| `WR_pw_drag_and_drop` | `(source_selector: 'str', target_selector: 'str', **options: 'Any') -> 'None'` | Drag the element matching ``source_selector`` onto the one matching ``target_selector``. |
+| `WR_pw_drag_and_drop_offset` | `(selector: 'str', target_x: 'float', target_y: 'float') -> 'None'` | Drag the element matching ``selector`` by ``(target_x, target_y)`` pixels from its centre. |
 | `WR_pw_element_assert` | `(check_dict: 'dict') -> 'None'` | 斷言目前元素的欄位；不符時拋出例外 |
 | `WR_pw_element_change` | `(element_index: 'int') -> 'None'` | Switch ``current_element`` to ``current_element_list[element_index]``. |
-| `WR_pw_element_check` | `() -> 'None'` |  |
+| `WR_pw_element_check` | `() -> 'None'` | Tick the current checkbox or radio button; a failure is recorded, not raised. |
 | `WR_pw_element_clear` | `() -> 'None'` | Clear the value (Playwright equivalent of fill('')) . |
-| `WR_pw_element_click` | `() -> 'None'` |  |
-| `WR_pw_element_dblclick` | `() -> 'None'` |  |
+| `WR_pw_element_click` | `() -> 'None'` | Click the current element; a failure is recorded, not raised. |
+| `WR_pw_element_dblclick` | `() -> 'None'` | Double-click the current element; a failure is recorded, not raised. |
 | `WR_pw_element_fill` | `(input_value: 'str') -> 'None'` | Fill (replace) the element's value. |
-| `WR_pw_element_get_attribute` | `(name: 'str') -> 'str | None'` |  |
+| `WR_pw_element_get_attribute` | `(name: 'str') -> 'str | None'` | The current element's attribute ``name``; None when it has none or after a recorded failure. |
 | `WR_pw_element_get_property` | `(name: 'str')` | Read a JS property via the element handle. |
-| `WR_pw_element_hover` | `() -> 'None'` |  |
-| `WR_pw_element_inner_html` | `() -> 'str | None'` |  |
-| `WR_pw_element_inner_text` | `() -> 'str | None'` |  |
-| `WR_pw_element_is_checked` | `() -> 'bool'` |  |
-| `WR_pw_element_is_enabled` | `() -> 'bool'` |  |
-| `WR_pw_element_is_visible` | `() -> 'bool'` |  |
-| `WR_pw_element_press` | `(key: 'str') -> 'None'` |  |
-| `WR_pw_element_screenshot` | `(filename: 'str') -> 'str | None'` |  |
-| `WR_pw_element_scroll_into_view` | `() -> 'None'` |  |
-| `WR_pw_element_select_option` | `(value: 'str | list | dict') -> 'list[str]'` |  |
+| `WR_pw_element_hover` | `() -> 'None'` | Move the mouse over the current element; a failure is recorded, not raised. |
+| `WR_pw_element_inner_html` | `() -> 'str | None'` | The current element's inner HTML, or None after a recorded failure. |
+| `WR_pw_element_inner_text` | `() -> 'str | None'` | The current element's rendered text, or None after a recorded failure. |
+| `WR_pw_element_is_checked` | `() -> 'bool'` | Whether the current checkbox or radio button is ticked; False after a recorded failure. |
+| `WR_pw_element_is_enabled` | `() -> 'bool'` | Whether the current element is enabled; False after a recorded failure. |
+| `WR_pw_element_is_visible` | `() -> 'bool'` | Whether the current element is visible; False after a recorded failure. |
+| `WR_pw_element_press` | `(key: 'str') -> 'None'` | Press ``key`` (``Enter``, ``Control+A`` …) on the current element; a failure is recorded, not raised. |
+| `WR_pw_element_screenshot` | `(filename: 'str') -> 'str | None'` | Save a screenshot of the current element as ``filename`` + ``.png``; returns the path, None on failure. |
+| `WR_pw_element_scroll_into_view` | `() -> 'None'` | Scroll the current element into view if it is not; a failure is recorded, not raised. |
+| `WR_pw_element_select_option` | `(value: 'str | list | dict') -> 'list[str]'` | Select ``value`` in the current ``<select>``; returns the selected values (``[]`` after a failure). |
 | `WR_pw_element_submit` | `() -> 'None'` | 送出目前元素所在的表單（元素本身是表單時送出它） |
 | `WR_pw_element_type_text` | `(input_value: 'str', delay: 'float' = 0) -> 'None'` | Type text key-by-key after the text the field already has, like Selenium ``send_keys``. Playwright |
-| `WR_pw_element_uncheck` | `() -> 'None'` |  |
+| `WR_pw_element_uncheck` | `() -> 'None'` | Untick the current checkbox; a failure is recorded, not raised. |
 | `WR_pw_element_value_of_css_property` | `(property_name: 'str') -> 'str | None'` | The computed value of CSS ``property_name`` on the current element. |
-| `WR_pw_emulate` | `(device_name: 'str') -> 'None'` |  |
-| `WR_pw_evaluate` | `(expression: 'str', arg: 'Any' = None)` |  |
-| `WR_pw_event_capture_clear` | `() -> 'None'` |  |
+| `WR_pw_emulate` | `(device_name: 'str') -> 'None'` | Apply Playwright's built-in device descriptor ``device_name`` (rebuilds the context). |
+| `WR_pw_evaluate` | `(expression: 'str', arg: 'Any' = None)` | Run JavaScript ``expression`` in the current frame or page (with ``arg`` if given) and return its value. |
+| `WR_pw_event_capture_clear` | `() -> 'None'` | Drop everything the shared capture holds. |
 | `WR_pw_event_capture_start` | `() -> 'None'` | Attach the singleton EventCapture to the active Playwright page. |
-| `WR_pw_event_capture_stop` | `() -> 'None'` |  |
+| `WR_pw_event_capture_stop` | `() -> 'None'` | Detach the shared capture from the page it listens to. |
 | `WR_pw_extension_args` | `(extension_dir: 'str') -> 'list[str]'` | 回傳給 ``pw_launch(args=...)`` 用的旗標清單（Chromium only） |
-| `WR_pw_fill` | `(selector: 'str', value: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_find_by` | `(by: 'str', value: 'str', wait: 'bool' = True, **options: 'Any')` |  |
-| `WR_pw_find_element` | `(selector: 'str')` |  |
-| `WR_pw_find_element_with_test_object_record` | `(element_name: 'str')` |  |
-| `WR_pw_find_elements` | `(selector: 'str') -> 'list[Any]'` |  |
-| `WR_pw_find_elements_with_test_object_record` | `(element_name: 'str')` |  |
+| `WR_pw_fill` | `(selector: 'str', value: 'str', **options: 'Any') -> 'None'` | Replace the value of the field matching ``selector`` with ``value``. |
+| `WR_pw_find_by` | `(by: 'str', value: 'str', wait: 'bool' = True, **options: 'Any')` | Find elements by ``role``, ``text``, ``label``, ``test_id`` …; the first match becomes the current element. |
+| `WR_pw_find_element` | `(selector: 'str')` | The first element matching ``selector`` in the current frame or page, or None; it does not wait. |
+| `WR_pw_find_element_with_test_object_record` | `(element_name: 'str')` | Find the saved test object ``element_name``; the first match becomes the current element. |
+| `WR_pw_find_elements` | `(selector: 'str') -> 'list[Any]'` | Every element matching ``selector`` in the current frame or page (an empty list when none). |
+| `WR_pw_find_elements_with_test_object_record` | `(element_name: 'str')` | Find every match of the saved test object ``element_name`` (the first becomes current). |
 | `WR_pw_find_with_healing` | `(name: 'str')` | Playwright 版自我修復定位 |
-| `WR_pw_forward` | `() -> 'None'` |  |
+| `WR_pw_forward` | `() -> 'None'` | Go forward one entry in the current page's history. |
 | `WR_pw_frame_locator_chain` | `(selectors: 'Sequence[str]') -> 'Any'` | 依序連結 ``page.frame_locator(selector)`` 形成深層 frame locator |
-| `WR_pw_get_cookie` | `(name: 'str') -> 'dict | None'` |  |
-| `WR_pw_get_cookies` | `() -> 'list[dict]'` |  |
-| `WR_pw_grant_permissions` | `(permissions: 'list[str]', origin: 'str | None' = None) -> 'None'` |  |
-| `WR_pw_hover` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_indexed_db_drop` | `(db_name: 'str') -> 'None'` |  |
-| `WR_pw_keyboard_down` | `(key: 'str') -> 'None'` |  |
-| `WR_pw_keyboard_press` | `(key: 'str') -> 'None'` |  |
-| `WR_pw_keyboard_type` | `(text: 'str', delay: 'float' = 0) -> 'None'` |  |
-| `WR_pw_keyboard_up` | `(key: 'str') -> 'None'` |  |
-| `WR_pw_last_dialog` | `() -> 'dict | None'` |  |
-| `WR_pw_launch` | `(browser: 'str' = 'chromium', headless: 'bool' = True, **options: 'Any') -> 'None'` |  |
-| `WR_pw_launch_persistent` | `(user_data_dir: 'str', browser: 'str' = 'chromium', headless: 'bool' = True, extension_paths: 'list[str] | None' = None, **context_options: 'Any') -> 'None'` |  |
-| `WR_pw_list_devices` | `() -> 'list[str]'` |  |
-| `WR_pw_local_storage_all` | `() -> 'dict'` |  |
-| `WR_pw_local_storage_clear` | `() -> 'None'` |  |
-| `WR_pw_local_storage_get` | `(key: 'str') -> 'str | None'` |  |
-| `WR_pw_local_storage_remove` | `(key: 'str') -> 'None'` |  |
-| `WR_pw_local_storage_set` | `(key: 'str', value: 'str') -> 'None'` |  |
-| `WR_pw_mouse_click` | `(x: 'float', y: 'float', button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` |  |
-| `WR_pw_mouse_down` | `(button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` |  |
-| `WR_pw_mouse_move` | `(x: 'float', y: 'float', steps: 'int' = 1) -> 'None'` |  |
-| `WR_pw_mouse_up` | `(button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` |  |
-| `WR_pw_network_responses` | `() -> 'list[dict[str, Any]]'` |  |
-| `WR_pw_new_browser` | `(browser: 'str' = 'chromium', headless: 'bool' = True, **launch_kwargs: 'Any') -> 'int'` |  |
-| `WR_pw_new_page` | `() -> 'int'` |  |
-| `WR_pw_page_count` | `() -> 'int'` |  |
+| `WR_pw_get_cookie` | `(name: 'str') -> 'dict | None'` | The first cookie called ``name`` in the context, or None. |
+| `WR_pw_get_cookies` | `() -> 'list[dict]'` | Every cookie of the context, as a list of dicts. |
+| `WR_pw_grant_permissions` | `(permissions: 'list[str]', origin: 'str | None' = None) -> 'None'` | Grant browser ``permissions`` (``geolocation``, ``clipboard-read`` …), to ``origin`` only when given. |
+| `WR_pw_hover` | `(selector: 'str', **options: 'Any') -> 'None'` | Move the mouse over the first element matching ``selector``. |
+| `WR_pw_indexed_db_drop` | `(db_name: 'str') -> 'None'` | Ask the Playwright page to delete the IndexedDB database ``db_name``; |
+| `WR_pw_keyboard_down` | `(key: 'str') -> 'None'` | Hold ``key`` down until :meth:`keyboard_up`. |
+| `WR_pw_keyboard_press` | `(key: 'str') -> 'None'` | Press and release ``key`` on the page (``Enter``, ``Control+A`` …). |
+| `WR_pw_keyboard_type` | `(text: 'str', delay: 'float' = 0) -> 'None'` | Type ``text`` into the focused element, ``delay`` milliseconds between keys. |
+| `WR_pw_keyboard_up` | `(key: 'str') -> 'None'` | Release ``key``. |
+| `WR_pw_last_dialog` | `() -> 'dict | None'` | ``{type, message, default_value, action}`` of the last dialog handled, or None. |
+| `WR_pw_launch` | `(browser: 'str' = 'chromium', headless: 'bool' = True, **options: 'Any') -> 'None'` | Launch ``chromium``, ``firefox`` or ``webkit`` and open a page (options: ``PlaywrightWrapper.launch``). |
+| `WR_pw_launch_persistent` | `(user_data_dir: 'str', browser: 'str' = 'chromium', headless: 'bool' = True, extension_paths: 'list[str] | None' = None, **context_options: 'Any') -> 'None'` | Launch with the persistent profile in ``user_data_dir``, loading unpacked ``extension_paths`` if given. |
+| `WR_pw_list_devices` | `() -> 'list[str]'` | The sorted device names ``pw_emulate`` accepts; needs a started Playwright runtime. |
+| `WR_pw_local_storage_all` | `() -> 'dict'` | Return every localStorage key and value of the Playwright page as a dict. |
+| `WR_pw_local_storage_clear` | `() -> 'None'` | Empty localStorage on the Playwright page. |
+| `WR_pw_local_storage_get` | `(key: 'str') -> 'str | None'` | Return the localStorage value of ``key`` (``None`` when absent) on the Playwright page. |
+| `WR_pw_local_storage_remove` | `(key: 'str') -> 'None'` | Remove ``key`` from localStorage on the Playwright page. |
+| `WR_pw_local_storage_set` | `(key: 'str', value: 'str') -> 'None'` | Set ``key`` to ``value`` in localStorage on the Playwright page. |
+| `WR_pw_mouse_click` | `(x: 'float', y: 'float', button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` | Click at page coordinates ``(x, y)`` with ``button``, ``click_count`` times. |
+| `WR_pw_mouse_down` | `(button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` | Press ``button`` at the current mouse position and hold it. |
+| `WR_pw_mouse_move` | `(x: 'float', y: 'float', steps: 'int' = 1) -> 'None'` | Move the mouse to page coordinates ``(x, y)`` in ``steps`` intermediate moves. |
+| `WR_pw_mouse_up` | `(button: 'str' = 'left', click_count: 'int' = 1) -> 'None'` | Release ``button`` at the current mouse position. |
+| `WR_pw_network_responses` | `() -> 'list[dict[str, Any]]'` | Return a copy of the network responses the shared capture holds. |
+| `WR_pw_new_browser` | `(browser: 'str' = 'chromium', headless: 'bool' = True, **launch_kwargs: 'Any') -> 'int'` | Launch another browser beside the open ones, make it current and return its index. |
+| `WR_pw_new_page` | `() -> 'int'` | Open a new page in the current context, make it current and return its index. |
+| `WR_pw_page_count` | `() -> 'int'` | How many pages (tabs and popups) of the context are open. |
 | `WR_pw_perf_collect` | `(observe_ms: 'int' = 1000) -> 'dict[str, Any]'` | 透過 ``page.evaluate`` 抓取效能指標 |
-| `WR_pw_press` | `(selector: 'str', key: 'str', **options: 'Any') -> 'None'` |  |
-| `WR_pw_print_page` | `(file_path: 'str') -> 'str'` |  |
-| `WR_pw_quit` | `() -> 'None'` |  |
+| `WR_pw_press` | `(selector: 'str', key: 'str', **options: 'Any') -> 'None'` | Focus the element matching ``selector`` and press ``key`` (``Enter``, ``Control+A`` …). |
+| `WR_pw_print_page` | `(file_path: 'str') -> 'str'` | Save the page as a PDF at ``file_path`` and return ``file_path`` (headless Chromium only). |
+| `WR_pw_quit` | `() -> 'None'` | Close every browser the wrapper opened (a CDP-attached one is only disconnected) and stop Playwright. |
 | `WR_pw_recorder_pull_events` | `()` |  |
 | `WR_pw_recorder_save` | `(output_path, raw_events_path=None, backend='playwright')` |  |
 | `WR_pw_recorder_start` | `()` |  |
 | `WR_pw_recorder_stop` | `()` |  |
-| `WR_pw_refresh` | `() -> 'None'` |  |
-| `WR_pw_route_clear` | `() -> 'None'` |  |
-| `WR_pw_route_mock` | `(url_pattern: 'str', response: 'dict') -> 'None'` |  |
-| `WR_pw_route_mock_json` | `(url_pattern: 'str', json_data: 'Any', status: 'int' = 200) -> 'None'` |  |
-| `WR_pw_route_unmock` | `(url_pattern: 'str') -> 'None'` |  |
-| `WR_pw_save_storage_state` | `(path: 'str') -> 'str'` |  |
+| `WR_pw_refresh` | `() -> 'None'` | Reload the current page. |
+| `WR_pw_route_clear` | `() -> 'None'` | Remove every route handler of the current page. |
+| `WR_pw_route_mock` | `(url_pattern: 'str', response: 'dict') -> 'None'` | Answer requests matching ``url_pattern`` with ``response`` (``status``, ``body``, ``headers`` …). |
+| `WR_pw_route_mock_json` | `(url_pattern: 'str', json_data: 'Any', status: 'int' = 200) -> 'None'` | Answer requests matching ``url_pattern`` with ``json_data`` as a JSON body and ``status``. |
+| `WR_pw_route_unmock` | `(url_pattern: 'str') -> 'None'` | Remove the mock for ``url_pattern`` so its requests reach the network again. |
+| `WR_pw_save_storage_state` | `(path: 'str') -> 'str'` | Write the context's cookies and localStorage to ``path`` and return ``path``. |
 | `WR_pw_save_test_object_to_selector` | `(test_object_name: 'str', object_type: 'str' = 'CSS_SELECTOR') -> 'str'` | 把 TestObject 存進 ``test_object_record`` 並回傳對應的 Playwright selector |
-| `WR_pw_screenshot` | `(path: 'str', full_page: 'bool' = False) -> 'str'` |  |
-| `WR_pw_screenshot_base64` | `(full_page: 'bool' = False) -> 'str'` |  |
-| `WR_pw_screenshot_bytes` | `(full_page: 'bool' = False) -> 'bytes'` |  |
-| `WR_pw_scroll` | `(scroll_x: 'float', scroll_y: 'float') -> 'None'` |  |
-| `WR_pw_scroll_to_bottom` | `() -> 'None'` |  |
-| `WR_pw_scroll_to_top` | `() -> 'None'` |  |
-| `WR_pw_select_option` | `(selector: 'str', value: 'Any', **options: 'Any') -> 'list[str]'` |  |
-| `WR_pw_session_storage_clear` | `() -> 'None'` |  |
-| `WR_pw_session_storage_get` | `(key: 'str') -> 'str | None'` |  |
-| `WR_pw_session_storage_set` | `(key: 'str', value: 'str') -> 'None'` |  |
-| `WR_pw_set_cache_disabled` | `(disabled: 'bool' = True) -> 'None'` |  |
-| `WR_pw_set_context_options` | `(**options: 'Any') -> 'None'` |  |
-| `WR_pw_set_default_navigation_timeout` | `(timeout_ms: 'float') -> 'None'` |  |
-| `WR_pw_set_default_timeout` | `(timeout_ms: 'float') -> 'None'` |  |
-| `WR_pw_set_dialog_policy` | `(action: 'str' = 'accept', prompt_text: 'str | None' = None) -> 'None'` |  |
-| `WR_pw_set_extra_http_headers` | `(headers: 'dict[str, str]') -> 'None'` |  |
-| `WR_pw_set_geolocation` | `(latitude: 'float', longitude: 'float', accuracy: 'float | None' = None) -> 'None'` |  |
-| `WR_pw_set_locale` | `(locale: 'str', accept_language: 'str | None' = None) -> 'None'` |  |
-| `WR_pw_set_timezone` | `(timezone_id: 'str') -> 'None'` |  |
-| `WR_pw_set_user_agent` | `(user_agent: 'str') -> 'None'` |  |
-| `WR_pw_set_viewport_size` | `(width: 'int', height: 'int') -> 'None'` |  |
+| `WR_pw_screenshot` | `(path: 'str', full_page: 'bool' = False) -> 'str'` | Save a screenshot of the page to ``path`` (the whole page with ``full_page``) and return ``path``. |
+| `WR_pw_screenshot_base64` | `(full_page: 'bool' = False) -> 'str'` | The page screenshot as a base64 PNG string (the whole scrollable page with ``full_page``). |
+| `WR_pw_screenshot_bytes` | `(full_page: 'bool' = False) -> 'bytes'` | The page screenshot as image bytes (the whole scrollable page with ``full_page``). |
+| `WR_pw_scroll` | `(scroll_x: 'float', scroll_y: 'float') -> 'None'` | Scroll by ``(scroll_x, scroll_y)`` pixels with the mouse wheel. |
+| `WR_pw_scroll_to_bottom` | `() -> 'None'` | Scroll the page to the bottom of ``document.body``. |
+| `WR_pw_scroll_to_top` | `() -> 'None'` | Scroll the page to its top (``window.scrollTo(0, 0)``). |
+| `WR_pw_select_option` | `(selector: 'str', value: 'Any', **options: 'Any') -> 'list[str]'` | Select ``value`` in the ``<select>`` matching ``selector``; returns the selected values. |
+| `WR_pw_session_storage_clear` | `() -> 'None'` | Empty sessionStorage on the Playwright page. |
+| `WR_pw_session_storage_get` | `(key: 'str') -> 'str | None'` | Return the sessionStorage value of ``key`` (``None`` when absent) on the Playwright page. |
+| `WR_pw_session_storage_set` | `(key: 'str', value: 'str') -> 'None'` | Set ``key`` to ``value`` in sessionStorage on the Playwright page. |
+| `WR_pw_set_cache_disabled` | `(disabled: 'bool' = True) -> 'None'` | Disable the HTTP cache of the context (``True``) or restore it (``False``). |
+| `WR_pw_set_context_options` | `(**options: 'Any') -> 'None'` | Merge any ``browser.new_context`` options (``viewport``, ``color_scheme`` …) and rebuild the context. |
+| `WR_pw_set_default_navigation_timeout` | `(timeout_ms: 'float') -> 'None'` | Set the default timeout, in milliseconds, of the current page's navigations. |
+| `WR_pw_set_default_timeout` | `(timeout_ms: 'float') -> 'None'` | Set the default timeout, in milliseconds, of the current page's actions and waits. |
+| `WR_pw_set_dialog_policy` | `(action: 'str' = 'accept', prompt_text: 'str | None' = None) -> 'None'` | Choose what happens to JavaScript dialogs from now on: ``accept``, ``dismiss`` or ``default``. |
+| `WR_pw_set_extra_http_headers` | `(headers: 'dict[str, str]') -> 'None'` | Add ``headers`` to the extra HTTP headers sent with every request of the context. |
+| `WR_pw_set_geolocation` | `(latitude: 'float', longitude: 'float', accuracy: 'float | None' = None) -> 'None'` | Set the context's geolocation; grant the ``geolocation`` permission so pages can read it. |
+| `WR_pw_set_locale` | `(locale: 'str', accept_language: 'str | None' = None) -> 'None'` | Rebuild the context with ``locale``; ``accept_language`` also sets the ``Accept-Language`` header. |
+| `WR_pw_set_timezone` | `(timezone_id: 'str') -> 'None'` | Rebuild the context with the timezone ``timezone_id``. |
+| `WR_pw_set_user_agent` | `(user_agent: 'str') -> 'None'` | Rebuild the context with the user agent string ``user_agent``. |
+| `WR_pw_set_viewport_size` | `(width: 'int', height: 'int') -> 'None'` | Resize the page's viewport to ``width`` x ``height`` pixels. |
 | `WR_pw_shadow_query` | `(host_chain: 'Sequence[str]', inner_selector: 'str')` | Resolve the pierce selector against the active Playwright page. |
 | `WR_pw_shadow_selector` | `(host_chain: 'Sequence[str]', inner_selector: 'str') -> 'str'` | 把 host 鏈與內層 selector 組成 Playwright ``>>>`` (pierce) 選擇器 |
-| `WR_pw_start_har_recording` | `(har_path: 'str', content: 'str' = 'omit') -> 'None'` |  |
-| `WR_pw_stop_emulate` | `() -> 'None'` |  |
-| `WR_pw_stop_har_recording` | `() -> 'None'` |  |
+| `WR_pw_start_har_recording` | `(har_path: 'str', content: 'str' = 'omit') -> 'None'` | Rebuild the context with HAR recording to ``har_path``; ``content``: ``omit`` / ``embed`` / ``attach``. |
+| `WR_pw_stop_emulate` | `() -> 'None'` | Drop the emulated device's options, keeping the other context options (rebuilds the context). |
+| `WR_pw_stop_har_recording` | `() -> 'None'` | Stop HAR recording: the context is rebuilt, which writes the HAR file. |
 | `WR_pw_sw_bypass` | `(bypass: 'bool' = True) -> 'None'` | Bypass the service worker via CDP on the active Playwright page. |
-| `WR_pw_sw_clear_caches` | `() -> 'list[str]'` |  |
-| `WR_pw_sw_unregister` | `() -> 'list[bool]'` |  |
-| `WR_pw_switch_browser` | `(index: 'int') -> 'None'` |  |
-| `WR_pw_switch_to_frame` | `(selectors: 'str | list[str]') -> 'None'` |  |
-| `WR_pw_switch_to_main_frame` | `() -> 'None'` |  |
-| `WR_pw_switch_to_page` | `(index: 'int') -> 'None'` |  |
-| `WR_pw_switch_to_page_by_title` | `(pattern: 'str') -> 'bool'` |  |
-| `WR_pw_switch_to_page_by_url` | `(pattern: 'str') -> 'bool'` |  |
-| `WR_pw_switch_to_parent_frame` | `() -> 'None'` |  |
+| `WR_pw_sw_clear_caches` | `() -> 'list[str]'` | 清空當前 Playwright 頁面的 Cache Storage |
+| `WR_pw_sw_unregister` | `() -> 'list[bool]'` | 解除註冊當前 Playwright 頁面的所有 Service Worker |
+| `WR_pw_switch_browser` | `(index: 'int') -> 'None'` | Make browser ``index`` (0-based, in opening order) the one commands act on. |
+| `WR_pw_switch_to_frame` | `(selectors: 'str | list[str]') -> 'None'` | Make selector commands act inside the iframe matching ``selectors`` (a list enters nested iframes). |
+| `WR_pw_switch_to_main_frame` | `() -> 'None'` | Leave every iframe: selector commands act on the page again. |
+| `WR_pw_switch_to_page` | `(index: 'int') -> 'None'` | Make the page at ``index`` in the page list the current page. |
+| `WR_pw_switch_to_page_by_title` | `(pattern: 'str') -> 'bool'` | Switch to the first page whose title contains ``pattern``; returns False when none does. |
+| `WR_pw_switch_to_page_by_url` | `(pattern: 'str') -> 'bool'` | Switch to the first page whose URL contains ``pattern``; returns False when none does. |
+| `WR_pw_switch_to_parent_frame` | `() -> 'None'` | Select the parent of the current iframe (the page, for a top-level iframe). |
 | `WR_pw_throttle` | `(preset: 'str') -> 'Any'` | Apply ``preset`` via the active Playwright page's CDP session. |
-| `WR_pw_throttle_clear` | `() -> 'Any'` |  |
-| `WR_pw_title` | `() -> 'str'` |  |
-| `WR_pw_to_url` | `(url: 'str', **goto_options: 'Any') -> 'None'` |  |
-| `WR_pw_tracing_save_chunk` | `(path: 'str') -> 'str'` |  |
-| `WR_pw_tracing_start` | `(screenshots: 'bool' = True, snapshots: 'bool' = True, sources: 'bool' = False) -> 'None'` |  |
-| `WR_pw_tracing_stop` | `(path: 'str') -> 'str'` |  |
-| `WR_pw_type_text` | `(selector: 'str', value: 'str', delay: 'float' = 0, **options: 'Any') -> 'None'` |  |
-| `WR_pw_unblock_urls` | `() -> 'None'` |  |
-| `WR_pw_uncheck` | `(selector: 'str', **options: 'Any') -> 'None'` |  |
+| `WR_pw_throttle_clear` | `() -> 'Any'` | Apply the ``no_throttling`` preset through Playwright and return its result. |
+| `WR_pw_title` | `() -> 'str'` | The current page's title. |
+| `WR_pw_to_url` | `(url: 'str', **goto_options: 'Any') -> 'None'` | Navigate the current page to ``url``; ``goto_options`` go to Playwright's ``goto``. |
+| `WR_pw_tracing_save_chunk` | `(path: 'str') -> 'str'` | Write the trace recorded since the last save to ``path`` and keep tracing. |
+| `WR_pw_tracing_start` | `(screenshots: 'bool' = True, snapshots: 'bool' = True, sources: 'bool' = False) -> 'None'` | Start recording a trace of the context for Playwright's trace viewer. |
+| `WR_pw_tracing_stop` | `(path: 'str') -> 'str'` | Write the trace recorded since the last save to ``path`` and stop tracing. |
+| `WR_pw_type_text` | `(selector: 'str', value: 'str', delay: 'float' = 0, **options: 'Any') -> 'None'` | Type ``value`` into the element matching ``selector`` key by key, ``delay`` milliseconds apart. |
+| `WR_pw_unblock_urls` | `() -> 'None'` | Remove every block added by ``pw_block_urls``. |
+| `WR_pw_uncheck` | `(selector: 'str', **options: 'Any') -> 'None'` | Untick the checkbox matching ``selector``. |
 | `WR_pw_upload_file` | `(input_selector: 'str', file_path: 'str') -> 'None'` | 對指定的 file input 送入檔案（Playwright） |
-| `WR_pw_url` | `() -> 'str'` |  |
-| `WR_pw_video_start` | `(video_dir: 'str', width: 'int | None' = None, height: 'int | None' = None) -> 'None'` |  |
-| `WR_pw_video_stop` | `() -> 'list[str]'` |  |
-| `WR_pw_viewport_size` | `() -> 'dict | None'` |  |
+| `WR_pw_url` | `() -> 'str'` | The current page's URL. |
+| `WR_pw_video_start` | `(video_dir: 'str', width: 'int | None' = None, height: 'int | None' = None) -> 'None'` | Rebuild the context with video recording into ``video_dir``; ``width`` and ``height`` set the video size. |
+| `WR_pw_video_stop` | `() -> 'list[str]'` | Stop video recording (rebuilds the context) and return the paths of the video files. |
+| `WR_pw_viewport_size` | `() -> 'dict | None'` | The page's viewport as ``{width, height}``, or None when it has none. |
 | `WR_pw_visual_capture_baseline` | `(baseline_path: 'str') -> 'str'` | :func:`capture_baseline` for the current Playwright page. |
 | `WR_pw_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0) -> 'dict'` | :func:`compare_with_baseline` for the current Playwright page. |
-| `WR_pw_wait_for_load_state` | `(state: 'str' = 'load', timeout: 'float | None' = None) -> 'None'` |  |
-| `WR_pw_wait_for_selector` | `(selector: 'str', timeout: 'float | None' = None, state: 'str' = 'visible')` |  |
-| `WR_pw_wait_for_timeout` | `(timeout_ms: 'float') -> 'None'` |  |
-| `WR_pw_wait_for_url` | `(url: 'str', timeout: 'float | None' = None) -> 'None'` |  |
+| `WR_pw_wait_for_load_state` | `(state: 'str' = 'load', timeout: 'float | None' = None) -> 'None'` | Wait until the page reaches the load state ``state``; ``timeout`` is in milliseconds. |
+| `WR_pw_wait_for_selector` | `(selector: 'str', timeout: 'float | None' = None, state: 'str' = 'visible')` | Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds. |
+| `WR_pw_wait_for_timeout` | `(timeout_ms: 'float') -> 'None'` | Pause for ``timeout_ms`` milliseconds. |
+| `WR_pw_wait_for_url` | `(url: 'str', timeout: 'float | None' = None) -> 'None'` | Wait until the page has navigated to ``url``; ``timeout`` is in milliseconds. |
 | `WR_quarantine_age_report_assert_no_abandoned` | `(registry_path: 'str | None' = None, entries: 'list[dict[str, Any]] | None' = None, now: 'str | None' = None) -> 'Any'` | Fail when a test has been quarantined for 90 days or more. |
 | `WR_quarantine_age_report_build` | `(registry_path: 'str | None' = None, entries: 'list[dict[str, Any]] | None' = None, now: 'str | None' = None) -> 'Any'` | Report how long each quarantined test has been parked: fresh, lingering, stale or abandoned. |
 | `WR_quarantine_age_report_markdown` | `(registry_path: 'str | None' = None, entries: 'list[dict[str, Any]] | None' = None, now: 'str | None' = None, top_n: 'int' = 10) -> 'str'` | Render the quarantine age report as markdown. |
@@ -895,8 +895,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_rtl_layout_verify_check` | `(payload: 'dict[str, Any]', selectors: 'list[str] | None' = None, ordered_selectors: 'list[str] | None' = None) -> 'dict[str, Any]'` | Report what is wrong with a right-to-left layout: document direction, physical margins, bidi leaks, order. |
 | `WR_run_ab` | `(action_data: 'Any', setup_a: 'Callable[[], Any] | None' = None, setup_b: 'Callable[[], Any] | None' = None, runner: 'Callable[[Any], Any] | None' = None) -> 'dict[str, Any]'` | 對兩個環境跑同一份 action 並回傳比對結果 |
 | `WR_run_for_users` | `(action_data: 'Any', user_setups: 'list[tuple[str, Callable[[], Any] | None]]', runner: 'Callable[[Any], Any] | None' = None) -> 'dict[str, Any]'` | 對每位使用者執行一次 ``action_data``，回傳記錄與差異 |
-| `WR_run_scheduler_for` | `(seconds: 'float') -> 'None'` |  |
-| `WR_run_scheduler_forever` | `() -> 'None'` |  |
+| `WR_run_scheduler_for` | `(seconds: 'float') -> 'None'` | Run the module-level runner's jobs for ``seconds``, then return. |
+| `WR_run_scheduler_forever` | `() -> 'None'` | Run the module-level runner's jobs until ``stop_scheduler`` is called. |
 | `WR_run_with_dataset` | `(action_data, rows)` |  |
 | `WR_save_cookies` | `(file_path: 'str') -> 'bool'` | 將當前頁面的 cookies 序列化為 JSON 並寫入檔案 (用於 session reuse)。 |
 | `WR_save_full_page_screenshot` | `(file_path: 'str') -> 'bool'` | 將整個頁面 (含可視範圍外) 截圖儲存為 PNG，透過 CDP |
@@ -909,8 +909,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_sbom_diff_markdown` | `(base: 'dict[str, Any] | str', head: 'dict[str, Any] | str') -> 'str'` | Return the difference of two CycloneDX SBOMs as Markdown, ready for a PR comment. |
 | `WR_scan_secrets` | `(data: 'Any') -> 'list[dict[str, Any]]'` | 掃描 action 結構，回傳所有疑似秘密的位置 |
 | `WR_scan_secrets_file` | `(path: 'str') -> 'list[dict[str, Any]]'` | 讀取 action JSON 檔並掃描 / Load an action JSON file and scan it. |
-| `WR_schedule` | `(name: 'str', interval_seconds: 'float', callback: 'Callable[[], Any]') -> 'None'` |  |
-| `WR_scheduler_counts` | `() -> 'dict[str, int]'` |  |
+| `WR_schedule` | `(name: 'str', interval_seconds: 'float', callback: 'Callable[[], Any]') -> 'None'` | Register ``callback`` on the module-level runner to fire every ``interval_seconds``. |
+| `WR_scheduler_counts` | `() -> 'dict[str, int]'` | Return how many times each job of the module-level runner has fired, by name. |
 | `WR_screen_reader_runner_assert_no_violations` | `(tree: 'dict[str, Any]') -> 'int'` | Fail when an accessibility tree has an unnamed control, a skipped heading level, an image without alt |
 | `WR_screen_reader_runner_assert_reads` | `(tree: 'dict[str, Any]', expected_phrase: 'str') -> 'dict[str, Any]'` | Fail unless a screen reader walking the accessibility tree would say ``expected_phrase``. |
 | `WR_screen_reader_runner_walk` | `(tree: 'dict[str, Any]', include_decorative: 'bool' = False) -> 'dict[str, Any]'` | Say what a screen reader would announce for an accessibility tree, and list the problems met on the way. |
@@ -923,9 +923,9 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_sel_to_pw_translate_python` | `(source: 'str') -> 'list[dict[str, Any]]'` | Translate Selenium Python source line by line; returns each changed line with its Playwright draft. |
 | `WR_send_keys` | `(keys_to_send) -> 'None'` | 發送鍵盤按鍵 (按下並釋放) |
 | `WR_send_keys_to_element` | `(element_name: 'str', keys_to_send) -> 'None'` | 使用 TestObject 名稱找到元素並發送鍵盤按鍵 |
-| `WR_session_storage_clear` | `() -> 'None'` |  |
-| `WR_session_storage_get` | `(key: 'str') -> 'str | None'` |  |
-| `WR_session_storage_set` | `(key: 'str', value: 'str') -> 'None'` |  |
+| `WR_session_storage_clear` | `() -> 'None'` | Empty sessionStorage through the Selenium driver. |
+| `WR_session_storage_get` | `(key: 'str') -> 'str | None'` | Return the sessionStorage value of ``key`` (``None`` when absent) through the Selenium driver. |
+| `WR_session_storage_set` | `(key: 'str', value: 'str') -> 'None'` | Set ``key`` to ``value`` in sessionStorage through the Selenium driver. |
 | `WR_session_to_test_convert` | `(events: 'Any') -> 'dict[str, Any]'` | Turn a recorded user session into WebRunner actions. |
 | `WR_session_to_test_write` | `(events: 'Any', output_path: 'str') -> 'dict[str, Any]'` | Convert a recorded session like ``WR_session_to_test_convert`` and write the actions to a JSON file. |
 | `WR_set_action_span_factory` | `(factory: Optional[Callable[[str], Any]]) -> None` | 登錄一個 context-manager factory，每個 action 會被它包起來 |
@@ -995,7 +995,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_state_diff_capture` | `() -> 'dict[str, Any]'` | Snapshot the cookies, localStorage and sessionStorage of the current page. |
 | `WR_state_diff_compare` | `(before: 'dict[str, Any]', after: 'dict[str, Any]') -> 'dict[str, Any]'` | List what was added, removed or changed between two snapshots from ``WR_state_diff_capture``. |
 | `WR_stop_har_recording` | `(har_path: 'str | None') -> 'str | None'` | Stop recording and write the HAR 1.2 log to ``har_path`` (nothing is written for None). |
-| `WR_stop_scheduler` | `() -> 'None'` |  |
+| `WR_stop_scheduler` | `() -> 'None'` | Stop the module-level runner. |
 | `WR_storage_buckets_assert` | `(snapshot: 'dict[str, Any]', supported: 'bool' = True, bucket: 'str | None' = None, durability: 'str | None' = None, allowed: 'list[str] | None' = None) -> 'dict[str, Any]'` | Check a storage-buckets snapshot: the API is ``supported``, ``bucket`` exists (with ``durability`` |
 | `WR_storage_buckets_assert_isolated` | `(snapshot: 'dict[str, Any]', db_name: 'str', expected_bucket: 'str') -> 'bool'` | Fail unless the IndexedDB database ``db_name`` lives in ``expected_bucket`` and in no other bucket. |
 | `WR_storage_buckets_harvest` | `() -> 'dict[str, Any]'` | Snapshot the current page's storage buckets: ``{"supported": bool, "buckets": [{name, idb_databases, ...}]}``. |
@@ -1018,7 +1018,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_tc_cleanup_all` | `() -> 'None'` | Stop every container started by this module. |
 | `WR_tc_generic` | `(image: 'str', ports: 'dict[int, int] | None' = None) -> 'Any'` | 啟動任意 Docker image |
 | `WR_tc_postgres` | `(image: 'str' = 'postgres:16-alpine', username: 'str' = 'test', password: 'str' = 'test', dbname: 'str' = 'test') -> 'Any'` | 啟動暫存 Postgres，回傳 container 實例（含 ``get_connection_url()``） |
-| `WR_tc_redis` | `(image: 'str' = 'redis:7-alpine') -> 'Any'` |  |
+| `WR_tc_redis` | `(image: 'str' = 'redis:7-alpine') -> 'Any'` | Start a Redis container from ``image`` and return it; it is remembered so that |
 | `WR_tc_started_count` | `() -> 'int'` | How many containers are tracked as live by this module. |
 | `WR_tc_stop` | `(container: 'Any') -> 'None'` | Stop a single container started by this module. |
 | `WR_test_auto_repair_apply` | `(action_path: 'str', plan: 'dict[str, Any]', output_path: 'str | None' = None, min_confidence: 'float' = 0.5) -> 'str'` | Write a repair plan's action list next to the action file (``<file>.repaired.json``) or to ``output_path``. |
@@ -1117,8 +1117,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_visual_ai_assert_similar` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Fail when two image files look less alike than ``threshold`` (arguments as ``WR_visual_ai_compare``). |
 | `WR_visual_ai_compare` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Score how alike two image files look (three perceptual hashes and a structural score, 0-1). |
 | `WR_visual_ai_hash` | `(image_path: 'str', kind: 'str' = 'dhash', crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, str]'` | Compute a perceptual hash of an image file. |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001EB806F1EE0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001EB806F1EE0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002524BAB7600>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002524BAB7600>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_visual_review_accept` | `(baseline_dir: 'str', current_dir: 'str', name: 'str') -> 'str'` | Accept a changed screenshot: copy ``current_dir/name`` over the baseline; returns the baseline path. |
 | `WR_visual_review_assert_no_diffs` | `(baseline_dir: 'str', current_dir: 'str') -> 'int'` | Fail when a screenshot differs from, or is missing on either side of, its baseline; returns the count. |
 | `WR_visual_review_list` | `(baseline_dir: 'str', current_dir: 'str') -> 'list[dict[str, str]]'` | Pair the PNG files of a baseline and a current directory by name and say how each pair stands. |

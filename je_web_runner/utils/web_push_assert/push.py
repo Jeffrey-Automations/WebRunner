@@ -73,6 +73,7 @@ _KNOWN_PUSH_HOSTS = (
 
 @dataclass
 class Subscription:
+    """The options and endpoint of one ``PushManager.subscribe`` call."""
     application_server_key: str = ""
     user_visible_only: bool = False
     endpoint: str = ""
@@ -80,6 +81,7 @@ class Subscription:
 
 @dataclass
 class Notification:
+    """Title, body and tag of one ``showNotification`` call."""
     title: str = ""
     body: str = ""
     tag: str = ""
@@ -87,11 +89,15 @@ class Notification:
 
 @dataclass
 class PushLog:
+    """The subscriptions and notifications captured in the page."""
     subscriptions: list[Subscription] = field(default_factory=list)
     notifications: list[Notification] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> PushLog:
+    """Build a ``PushLog`` from the dict captured in the page, skipping entries that
+    are not objects. Raises ``WebPushAssertError`` when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise WebPushAssertError("payload must be a dict")
     subs: list[Subscription] = []
@@ -125,6 +131,9 @@ def _normalize_b64(value: str) -> str:
 def assert_subscribed_with_vapid(
     log: PushLog, *, vapid_public_key: str,
 ) -> None:
+    """Raise ``WebPushAssertError`` when the page never subscribed, or when a
+    subscription used an application server key other than ``vapid_public_key``.
+    """
     if not vapid_public_key:
         raise WebPushAssertError("vapid_public_key must be non-empty")
     if not log.subscriptions:
@@ -141,6 +150,7 @@ def assert_subscribed_with_vapid(
 
 
 def assert_user_visible_only(log: PushLog) -> None:
+    """Raise ``WebPushAssertError`` when a subscription was created without ``userVisibleOnly``."""
     for sub in log.subscriptions:
         if not sub.user_visible_only:
             raise WebPushAssertError(
@@ -150,6 +160,9 @@ def assert_user_visible_only(log: PushLog) -> None:
 
 
 def assert_endpoint_recognised(log: PushLog) -> None:
+    """Raise ``WebPushAssertError`` when a subscription's endpoint host is not a known
+    push service; subscriptions without an endpoint are skipped.
+    """
     for sub in log.subscriptions:
         if not sub.endpoint:
             continue   # endpoint only populated after Push service returns
@@ -165,6 +178,9 @@ def assert_endpoint_recognised(log: PushLog) -> None:
 def assert_notification_shown(
     log: PushLog, *, body_contains: str = "",
 ) -> Notification:
+    """Return the first notification, or with ``body_contains`` the first whose body or
+    title contains it. Raises ``WebPushAssertError`` when there is none.
+    """
     if not log.notifications:
         raise WebPushAssertError(
             "page received push but never called showNotification()"

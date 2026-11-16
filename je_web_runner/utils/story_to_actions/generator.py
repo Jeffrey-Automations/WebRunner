@@ -77,7 +77,8 @@ class StoryPrompt:
 class StoryClient(Protocol):
     """LLM client interface. ``generate`` returns a JSON-string action list."""
 
-    def generate(self, prompt_text: str) -> str: ...
+    def generate(self, prompt_text: str) -> str:
+        """Send ``prompt_text`` to the model and return its raw text reply."""
 
 
 # ---------- prompt construction ----------------------------------------

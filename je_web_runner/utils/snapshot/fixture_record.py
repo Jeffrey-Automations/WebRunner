@@ -23,6 +23,7 @@ class FixtureRecorderError(WebRunnerException):
 
 
 class RecorderMode(Enum):
+    """Whether a recorder writes new values, replays stored ones, or picks per key."""
     RECORD = "record"
     REPLAY = "replay"
     AUTO = "auto"  # replay if recording exists, otherwise record
@@ -53,20 +54,24 @@ class FixtureRecorder:
         return self._cache
 
     def has(self, key: str) -> bool:
+        """True when a value is recorded under ``key``."""
         return key in self._load()
 
     def get(self, key: str) -> Any:
+        """Return the value recorded under ``key``; raises ``FixtureRecorderError`` if there is none."""
         cache = self._load()
         if key not in cache:
             raise FixtureRecorderError(f"no recording for key {key!r}")
         return cache[key]
 
     def set(self, key: str, value: Any) -> None:
+        """Record ``value`` under ``key`` in memory; ``flush`` writes it to disk."""
         cache = self._load()
         cache[key] = value
         self._dirty = True
 
     def flush(self) -> None:
+        """Write the recordings to the fixture file as JSON, if anything changed since the last write."""
         if not self._dirty:
             return
         cache = self._cache or {}

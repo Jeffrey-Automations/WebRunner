@@ -34,9 +34,11 @@ class HeaderMap:
     headers: dict[str, list[str]] = field(default_factory=dict)
 
     def get_all(self, name: str) -> list[str]:
+        """Return every value recorded for header ``name`` (case-insensitive)."""
         return list(self.headers.get(name.lower(), []))
 
     def get_first(self, name: str) -> str | None:
+        """Return the first value of header ``name``, or None when the header is absent."""
         all_ = self.get_all(name)
         return all_[0] if all_ else None
 
@@ -72,6 +74,7 @@ def _auth_results_says(headers: HeaderMap, mechanism: str, status: str) -> bool:
 
 
 def assert_spf_pass(headers: HeaderMap) -> None:
+    """Raise ``EmailDeliverabilityError`` unless Authentication-Results or Received-SPF reports an SPF pass."""
     if _auth_results_says(headers, "spf", "pass"):
         return
     received_spf = headers.get_first("Received-SPF") or ""
@@ -82,6 +85,7 @@ def assert_spf_pass(headers: HeaderMap) -> None:
 
 
 def assert_dkim_pass(headers: HeaderMap) -> None:
+    """Raise ``EmailDeliverabilityError`` unless the message is DKIM-signed and Authentication-Results says pass."""
     if not headers.get_all("DKIM-Signature"):
         raise EmailDeliverabilityError(
             "message has no DKIM-Signature header"
@@ -94,6 +98,7 @@ def assert_dkim_pass(headers: HeaderMap) -> None:
 
 
 def assert_dmarc_pass(headers: HeaderMap, *, expected_policy: str = "") -> None:
+    """Raise ``EmailDeliverabilityError`` unless DMARC passed and, when given, the policy is ``expected_policy``."""
     if not _auth_results_says(headers, "dmarc", "pass"):
         raise EmailDeliverabilityError(
             "no dmarc=pass in Authentication-Results"

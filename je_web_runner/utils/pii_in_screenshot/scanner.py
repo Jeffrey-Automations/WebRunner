@@ -113,6 +113,7 @@ class PiiFinding:
     raw_excerpt: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding fields as a plain dict."""
         return asdict(self)
 
 
@@ -204,6 +205,7 @@ class ScanReport:
     by_severity: dict[str, int] = field(default_factory=dict)
 
     def passed(self) -> bool:
+        """Return True when the scan found no PII."""
         return not self.findings
 
 

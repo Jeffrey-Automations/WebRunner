@@ -30,17 +30,20 @@ class FailureBundle:
     network_errors: list[dict[str, Any]] = field(default_factory=list)
 
     def is_empty(self) -> bool:
+        """True when the bundle holds no exception text, last action, console error or network error."""
         return not (self.exception_text or self.last_action
                     or self.console_errors or self.network_errors)
 
 
 @dataclass
 class Tag:
+    """A label put on a failure, with a confidence and the reason it was chosen."""
     name: str
     confidence: float = 1.0
     reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the tag as a plain dict."""
         return asdict(self)
 
 
@@ -128,6 +131,7 @@ def _coerce_confidence(value: Any) -> float:
 
 
 def llm_tags(bundle: FailureBundle, tagger: LlmTagger) -> list[Tag]:
+    """Ask ``tagger`` for tags and return the well-formed ones; raise ``FailureAutoTagError`` if it fails."""
     if not callable(tagger):
         raise FailureAutoTagError("tagger must be callable")
     try:
@@ -163,6 +167,7 @@ def merge_tags(*streams: Sequence[Tag]) -> list[Tag]:
 
 
 def assert_tagged_with(tags: Sequence[Tag], expected: str) -> None:
+    """Raise ``FailureAutoTagError`` unless one of ``tags`` is named ``expected``."""
     if not any(t.name == expected for t in tags):
         raise FailureAutoTagError(
             f"expected tag {expected!r}, got {[t.name for t in tags]}"

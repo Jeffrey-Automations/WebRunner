@@ -52,9 +52,11 @@ class HeaderPolicy:
     csp_frame_ancestors: str | None = None
 
     def normalized_xfo(self) -> str:
+        """The ``X-Frame-Options`` value, stripped and upper-cased (empty when absent)."""
         return (self.x_frame_options or "").strip().upper()
 
     def normalized_fa(self) -> str:
+        """The CSP ``frame-ancestors`` value, stripped and lower-cased (empty when absent)."""
         return (self.csp_frame_ancestors or "").strip().lower()
 
 
@@ -79,20 +81,25 @@ def parse_response_headers(
 
 # ---------- verdict ---------------------------------------------------
 
+def _classify_frame_ancestors(frame_ancestors: str) -> Verdict:
+    """The verdict a non-empty CSP ``frame-ancestors`` value gives."""
+    tokens = frame_ancestors.split()
+    if "'none'" in tokens or "none" in tokens:
+        return Verdict.STRICT
+    if any(t in tokens for t in ("*", "http:", "https:")):
+        return Verdict.ALLOWED
+    if "'self'" in tokens or "self" in tokens:
+        return Verdict.SAMEORIGIN
+    return Verdict.ALLOWED
+
+
 def classify(policy: HeaderPolicy) -> Verdict:
     """Return the strictest applicable :class:`Verdict`."""
     if not isinstance(policy, HeaderPolicy):
         raise ClickjackingAuditError("classify expects HeaderPolicy")
     fa = policy.normalized_fa()
     if fa:
-        tokens = fa.split()
-        if "'none'" in tokens or "none" in tokens:
-            return Verdict.STRICT
-        if any(t in tokens for t in ("*", "http:", "https:")):
-            return Verdict.ALLOWED
-        if "'self'" in tokens or "self" in tokens:
-            return Verdict.SAMEORIGIN
-        return Verdict.ALLOWED
+        return _classify_frame_ancestors(fa)
     xfo = policy.normalized_xfo()
     if xfo == "DENY":
         return Verdict.STRICT
@@ -164,6 +171,7 @@ class AuditReport:
     notes: list[str] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True for a strict or same-origin policy whose iframe probe, when one ran, was blocked."""
         if self.verdict in (Verdict.STRICT, Verdict.SAMEORIGIN):
             if self.probe_status is None:
                 return True
@@ -171,6 +179,7 @@ class AuditReport:
         return False
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a dict, including the computed ``passed`` flag."""
         return {
             "target_url": self.target_url,
             "verdict": self.verdict.value,

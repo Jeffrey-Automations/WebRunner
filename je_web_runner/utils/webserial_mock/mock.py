@@ -76,16 +76,21 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class MockSerialPort:
+    """The USB ids, if any, the fake serial port reports."""
     vendor_id: int | None = None
     product_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
 def build_mock_port(
     vendor_id: int | None = None, product_id: int | None = None,
 ) -> MockSerialPort:
+    """Return a ``MockSerialPort``; raises ``WebserialMockError`` when a given id does
+    not fit in an unsigned 16-bit integer.
+    """
     for tag, value in (("vendor", vendor_id), ("product", product_id)):
         if value is not None and not 0 <= value <= 0xFFFF:
             raise WebserialMockError(f"{tag} id must fit in uint16")
@@ -93,6 +98,9 @@ def build_mock_port(
 
 
 def encode_lines(lines: Sequence[str], newline: str = "\n") -> list[int]:
+    """Return the UTF-8 bytes of the lines, each followed by ``newline``, as a list of ints.
+    Raises ``WebserialMockError`` when an argument or a line has the wrong type.
+    """
     if not isinstance(lines, (list, tuple)):
         raise WebserialMockError("lines must be a sequence of str")
     if not isinstance(newline, str):
@@ -106,6 +114,9 @@ def encode_lines(lines: Sequence[str], newline: str = "\n") -> list[int]:
 
 
 def parse_outbound(payload: Any) -> list[bytes]:
+    """Turn the list of byte lists the page wrote into ``bytes`` chunks, skipping
+    entries that are not lists. Raises ``WebserialMockError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise WebserialMockError("payload must be a list")
     out: list[bytes] = []
@@ -119,6 +130,9 @@ def parse_outbound(payload: Any) -> list[bytes]:
 def assert_lines_written(
     chunks: Iterable[bytes], *, expected: Sequence[str], newline: str = "\n",
 ) -> None:
+    """Raise ``WebserialMockError`` unless the chunks, joined and split on ``newline``
+    with empty lines dropped, equal ``expected``.
+    """
     joined = b"".join(chunks).decode("utf-8", errors="replace")
     actual = [line for line in joined.split(newline) if line != ""]
     if actual != list(expected):

@@ -27,6 +27,7 @@ class FormAutoFillError(WebRunnerException):
 
 @dataclass
 class FieldMatch:
+    """One field paired with the fixture key and value chosen for it, with the confidence and reason."""
     field: dict[str, Any]
     fixture_key: str
     value: Any
@@ -55,10 +56,20 @@ _ALIAS_BUCKETS: dict[str, list[str]] = {
 }
 
 
-_CANONICAL_BY_TOKEN: dict[str, str] = {}
-for canonical, aliases in _ALIAS_BUCKETS.items():
-    for alias in aliases:
-        _CANONICAL_BY_TOKEN[alias] = canonical
+_CANONICAL_BY_TOKEN: dict[str, str] = {
+    alias: canonical
+    for canonical, aliases in _ALIAS_BUCKETS.items()
+    for alias in aliases
+}
+
+# ``type`` attributes that decide the canonical key on their own.
+_CANONICAL_BY_TYPE: dict[str, str] = {
+    "password": "password",
+    "email": "email",
+    "tel": "phone",
+    "phone": "phone",
+    "search": "search",
+}
 
 
 def _normalise(text: Any) -> str:
@@ -75,14 +86,8 @@ def classify_field(field: dict[str, Any]) -> str | None:
     if not isinstance(field, dict):
         return None
     field_type = str(field.get("type") or "").lower()
-    if field_type == "password":
-        return "password"
-    if field_type == "email":
-        return "email"
-    if field_type in {"tel", "phone"}:
-        return "phone"
-    if field_type == "search":
-        return "search"
+    if field_type in _CANONICAL_BY_TYPE:
+        return _CANONICAL_BY_TYPE[field_type]
     candidates = [
         field.get("data-testid"),
         field.get("id"),

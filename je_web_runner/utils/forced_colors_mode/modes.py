@@ -32,21 +32,25 @@ class ForcedColorsModeError(WebRunnerException):
 
 
 class ColorScheme(str, Enum):
+    """The ``prefers-color-scheme`` values."""
     LIGHT = "light"
     DARK = "dark"
 
 
 class ReducedMotion(str, Enum):
+    """The ``prefers-reduced-motion`` values."""
     NO_PREFERENCE = "no-preference"
     REDUCE = "reduce"
 
 
 class ForcedColors(str, Enum):
+    """The ``forced-colors`` values."""
     NONE = "none"
     ACTIVE = "active"
 
 
 class Contrast(str, Enum):
+    """The ``prefers-contrast`` values."""
     NO_PREFERENCE = "no-preference"
     MORE = "more"
     LESS = "less"
@@ -175,6 +179,7 @@ class ModeAuditReport:
     invisible_in_modes: dict[str, list[str]] = field(default_factory=dict)
 
     def passed(self) -> bool:
+        """True when no element was found invisible in any mode."""
         return not self.invisible_in_modes
 
 

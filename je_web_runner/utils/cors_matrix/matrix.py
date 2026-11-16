@@ -26,6 +26,7 @@ class CorsMatrixError(WebRunnerException):
 
 
 class CorsOutcome(str, Enum):
+    """Whether the browser would let a cross-origin request through."""
     ALLOWED = "allowed"
     BLOCKED = "blocked"
     AMBIGUOUS = "ambiguous"
@@ -45,6 +46,7 @@ class CorsCase:
     with_credentials: bool
 
     def needs_preflight(self) -> bool:
+        """True when the verb is one that makes the browser send a preflight request."""
         return self.verb.upper() in _PREFLIGHT_VERBS
 
 
@@ -94,6 +96,7 @@ class CorsResult:
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the case, outcome, response and note as a dict."""
         return {
             "case": asdict(self.case),
             "outcome": self.outcome.value,

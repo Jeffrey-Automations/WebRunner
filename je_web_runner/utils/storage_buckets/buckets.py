@@ -73,6 +73,7 @@ class BucketSnapshot:
     estimate: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -84,10 +85,15 @@ class BucketsReport:
     buckets: list[BucketSnapshot] = field(default_factory=list)
 
     def by_name(self) -> dict[str, BucketSnapshot]:
+        """Return the buckets keyed by bucket name."""
         return {b.name: b for b in self.buckets}
 
 
 def parse_snapshot(payload: Any) -> BucketsReport:
+    """Build a ``BucketsReport`` from the dict harvested from the page, skipping
+    bucket entries without a name. Raises ``StorageBucketsError`` when the payload is
+    not a dict or its ``buckets`` field is not a list.
+    """
     if not isinstance(payload, dict):
         raise StorageBucketsError(
             f"snapshot must be dict, got {type(payload).__name__}"
@@ -116,11 +122,15 @@ def parse_snapshot(payload: Any) -> BucketsReport:
 # ---------- assertions --------------------------------------------------
 
 def assert_supported(report: BucketsReport) -> None:
+    """Raise ``StorageBucketsError`` when the browser reported no Storage Buckets support."""
     if not report.supported:
         raise StorageBucketsError("Storage Buckets API not supported in this browser")
 
 
 def assert_bucket_present(report: BucketsReport, *, name: str) -> BucketSnapshot:
+    """Return the bucket called ``name``; raises ``StorageBucketsError`` listing the
+    buckets that exist when it is absent.
+    """
     if not isinstance(name, str) or not name:
         raise StorageBucketsError("name must be non-empty string")
     for bucket in report.buckets:
@@ -153,6 +163,9 @@ def assert_idb_isolated(
 def assert_durability(
     report: BucketsReport, *, name: str, expected: str,
 ) -> None:
+    """Raise ``StorageBucketsError`` unless bucket ``name`` exists and has durability
+    ``expected`` (``"strict"`` or ``"relaxed"``).
+    """
     if expected not in ("strict", "relaxed"):
         raise StorageBucketsError(
             f"expected must be 'strict' or 'relaxed', got {expected!r}"
@@ -167,6 +180,7 @@ def assert_durability(
 def assert_no_unexpected_buckets(
     report: BucketsReport, *, allowed: Sequence[str],
 ) -> None:
+    """Raise ``StorageBucketsError`` when a bucket outside ``allowed`` exists."""
     extras = [b.name for b in report.buckets if b.name not in allowed]
     if extras:
         raise StorageBucketsError(

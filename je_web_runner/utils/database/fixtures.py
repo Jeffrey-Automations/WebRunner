@@ -22,7 +22,7 @@ class DbFixtureError(WebRunnerException):
     """Raised when a fixture file or shape is invalid."""
 
 
-_AllowedScalar = (str, int, float, bool, type(None))
+_ALLOWED_SCALAR = (str, int, float, bool, type(None))
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_]\w*$")
 
 
@@ -71,7 +71,7 @@ def _validate_rows(table: str, rows: list[Any]) -> list[dict[str, Any]]:
                 f"{table!r} row {index} must be an object, got {type(row).__name__}"
             )
         for column, value in row.items():
-            if not isinstance(value, _AllowedScalar):
+            if not isinstance(value, _ALLOWED_SCALAR):
                 raise DbFixtureError(
                     f"{table!r}.{column}: unsupported type {type(value).__name__}"
                 )

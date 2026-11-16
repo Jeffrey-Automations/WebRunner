@@ -31,7 +31,7 @@ _token_cache: dict[str, dict[str, Any]] = {}
 def _check_token_url(url: str) -> str:
     if not isinstance(url, str) or not url:
         raise OAuthError("token_url must be a non-empty string")
-    if not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list, not an outbound HTTP call
+    if not url.startswith(("http://", "https://")):  # NOSONAR — scheme allow-list, not an outbound HTTP call
         raise OAuthError(f"token_url must be http(s): {url!r}")
     return url
 
@@ -79,7 +79,7 @@ def client_credentials_token(
     return payload
 
 
-def password_grant_token(
+def password_grant_token(  # pylint: disable=too-many-arguments,too-many-positional-arguments  # public signature
     token_url: str,
     client_id: str,
     client_secret: str,
@@ -121,6 +121,7 @@ def refresh_token_grant(
     cache_key: str | None = None,
     timeout: int = _DEFAULT_TIMEOUT,
 ) -> dict[str, Any]:
+    """Exchange a refresh token at ``token_url`` and return the token payload, cached under ``cache_key`` if given."""
     data: dict[str, Any] = {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
@@ -134,6 +135,7 @@ def refresh_token_grant(
 
 
 def get_cached_token(cache_key: str) -> dict[str, Any] | None:
+    """Return the token cached under ``cache_key``, or None when there is none or it has expired."""
     if not cache_key:
         return None
     cached = _token_cache.get(cache_key)
@@ -144,6 +146,7 @@ def get_cached_token(cache_key: str) -> dict[str, Any] | None:
 
 
 def clear_token_cache() -> None:
+    """Forget every cached token."""
     _token_cache.clear()
 
 

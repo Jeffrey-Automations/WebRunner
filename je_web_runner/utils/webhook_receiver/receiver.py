@@ -45,9 +45,11 @@ class ReceivedRequest:
     timestamp: float = field(default_factory=time.time)
 
     def body_text(self, encoding: str = "utf-8") -> str:
+        """Return the body decoded as text, with undecodable bytes replaced."""
         return self.body.decode(encoding, errors="replace")
 
     def body_json(self) -> Any:
+        """Return the body parsed as JSON; raises ``WebhookReceiverError`` when it is not JSON."""
         try:
             return json.loads(self.body_text())
         except ValueError as error:
@@ -56,6 +58,7 @@ class ReceivedRequest:
             ) from error
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the request as a plain dict, with the body decoded as UTF-8 text."""
         out = asdict(self)
         out["body"] = self.body.decode("utf-8", errors="replace")
         return out
@@ -82,7 +85,7 @@ def _response_for(request: ReceivedRequest, response_fn: ResponseFn | None) -> d
     if response_fn is not None:
         try:
             override = response_fn(request)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # logged; the default is sent
             web_runner_logger.warning(f"response_fn raised: {error!r}")
             override = None
         if override:
@@ -100,7 +103,7 @@ class _ResponseWriter(BaseHTTPRequestHandler):
 
     # Parameter names match the BaseHTTPRequestHandler signature.
     def log_message(self, format: str, *args: Any) -> None:  # pylint: disable=redefined-builtin
-        web_runner_logger.debug("webhook " + (format % args))
+        web_runner_logger.debug("webhook %s", format % args)
 
     def _respond(self, response: dict[str, Any]) -> None:
         self.send_response(int(response["status"]))
@@ -138,13 +141,30 @@ def _build_handler(
                 received.append(request)
             self._respond(_response_for(request, response_fn))
 
-        # noinspection PyPep8Naming
-        def do_GET(self) -> None: self._handle("GET")
-        def do_POST(self) -> None: self._handle("POST")
-        def do_PUT(self) -> None: self._handle("PUT")
-        def do_PATCH(self) -> None: self._handle("PATCH")
-        def do_DELETE(self) -> None: self._handle("DELETE")
-        def do_OPTIONS(self) -> None: self._handle("OPTIONS")
+        def do_GET(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer a GET request."""
+            self._handle("GET")
+
+        def do_POST(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer a POST request."""
+            self._handle("POST")
+
+        def do_PUT(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer a PUT request."""
+            self._handle("PUT")
+
+        def do_PATCH(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer a PATCH request."""
+            self._handle("PATCH")
+
+        def do_DELETE(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer a DELETE request."""
+            self._handle("DELETE")
+
+        def do_OPTIONS(self) -> None:  # pylint: disable=invalid-name  # stdlib HTTP verb dispatch contract
+            """Record and answer an OPTIONS request."""
+            self._handle("OPTIONS")
+
     return WebhookHandler
 
 
@@ -174,11 +194,15 @@ class WebhookServer:
 
     @property
     def base_url(self) -> str:
+        """The ``http://host:port`` URL the app under test should send its webhooks to."""
         # S5332 ok: this is a localhost test-fixture HTTP server with random
         # port, intentionally plain HTTP so callers can hit it without certs.
         return f"http://{self._host}:{self._port}"  # NOSONAR S5332 — intentional plain HTTP
 
     def start(self) -> WebhookServer:
+        """Bind the server and serve from a daemon thread; returns ``self``.
+        Raises ``WebhookReceiverError`` when it is already started or the address cannot be bound.
+        """
         if self._server is not None:
             raise WebhookReceiverError("server already started")
         handler_cls = _build_handler(
@@ -198,6 +222,7 @@ class WebhookServer:
         return self
 
     def stop(self) -> None:
+        """Shut the server down and wait up to 5 seconds for its thread; does nothing when not started."""
         if self._server is None:
             return
         self._server.shutdown()
@@ -214,10 +239,12 @@ class WebhookServer:
         self.stop()
 
     def received(self) -> list[ReceivedRequest]:
+        """Return a copy of the requests received so far, in arrival order."""
         with self._lock:
             return list(self._received)
 
     def clear(self) -> None:
+        """Forget the requests received so far."""
         with self._lock:
             self._received.clear()
 
@@ -239,7 +266,7 @@ class WebhookServer:
                 try:
                     if predicate(request):
                         return request
-                except Exception as error:
+                except Exception as error:  # pylint: disable=broad-exception-caught  # logged; polling goes on
                     web_runner_logger.warning(f"wait_for predicate raised: {error!r}")
             time.sleep(interval)
         raise WebhookReceiverError(
@@ -304,8 +331,8 @@ def assert_received_json_matching(
         try:
             if predicate(payload):
                 return request
-        except Exception:  # nosec B112 — user predicate may legitimately raise; skip + continue
-            continue
+        except Exception as error:  # pylint: disable=broad-exception-caught  # user predicate; logged, skipped
+            web_runner_logger.warning(f"webhook json predicate raised: {error!r}")
     raise WebhookReceiverError(
         f"no JSON webhook matched: {description}"
     )

@@ -83,12 +83,14 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class MockUsbDevice:
+    """The identity of the fake USB device handed to the shim."""
     vendor_id: int
     product_id: int
     product_name: str = ""
     serial_number: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -96,6 +98,9 @@ def build_mock_device(
     vendor_id: int, product_id: int, *,
     product_name: str = "", serial_number: str = "",
 ) -> MockUsbDevice:
+    """Return a ``MockUsbDevice``; raises ``WebusbMockError`` when an id does not fit in
+    an unsigned 16-bit integer.
+    """
     if not 0 <= vendor_id <= 0xFFFF or not 0 <= product_id <= 0xFFFF:
         raise WebusbMockError("vendor/product id must fit in uint16")
     return MockUsbDevice(vendor_id=vendor_id, product_id=product_id,
@@ -105,6 +110,7 @@ def build_mock_device(
 
 @dataclass
 class OutgoingCall:
+    """One control or bulk transfer the page sent out, with its endpoint, setup packet and data."""
     kind: str            # "controlOut" | "transferOut"
     endpoint: int | None = None
     setup: dict[str, Any] | None = None
@@ -112,6 +118,9 @@ class OutgoingCall:
 
 
 def parse_outgoing(payload: Any) -> list[OutgoingCall]:
+    """Turn the list recorded by the shim into ``OutgoingCall`` records, skipping
+    entries that are not objects. Raises ``WebusbMockError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise WebusbMockError("payload must be a list")
     out: list[OutgoingCall] = []
@@ -131,6 +140,9 @@ def assert_transfer_out(
     calls: Iterable[OutgoingCall],
     *, endpoint: int, contains: Sequence[int] | None = None,
 ) -> OutgoingCall:
+    """Return the first ``transferOut`` on ``endpoint``, or with ``contains`` the first
+    whose data holds that byte run. Raises ``WebusbMockError`` when there is none.
+    """
     matches = [c for c in calls
                if c.kind == "transferOut" and c.endpoint == endpoint]
     if not matches:
@@ -153,6 +165,9 @@ def assert_control_out(
     calls: Iterable[OutgoingCall],
     *, request: int | None = None,
 ) -> OutgoingCall:
+    """Return the first ``controlTransferOut``, or with ``request`` the first whose setup
+    packet has that request number. Raises ``WebusbMockError`` when there is none.
+    """
     matches = [c for c in calls if c.kind == "controlOut"]
     if not matches:
         raise WebusbMockError("no controlTransferOut calls")

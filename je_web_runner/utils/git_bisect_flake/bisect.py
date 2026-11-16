@@ -91,6 +91,7 @@ class BisectResult:
     history: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the result fields as a plain dict."""
         return asdict(self)
 
 

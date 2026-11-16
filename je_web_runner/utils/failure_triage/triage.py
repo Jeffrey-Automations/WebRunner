@@ -45,7 +45,7 @@ _ERROR_EXCERPT_CHARS = 1500
 
 
 @dataclass
-class TriageSignals:
+class TriageSignals:  # pylint: disable=too-many-instance-attributes  # value object: the signals of a failure
     """Signals distilled from a failure bundle, ready for an LLM prompt."""
 
     test_name: str
@@ -155,7 +155,7 @@ _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
 @dataclass
-class TriageReport:
+class TriageReport:  # pylint: disable=too-many-instance-attributes  # value object: the report's fields
     """Structured RCA result returned by :func:`triage_failure`."""
 
     likely_cause: str
@@ -168,6 +168,7 @@ class TriageReport:
     error_signature: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a plain dict."""
         return asdict(self)
 
 

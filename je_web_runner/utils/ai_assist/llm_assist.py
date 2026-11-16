@@ -19,16 +19,17 @@ class LLMAssistError(WebRunnerException):
     """Raised when no LLM callable is registered or the response is malformed."""
 
 
-_llm_callable: Callable[[str], str] | None = None
+_llm_callable: Callable[[str], str] | None = None  # pylint: disable=invalid-name  # module state, not a constant
 
 
 def set_llm_callable(callable_obj: Callable[[str], str] | None) -> None:
     """登錄一個 ``Callable[[str], str]`` 用於後續所有 prompt。"""
-    global _llm_callable
+    global _llm_callable  # pylint: disable=global-statement  # the one registered callable of the process
     _llm_callable = callable_obj
 
 
 def has_llm_callable() -> bool:
+    """True when an LLM callable has been registered."""
     return _llm_callable is not None
 
 

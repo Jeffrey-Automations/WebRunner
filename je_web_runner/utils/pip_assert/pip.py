@@ -62,12 +62,14 @@ INSTALL_SCRIPT = r"""
 
 
 class Mode(str, Enum):
+    """The two Picture-in-Picture kinds: a video element or a document window."""
     VIDEO = "video"
     DOCUMENT = "document"
 
 
 @dataclass
 class PipEvent:
+    """One recorded ``enter`` or ``exit`` of Picture-in-Picture, with the window size when known."""
     kind: str        # "enter" | "exit"
     mode: Mode
     ts_ms: int = 0
@@ -75,15 +77,21 @@ class PipEvent:
     height: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the event as a dict with the mode as its string value."""
         return {**asdict(self), "mode": self.mode.value}
 
 
 @dataclass
 class PipLog:
+    """The Picture-in-Picture events of a page, in recorded order."""
     events: list[PipEvent] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> PipLog:
+    """Build a PipLog from the recorded list, skipping entries that are not enter/exit dicts.
+
+    Raises PipAssertError when the payload is not a list or an entry names an unknown mode.
+    """
     if not isinstance(payload, list):
         raise PipAssertError("payload must be a list")
     out: list[PipEvent] = []
@@ -109,6 +117,7 @@ def parse_log(payload: Any) -> PipLog:
 
 
 def assert_entered(log: PipLog, *, mode: Mode = Mode.VIDEO) -> None:
+    """Raise PipAssertError when the page never entered Picture-in-Picture in ``mode``."""
     if not any(e.kind == "enter" and e.mode == mode for e in log.events):
         raise PipAssertError(
             f"page never entered {mode.value} PiP"
@@ -116,6 +125,7 @@ def assert_entered(log: PipLog, *, mode: Mode = Mode.VIDEO) -> None:
 
 
 def assert_exited_cleanly(log: PipLog, *, mode: Mode = Mode.VIDEO) -> None:
+    """Raise PipAssertError when the enters and exits in ``mode`` do not pair up."""
     enters = sum(1 for e in log.events if e.kind == "enter" and e.mode == mode)
     exits = sum(1 for e in log.events if e.kind == "exit" and e.mode == mode)
     if enters != exits:
@@ -128,6 +138,9 @@ def assert_exited_cleanly(log: PipLog, *, mode: Mode = Mode.VIDEO) -> None:
 def assert_size_at_least(
     log: PipLog, *, min_width: int, min_height: int,
 ) -> None:
+    """Raise PipAssertError when a document Picture-in-Picture window opened smaller than
+    ``min_width`` x ``min_height``, or without a recorded size.
+    """
     if min_width <= 0 or min_height <= 0:
         raise PipAssertError("min_width/min_height must be positive")
     for e in log.events:

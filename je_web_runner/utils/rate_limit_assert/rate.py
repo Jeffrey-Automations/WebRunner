@@ -24,16 +24,19 @@ class RateLimitAssertError(WebRunnerException):
 
 @dataclass
 class RateLimitResponse:
+    """The status, headers and body of one response, with the rate-limit headers decoded."""
     status_code: int
     headers: dict[str, str] = field(default_factory=dict)
     body: Any = None
 
     @property
     def is_429(self) -> bool:
+        """True when the status is 429 Too Many Requests."""
         return self.status_code == 429
 
     @property
     def retry_after_seconds(self) -> float | None:
+        """The ``Retry-After`` header as seconds, or None when it is absent or not a number."""
         raw = self.headers.get("Retry-After") or self.headers.get("retry-after")
         if not raw:
             return None
@@ -44,11 +47,13 @@ class RateLimitResponse:
 
     @property
     def limit(self) -> int | None:
+        """The ``X-RateLimit-Limit`` header as an int, or None when absent or not digits."""
         raw = self.headers.get("X-RateLimit-Limit") or self.headers.get("x-ratelimit-limit")
         return int(raw) if raw and raw.isdigit() else None
 
     @property
     def remaining(self) -> int | None:
+        """The ``X-RateLimit-Remaining`` header as an int, or None when absent or not digits."""
         raw = self.headers.get("X-RateLimit-Remaining") or self.headers.get("x-ratelimit-remaining")
         return int(raw) if raw and raw.isdigit() else None
 
@@ -56,6 +61,10 @@ class RateLimitResponse:
 def assert_429_after_burst(
     responses: Sequence[RateLimitResponse], *, after: int,
 ) -> RateLimitResponse:
+    """Return the first 429 among the responses after the first ``after``.
+
+    Raises RateLimitAssertError when there is none or too few responses were given.
+    """
     if after < 1:
         raise RateLimitAssertError("after must be >= 1")
     if len(responses) <= after:
@@ -71,6 +80,9 @@ def assert_429_after_burst(
 
 
 def assert_retry_after_present(response: RateLimitResponse) -> None:
+    """Raise RateLimitAssertError unless the 429 response carries a positive ``Retry-After``;
+    also when the response is not a 429.
+    """
     if not response.is_429:
         raise RateLimitAssertError(
             "assert_retry_after_present called on non-429 response"

@@ -25,7 +25,7 @@ def selenium_page_html() -> str | None:
     try:
         driver = webdriver_wrapper_instance.current_webdriver
         return None if driver is None else str(driver.page_source)
-    except Exception as error:  # the action already failed; what the page holds is best effort
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
         web_runner_logger.warning(f"failure bundle: Selenium page source unavailable: {error!r}")
         return None
 
@@ -36,7 +36,7 @@ def playwright_page_html() -> str | None:
     try:
         wrapper = playwright_wrapper.playwright_wrapper_instance
         return str(wrapper.page.content()) if wrapper._pages else None  # pylint: disable=protected-access
-    except Exception as error:  # the action already failed; what the page holds is best effort
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
         web_runner_logger.warning(f"failure bundle: Playwright page content unavailable: {error!r}")
         return None
 

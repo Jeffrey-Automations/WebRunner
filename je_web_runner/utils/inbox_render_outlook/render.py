@@ -24,6 +24,7 @@ class InboxRenderOutlookError(WebRunnerException):
 
 
 class Severity(str, Enum):
+    """How serious a render finding is: ``info``, ``warn`` or ``error``."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
@@ -31,12 +32,14 @@ class Severity(str, Enum):
 
 @dataclass
 class RenderFinding:
+    """One compatibility problem found in an email's HTML, with the rule, severity and snippet."""
     rule: str
     severity: Severity
     message: str
     snippet: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
@@ -61,6 +64,10 @@ _HTML_TYPE_ERROR = "html must be a string"
 
 
 def audit_outlook(html: str) -> list[RenderFinding]:
+    """Return what Outlook's Word renderer will not show properly in ``html``: unsupported CSS, ``<svg>``.
+
+    Raises InboxRenderOutlookError when ``html`` is not a string.
+    """
     if not isinstance(html, str):
         raise InboxRenderOutlookError(_HTML_TYPE_ERROR)
     findings: list[RenderFinding] = []
@@ -86,6 +93,10 @@ def audit_outlook(html: str) -> list[RenderFinding]:
 
 
 def audit_gmail(html: str) -> list[RenderFinding]:
+    """Return Gmail's problems with ``html``: media queries that need inlining, messages over 102 KB.
+
+    Raises InboxRenderOutlookError when ``html`` is not a string.
+    """
     if not isinstance(html, str):
         raise InboxRenderOutlookError(_HTML_TYPE_ERROR)
     findings: list[RenderFinding] = []
@@ -108,6 +119,10 @@ def audit_gmail(html: str) -> list[RenderFinding]:
 
 
 def audit_apple_mail(html: str) -> list[RenderFinding]:
+    """Return an info finding when ``html`` has no ``prefers-color-scheme: dark`` media block.
+
+    Raises InboxRenderOutlookError when ``html`` is not a string.
+    """
     if not isinstance(html, str):
         raise InboxRenderOutlookError(_HTML_TYPE_ERROR)
     findings: list[RenderFinding] = []
@@ -121,10 +136,12 @@ def audit_apple_mail(html: str) -> list[RenderFinding]:
 
 
 def audit_all(html: str) -> list[RenderFinding]:
+    """Return the Outlook, Gmail and Apple Mail findings for ``html``, in that order."""
     return (audit_outlook(html) + audit_gmail(html) + audit_apple_mail(html))
 
 
 def assert_no_errors(findings: Iterable[RenderFinding]) -> None:
+    """Raise InboxRenderOutlookError when any finding has ERROR severity."""
     errors = [f for f in findings if f.severity == Severity.ERROR]
     if errors:
         raise InboxRenderOutlookError(

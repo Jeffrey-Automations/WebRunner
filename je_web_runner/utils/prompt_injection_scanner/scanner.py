@@ -28,6 +28,7 @@ class PromptInjectionScannerError(WebRunnerException):
 # ---------- payload catalogue -------------------------------------------
 
 class Severity(str, Enum):
+    """How serious an injection payload is, from ``low`` to ``critical``."""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -101,7 +102,8 @@ DEFAULT_PAYLOADS: Sequence[Payload] = (
 class LlmClient(Protocol):
     """The app's LLM endpoint wrapper."""
 
-    def ask(self, prompt: str) -> str: ...
+    def ask(self, prompt: str) -> str:
+        """Return the model's raw answer to ``prompt``."""
 
 
 # ---------- scan --------------------------------------------------------
@@ -118,17 +120,21 @@ class Finding:
     refused: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
 @dataclass
 class ScanReport:
+    """The finding of every payload that was tried."""
     findings: list[Finding] = field(default_factory=list)
 
     def leaks(self) -> list[Finding]:
+        """The findings whose answer leaked."""
         return [f for f in self.findings if f.leaked]
 
     def passed(self) -> bool:
+        """Return True when no payload caused a leak."""
         return not self.leaks()
 
 

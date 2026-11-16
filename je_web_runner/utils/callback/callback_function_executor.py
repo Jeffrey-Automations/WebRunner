@@ -1,3 +1,5 @@
+"""Run a registered ``WR_*`` command and then call a callback with its own arguments."""
+
 import typing
 from sys import stderr
 
@@ -16,6 +18,7 @@ from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
 
 
 class CallbackFunctionExecutor:
+    """Maps command names to callables and runs one of them followed by a callback."""
 
     def __init__(self):
         # 事件字典：將字串名稱對應到實際可執行的函式
@@ -185,8 +188,9 @@ class CallbackFunctionExecutor:
                 callback_function()
 
             return execute_return_value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # any failure is reported on stderr
             print(repr(error), file=stderr)
+            return None
 
 
 # 全域回呼執行器實例

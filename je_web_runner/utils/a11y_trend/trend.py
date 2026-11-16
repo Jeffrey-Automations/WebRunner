@@ -21,11 +21,13 @@ class A11yTrendError(WebRunnerException):
 
 @dataclass
 class A11yTrendPoint:
+    """One point of the trend: a date label and the violation count per axe impact level."""
     label: str  # YYYY-MM-DD
     impacts: dict[str, int] = field(default_factory=dict)
 
     @property
     def total(self) -> int:
+        """Sum of the violation counts over every impact level."""
         return sum(self.impacts.values())
 
 
@@ -108,12 +110,7 @@ def _render_svg(points: list[A11yTrendPoint]) -> str:
     width, height, margin = 720, 200, 30
     plot_w = width - 2 * margin
     plot_h = height - 2 * margin
-    n = len(points)
-    x_step: float
-    if n == 1:
-        x_step = 0
-    else:
-        x_step = plot_w / (n - 1)
+    x_step = plot_w / (len(points) - 1) if len(points) > 1 else 0.0
     max_total = max(p.total for p in points) or 1
     coords = []
     for i, point in enumerate(points):

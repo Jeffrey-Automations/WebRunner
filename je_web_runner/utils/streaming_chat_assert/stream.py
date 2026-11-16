@@ -39,6 +39,9 @@ class TokenDelta:
 
 
 def parse_deltas(payload: Any) -> list[TokenDelta]:
+    """Turn the recorded list into ``TokenDelta`` records, skipping entries that are
+    not objects. Raises ``StreamingChatAssertError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise StreamingChatAssertError("payload must be a list")
     out: list[TokenDelta] = []
@@ -54,6 +57,7 @@ def parse_deltas(payload: Any) -> list[TokenDelta]:
 
 
 def assemble(deltas: Sequence[TokenDelta]) -> str:
+    """Concatenate the delta texts in the given order."""
     return "".join(d.text for d in deltas)
 
 
@@ -66,6 +70,9 @@ def time_to_first_token(deltas: Sequence[TokenDelta]) -> float:
 
 
 def max_inter_token_gap_ms(deltas: Sequence[TokenDelta]) -> float:
+    """Longest time in milliseconds between two consecutive non-empty deltas;
+    0 when there are fewer than two.
+    """
     text_deltas = [d for d in deltas if d.text]
     if len(text_deltas) < 2:
         return 0.0
@@ -74,6 +81,7 @@ def max_inter_token_gap_ms(deltas: Sequence[TokenDelta]) -> float:
 
 
 def assert_ttft_under(deltas: Sequence[TokenDelta], *, max_ms: float) -> None:
+    """Raise ``StreamingChatAssertError`` when the time to first token exceeds ``max_ms``."""
     if max_ms <= 0:
         raise StreamingChatAssertError("max_ms must be positive")
     ttft = time_to_first_token(deltas)
@@ -84,6 +92,7 @@ def assert_ttft_under(deltas: Sequence[TokenDelta], *, max_ms: float) -> None:
 
 
 def assert_no_stall(deltas: Sequence[TokenDelta], *, max_gap_ms: float) -> None:
+    """Raise ``StreamingChatAssertError`` when two consecutive tokens are more than ``max_gap_ms`` apart."""
     if max_gap_ms <= 0:
         raise StreamingChatAssertError("max_gap_ms must be positive")
     gap = max_inter_token_gap_ms(deltas)
@@ -96,6 +105,7 @@ def assert_no_stall(deltas: Sequence[TokenDelta], *, max_gap_ms: float) -> None:
 def assert_assembled_contains(
     deltas: Sequence[TokenDelta], *, expected: str,
 ) -> None:
+    """Raise ``StreamingChatAssertError`` unless the assembled text contains ``expected``."""
     if not expected:
         raise StreamingChatAssertError("expected must be non-empty")
     text = assemble(deltas)

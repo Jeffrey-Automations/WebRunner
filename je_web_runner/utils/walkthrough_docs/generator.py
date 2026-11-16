@@ -41,7 +41,7 @@ _NOISE_PREFIXES = (
 # ---------- data ---------------------------------------------------------
 
 @dataclass
-class WalkthroughStep:
+class WalkthroughStep:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """One step in the generated walkthrough."""
 
     index: int
@@ -54,6 +54,7 @@ class WalkthroughStep:
     screenshot_mime: str = "image/png"
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -67,6 +68,7 @@ class Walkthrough:
     audience: str = "end-user"  # "end-user" | "developer" | "support"
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the title, description, audience and the steps (each as a dict)."""
         return {
             "title": self.title,
             "description": self.description,

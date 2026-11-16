@@ -79,11 +79,13 @@ class BoundaryTiming:
     interactive_ms: float | None = None
 
     def time_to_arrival(self) -> float | None:
+        """Milliseconds from placeholder to arrival, or None when either mark is missing."""
         if self.placeholder_ms is None or self.arrived_ms is None:
             return None
         return self.arrived_ms - self.placeholder_ms
 
     def time_to_interactive(self) -> float | None:
+        """Milliseconds from arrival to interactive, or None when either mark is missing."""
         if self.arrived_ms is None or self.interactive_ms is None:
             return None
         return self.interactive_ms - self.arrived_ms
@@ -91,13 +93,19 @@ class BoundaryTiming:
 
 @dataclass
 class StreamingReport:
+    """The timings of every streaming boundary of a page."""
     boundaries: list[BoundaryTiming] = field(default_factory=list)
 
     def by_id(self) -> dict[str, BoundaryTiming]:
+        """Return the boundaries keyed by their id."""
         return {b.id: b for b in self.boundaries}
 
 
 def parse_log(payload: Any) -> StreamingReport:
+    """Build a StreamingReport from the ``boundaries`` dict of a collected log.
+
+    Raises HydrationStreamingError when the payload or its ``boundaries`` is not a dict.
+    """
     if not isinstance(payload, dict):
         raise HydrationStreamingError(
             f"payload must be dict, got {type(payload).__name__}"
@@ -130,6 +138,7 @@ def _to_float(value: Any) -> float | None:
 # ---------- assertions --------------------------------------------------
 
 def assert_all_arrived(report: StreamingReport) -> None:
+    """Raise HydrationStreamingError naming the boundaries that never arrived."""
     pending = [b.id for b in report.boundaries if b.arrived_ms is None]
     if pending:
         raise HydrationStreamingError(
@@ -140,6 +149,9 @@ def assert_all_arrived(report: StreamingReport) -> None:
 def assert_arrival_under(
     report: StreamingReport, *, id_: str, max_ms: float,
 ) -> float:
+    """Raise HydrationStreamingError unless boundary ``id_`` went from placeholder to arrival
+    within ``max_ms``; also when the boundary or its timing is missing.
+    """
     if max_ms <= 0:
         raise HydrationStreamingError("max_ms must be > 0")
     target = report.by_id().get(id_)
@@ -160,6 +172,9 @@ def assert_arrival_under(
 def assert_interactive_under(
     report: StreamingReport, *, id_: str, max_ms: float,
 ) -> float:
+    """Raise HydrationStreamingError unless boundary ``id_`` went from arrival to interactive
+    within ``max_ms``; also when the boundary or its timing is missing.
+    """
     if max_ms <= 0:
         raise HydrationStreamingError("max_ms must be > 0")
     target = report.by_id().get(id_)

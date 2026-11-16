@@ -30,7 +30,7 @@ def _fallback(route: Any) -> None:
     route.fallback()
 
 
-class _ContextMixin(_PlaywrightHost):
+class _ContextMixin(_PlaywrightHost):  # pylint: disable=too-many-public-methods  # one method per command
     """裝置模擬、地理位置、權限、時區、時鐘、語系、HAR 錄製。
 
     Playwright fixes most of these when a context is created, so the wrapper keeps
@@ -62,7 +62,7 @@ class _ContextMixin(_PlaywrightHost):
         if isinstance(url, str) and url.startswith(("http://", "https://")):
             try:
                 page.goto(url)
-            except Exception as error:  # the new context stands; the reload is a convenience
+            except Exception as error:  # pylint: disable=broad-exception-caught  # the reload is a convenience; logged
                 web_runner_logger.warning(f"playwright could not reopen {url!r} after a context rebuild: {error!r}")
 
     def _current_page_url(self) -> Any:
@@ -236,6 +236,7 @@ class _ContextMixin(_PlaywrightHost):
 
     @recorded()
     def clear_permissions(self) -> None:
+        """Revoke every permission granted to the context."""
         self.context.clear_permissions()
 
     @recorded()
@@ -301,6 +302,7 @@ class _ContextMixin(_PlaywrightHost):
 
     @recorded()
     def clock_run_for(self, duration_ms: float) -> None:
+        """Advance the installed clock by ``duration_ms`` milliseconds."""
         self._clock().run_for(duration_ms)
 
     # ----- HAR ---------------------------------------------------------

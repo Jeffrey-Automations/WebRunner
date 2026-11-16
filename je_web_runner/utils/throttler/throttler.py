@@ -63,6 +63,9 @@ class FileSemaphore:
         return None
 
     def acquire(self, timeout: float = 30.0, poll: float = 0.1) -> Path:
+        """Claim a free slot file and return its path, polling every ``poll`` seconds and
+        reaping stale slots meanwhile. Raises ``ThrottlerError`` after ``timeout`` seconds.
+        """
         directory = self._service_dir()
         deadline = time.monotonic() + timeout
         while True:
@@ -77,6 +80,7 @@ class FileSemaphore:
             time.sleep(poll)
 
     def release(self, slot: Path) -> None:
+        """Delete the slot file; a failure to delete is logged, not raised."""
         try:
             slot.unlink(missing_ok=True)
         except OSError as error:
@@ -91,6 +95,9 @@ class ServiceThrottler:
         self._semaphores: dict = {}
 
     def configure(self, name: str, capacity: int, stale_after: float = 600.0) -> None:
+        """Create or replace the semaphore of service ``name`` with ``capacity`` slots.
+        Raises ``ThrottlerError`` when ``capacity`` is not positive.
+        """
         if capacity <= 0:
             raise ThrottlerError(f"capacity for {name!r} must be > 0")
         self._semaphores[name] = FileSemaphore(
@@ -101,6 +108,7 @@ class ServiceThrottler:
         )
 
     def get(self, name: str) -> FileSemaphore:
+        """Return the semaphore of service ``name``; raises ``ThrottlerError`` when it is not configured."""
         if name not in self._semaphores:
             raise ThrottlerError(f"service {name!r} not configured")
         return self._semaphores[name]

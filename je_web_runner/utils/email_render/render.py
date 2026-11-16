@@ -33,7 +33,7 @@ class EmailRenderError(WebRunnerException):
 # ---------- data ---------------------------------------------------------
 
 @dataclass
-class CapturedEmail:
+class CapturedEmail:  # pylint: disable=too-many-instance-attributes  # value object: the parts of one mail
     """One inbox message normalised across providers."""
 
     message_id: str
@@ -46,6 +46,7 @@ class CapturedEmail:
     raw: str | None = None
 
     def has_html(self) -> bool:
+        """True when the mail has a non-blank HTML body."""
         return bool(self.html_body and self.html_body.strip())
 
 

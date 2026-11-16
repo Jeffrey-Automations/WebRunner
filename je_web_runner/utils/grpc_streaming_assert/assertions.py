@@ -26,6 +26,7 @@ class GrpcStreamingAssertError(WebRunnerException):
 
 
 class Mode(str, Enum):
+    """The four gRPC call shapes: unary, server stream, client stream, bidirectional."""
     UNARY = "unary"
     SERVER_STREAM = "server_stream"
     CLIENT_STREAM = "client_stream"
@@ -33,6 +34,7 @@ class Mode(str, Enum):
 
 
 class StatusCode(str, Enum):
+    """The subset of gRPC status codes a recorded stream can end with."""
     OK = "OK"
     CANCELLED = "CANCELLED"
     DEADLINE_EXCEEDED = "DEADLINE_EXCEEDED"
@@ -44,6 +46,7 @@ class StatusCode(str, Enum):
 
 @dataclass
 class StreamFrame:
+    """One recorded message: its size, decoded body, timestamp and direction (``in`` or ``out``)."""
     payload_size: int = 0
     body: dict[str, Any] = field(default_factory=dict)
     ts_ms: float = 0
@@ -52,6 +55,7 @@ class StreamFrame:
 
 @dataclass
 class StreamRecord:
+    """A recorded gRPC call: method, mode, frames, final status and timing."""
     method: str
     mode: Mode
     frames: list[StreamFrame] = field(default_factory=list)
@@ -61,13 +65,16 @@ class StreamRecord:
 
     @property
     def inbound(self) -> list[StreamFrame]:
+        """The frames the server sent to the client."""
         return [f for f in self.frames if f.direction == "in"]
 
     @property
     def outbound(self) -> list[StreamFrame]:
+        """The frames the client sent to the server."""
         return [f for f in self.frames if f.direction == "out"]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the record as a dict with mode and status as their string values."""
         return {
             **asdict(self),
             "mode": self.mode.value,
@@ -76,6 +83,10 @@ class StreamRecord:
 
 
 def parse_record(payload: Any) -> StreamRecord:
+    """Build a StreamRecord from a dict.
+
+    Raises GrpcStreamingAssertError when the payload is not a dict or names an unknown mode or status.
+    """
     if not isinstance(payload, dict):
         raise GrpcStreamingAssertError("payload must be a dict")
     try:
@@ -111,6 +122,7 @@ def parse_record(payload: Any) -> StreamRecord:
 
 
 def assert_status(record: StreamRecord, expected: StatusCode) -> None:
+    """Raise GrpcStreamingAssertError when the stream did not end with the expected status."""
     if record.status != expected:
         raise GrpcStreamingAssertError(
             f"status {record.status.value} != expected {expected.value}"
@@ -121,16 +133,20 @@ def assert_frame_count_between(
     record: StreamRecord, *, min_count: int, max_count: int,
     direction: str = "in",
 ) -> None:
+    """Raise GrpcStreamingAssertError unless the number of frames in ``direction`` is within
+    ``[min_count, max_count]``; the bounds themselves must be valid.
+    """
     if min_count < 0 or max_count < min_count:
         raise GrpcStreamingAssertError("invalid bounds")
     frames = record.inbound if direction == "in" else record.outbound
-    if not (min_count <= len(frames) <= max_count):
+    if not min_count <= len(frames) <= max_count:
         raise GrpcStreamingAssertError(
             f"frame count {len(frames)} not in [{min_count}, {max_count}]"
         )
 
 
 def assert_max_frame_size(record: StreamRecord, *, max_bytes: int) -> None:
+    """Raise GrpcStreamingAssertError when any frame is larger than ``max_bytes``."""
     if max_bytes <= 0:
         raise GrpcStreamingAssertError("max_bytes must be positive")
     big = [f for f in record.frames if f.payload_size > max_bytes]
@@ -146,6 +162,9 @@ def assert_frames_in_order(
     record: StreamRecord, *, key: str, expected: Sequence[Any],
     direction: str = "in",
 ) -> None:
+    """Raise GrpcStreamingAssertError unless ``body[key]`` of the frames in ``direction``
+    equals ``expected``, in order.
+    """
     frames = record.inbound if direction == "in" else record.outbound
     actual = [f.body.get(key) for f in frames]
     if actual != list(expected):
@@ -155,6 +174,7 @@ def assert_frames_in_order(
 
 
 def assert_no_deadline_exceeded(record: StreamRecord) -> None:
+    """Raise GrpcStreamingAssertError when the stream ended with DEADLINE_EXCEEDED."""
     if record.status == StatusCode.DEADLINE_EXCEEDED:
         raise GrpcStreamingAssertError(
             f"stream {record.method!r} hit DEADLINE_EXCEEDED"

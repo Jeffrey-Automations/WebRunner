@@ -27,6 +27,7 @@ class BugReproStabilityError(WebRunnerException):
 
 
 class ReproCategory(str, Enum):
+    """How reliably a bug reproduces over repeated runs."""
     DETERMINISTIC = "deterministic"  # 100% repro
     FLAKY = "flaky"                  # 1..99% repro
     NON_REPRODUCIBLE = "non_reproducible"  # 0% repro
@@ -50,7 +51,7 @@ ProbeFn = Callable[[int], RunOutcome]
 # ---------- report ----------------------------------------------------
 
 @dataclass
-class StabilityReport:
+class StabilityReport:  # pylint: disable=too-many-instance-attributes  # value object: the report's fields
     """Roll-up of N attempts."""
 
     attempts: int
@@ -63,9 +64,11 @@ class StabilityReport:
     durations: list[float] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True when the bug did not reproduce in any attempt."""
         return self.category == ReproCategory.NON_REPRODUCIBLE
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a dict, with the category as its string value."""
         return {**asdict(self), "category": self.category.value}
 
 

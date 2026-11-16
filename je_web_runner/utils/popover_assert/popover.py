@@ -80,6 +80,7 @@ class PopoverState:
     bounding_rect: dict[str, float] | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the state as a dict with the kind as its string value."""
         return {**asdict(self), "kind": self.kind.value}
 
 

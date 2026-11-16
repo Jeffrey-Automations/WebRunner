@@ -42,6 +42,9 @@ class OwnersFile:
     rules: list[CodeownersRule] = field(default_factory=list)
 
     def lookup(self, path: str) -> list[str]:
+        """Return the owners of the last rule matching ``path`` (empty when none matches).
+        Raises ``TestOwnersMapError`` for an empty or non-string path.
+        """
         if not isinstance(path, str) or not path:
             raise TestOwnersMapError("path must be non-empty string")
         winner: list[str] = []
@@ -112,6 +115,9 @@ class OwnersMap:
     overrides: dict[str, list[str]] = field(default_factory=dict)
 
     def owners_for(self, test_id: str) -> list[str]:
+        """Return the override owners of ``test_id`` when one is set, else the CODEOWNERS lookup.
+        Raises ``TestOwnersMapError`` for an empty or non-string id.
+        """
         if not isinstance(test_id, str) or not test_id:
             raise TestOwnersMapError("test_id must be non-empty string")
         if test_id in self.overrides:
@@ -156,6 +162,7 @@ class OwnerAudit:
     by_owner: dict[str, int] = field(default_factory=dict)
 
     def passed(self) -> bool:
+        """True when no test is left without an owner."""
         return not self.unowned
 
 

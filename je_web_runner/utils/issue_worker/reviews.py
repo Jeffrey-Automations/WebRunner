@@ -115,20 +115,10 @@ class ReviewInbox:
         store.start_review(job, events)
 
     def _events(self, pr: dict[str, Any], seen: set[str]) -> list[dict[str, Any]]:
-        prefix = self.provider.prefix
         number, head = pr["number"], pr["head"]["sha"]
         permissions: dict[str, bool] = {}
-        reviews = list(self._rows(prefix + f"/pulls/{number}/reviews"))
-        latest = {(row.get("user") or {}).get("login"): row for row in reviews}
-        actionable = {row["id"] for row in latest.values()
-                      if row.get("state") in {"CHANGES_REQUESTED", "COMMENTED"}}
-        rows = [("review", row) for row in reviews if row.get("id") in actionable]
-        rows += [("inline", row) for row in self._rows(prefix + f"/pulls/{number}/comments")
-                 if row.get("pull_request_review_id") in actionable]
-        rows += [("comment", row) for row in self._rows(prefix + f"/issues/{number}/comments")
-                 if re.match(r"^/webrunner fix(?:\s|$)", (row.get("body") or "").lstrip())]
         events = []
-        for kind, row in rows:
+        for kind, row in self._feedback_rows(number):
             if kind != "comment" and row.get("commit_id") != head:
                 continue
             if not isinstance(row.get("body"), str) or not row["body"] or \
@@ -145,6 +135,20 @@ class ReviewInbox:
         if len(result) > 50 or sum(len(event["body"]) for event in result) > 20000:
             raise IssueWorkerError("review batch exceeds its limit; summarize feedback before retrying review")
         return result
+
+    def _feedback_rows(self, number: Any) -> list[tuple[str, dict[str, Any]]]:
+        """Reviews whose latest state asks for changes, their inline comments and ``/webrunner fix`` comments."""
+        prefix = self.provider.prefix
+        reviews = list(self._rows(prefix + f"/pulls/{number}/reviews"))
+        latest = {(row.get("user") or {}).get("login"): row for row in reviews}
+        actionable = {row["id"] for row in latest.values()
+                      if row.get("state") in {"CHANGES_REQUESTED", "COMMENTED"}}
+        rows = [("review", row) for row in reviews if row.get("id") in actionable]
+        rows += [("inline", row) for row in self._rows(prefix + f"/pulls/{number}/comments")
+                 if row.get("pull_request_review_id") in actionable]
+        rows += [("comment", row) for row in self._rows(prefix + f"/issues/{number}/comments")
+                 if re.match(r"^/webrunner fix(?:\s|$)", (row.get("body") or "").lstrip())]
+        return rows
 
     def _trusted(self, user: dict[str, Any], cache: dict[str, bool]) -> bool:
         login = user.get("login", "")

@@ -27,6 +27,7 @@ class CdpTapError(WebRunnerException):
 
 @dataclass
 class CdpRecord:
+    """One recorded ``execute_cdp_cmd`` call: when, method, params and its return value or error."""
     timestamp: float
     method: str
     params: dict[str, Any]
@@ -34,6 +35,7 @@ class CdpRecord:
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the record as a JSON-serialisable dict."""
         return {
             "timestamp": self.timestamp,
             "method": self.method,
@@ -67,6 +69,7 @@ class CdpRecorder:
         return original
 
     def detach(self, driver: Any, original: Callable[[str, dict[str, Any]], Any]) -> None:
+        """Put the original ``execute_cdp_cmd`` back on ``driver`` and write the recording to disk."""
         driver.execute_cdp_cmd = original  # type: ignore[assignment]
         self.flush()
 
@@ -100,6 +103,7 @@ class CdpRecorder:
             self._records.append(record)
 
     def flush(self) -> Path:
+        """Write every record to ``output_path`` as ndjson and return that path."""
         path = Path(self.output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock, open(path, "w", encoding="utf-8") as handle:
@@ -109,10 +113,12 @@ class CdpRecorder:
         return path
 
     def records(self) -> list[CdpRecord]:
+        """Return a copy of the records captured so far."""
         return list(self._records)
 
 
 def load_recording(path: str | Path) -> list[CdpRecord]:
+    """Read an ndjson recording back into ``CdpRecord`` objects; raise ``CdpTapError`` if it is missing or not JSON."""
     fp = Path(path)
     if not fp.is_file():
         raise CdpTapError(f"recording file not found: {path!r}")
@@ -144,6 +150,7 @@ class CdpReplayer:
     _cursor: int = field(default=0, init=False)
 
     def execute_cdp_cmd(self, method: str, _params: dict[str, Any] | None = None) -> Any:
+        """Return the next recorded value; raise ``CdpTapError`` on a method mismatch, a recorded error or the end."""
         # ``_params`` mirrors driver.execute_cdp_cmd's signature for
         # duck-typing but the replay sequence is keyed only on ``method``,
         # so the params payload is intentionally ignored here.
@@ -161,7 +168,9 @@ class CdpReplayer:
         return record.return_value
 
     def reset(self) -> None:
+        """Start the replay again from the first record."""
         self._cursor = 0
 
     def remaining(self) -> int:
+        """Number of recorded calls not yet replayed."""
         return max(0, len(self.records) - self._cursor)

@@ -60,6 +60,9 @@ def start_postgres(
 
 
 def start_redis(image: str = "redis:7-alpine") -> Any:
+    """Start a Redis container from ``image`` and return it; it is remembered so that
+    ``cleanup_all`` can stop it.
+    """
     web_runner_logger.info(f"start_redis image={image}")
     redis_cls = _require("redis", "RedisContainer")
     container = redis_cls(image)
@@ -100,7 +103,7 @@ def cleanup_all() -> None:
         container = _started.pop()
         try:
             container.stop()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # logged; the rest must still stop
             web_runner_logger.warning(f"failed to stop container: {error!r}")
 
 

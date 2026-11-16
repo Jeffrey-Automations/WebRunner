@@ -1,3 +1,5 @@
+"""Action lists written as the keyword JSON files of a generated project."""
+
 template_keyword_1: list = [
     ["WR_get_webdriver_manager", {"webdriver_name": "firefox"}],
     ["WR_add_package_to_executor", ["time"]],

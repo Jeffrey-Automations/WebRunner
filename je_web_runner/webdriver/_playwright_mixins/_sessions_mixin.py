@@ -80,8 +80,9 @@ class _SessionsMixin(_PlaywrightHost):
     def close_browser(self) -> None:
         """
         關閉目前的瀏覽器
-        Close the current browser and continue with the one before it; closing the
-        last one also stops the Playwright runtime.
+        Close the current browser and continue with the one that takes its place in the
+        list (the next one, or the new last one when the closed browser was last); closing
+        the only one also stops the Playwright runtime.
         """
         self._close_current()
         del self._sessions[self._session_index]

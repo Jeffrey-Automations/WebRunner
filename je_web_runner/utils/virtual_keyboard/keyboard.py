@@ -41,6 +41,7 @@ HARVEST_SCRIPT = r"""
 
 @dataclass
 class ViewportSnapshot:
+    """The visual viewport's size, scale, top offset and keyboard inset at one moment."""
     viewport_width: float = 0
     viewport_height: float = 0
     scale: float = 1
@@ -48,10 +49,14 @@ class ViewportSnapshot:
     keyboard_inset: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
 def parse_snapshot(payload: Any) -> ViewportSnapshot:
+    """Build a ``ViewportSnapshot`` from the dict read in the page, with 0 (scale 1) for
+    missing numbers. Raises ``VirtualKeyboardError`` when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise VirtualKeyboardError("payload must be a dict")
     return ViewportSnapshot(
@@ -90,6 +95,7 @@ def assert_keyboard_inset_set(snap: ViewportSnapshot) -> None:
 
 @dataclass
 class FocusedElementBox:
+    """Selector and vertical extent (top, bottom) of the focused element."""
     selector: str = ""
     top: float = 0
     bottom: float = 0

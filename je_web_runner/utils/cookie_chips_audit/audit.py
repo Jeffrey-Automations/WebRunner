@@ -25,6 +25,7 @@ class CookieChipsAuditError(WebRunnerException):
 
 
 class Severity(str, Enum):
+    """How serious a CHIPS finding is."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
@@ -32,20 +33,24 @@ class Severity(str, Enum):
 
 @dataclass
 class SetCookie:
+    """A parsed ``Set-Cookie`` header: name, value and its attributes keyed by lower-cased name."""
     name: str
     value: str = ""
     attributes: dict[str, str | None] = field(default_factory=dict)
 
     @property
     def is_partitioned(self) -> bool:
+        """True when the cookie carries the ``Partitioned`` attribute."""
         return "partitioned" in self.attributes
 
     @property
     def is_secure(self) -> bool:
+        """True when the cookie carries the ``Secure`` attribute."""
         return "secure" in self.attributes
 
     @property
     def samesite(self) -> str:
+        """The ``SameSite`` value in lower case, or an empty string when it is not set."""
         v = self.attributes.get("samesite") or ""
         return v.lower()
 
@@ -70,6 +75,7 @@ def parse_set_cookie(header: str) -> SetCookie:
 
 @dataclass
 class Finding:
+    """One CHIPS rule a cookie broke, with the page and cookie origins it was seen on."""
     severity: Severity
     rule: str
     cookie: str
@@ -78,6 +84,7 @@ class Finding:
     message: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict, with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
@@ -174,6 +181,7 @@ def audit_har(har: dict[str, Any], page_url: str) -> list[Finding]:
 def audit_headers(
     headers: Iterable[str], page_url: str, cookie_url: str,
 ) -> list[Finding]:
+    """Check every ``Set-Cookie`` header against the CHIPS rules; headers that cannot be parsed are skipped."""
     findings: list[Finding] = []
     for header in headers:
         try:
@@ -185,6 +193,7 @@ def audit_headers(
 
 
 def assert_no_errors(findings: Iterable[Finding]) -> None:
+    """Raise ``CookieChipsAuditError`` naming every cookie that has an ERROR finding."""
     errors = [f for f in findings if f.severity == Severity.ERROR]
     if errors:
         names = [f"{f.cookie}({f.rule})" for f in errors]

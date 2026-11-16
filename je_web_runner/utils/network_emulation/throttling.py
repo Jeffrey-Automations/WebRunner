@@ -89,4 +89,5 @@ def playwright_emulate_network(preset: str) -> Any:
 
 
 def playwright_clear_throttling() -> Any:
+    """Apply the ``no_throttling`` preset through Playwright and return its result."""
     return playwright_emulate_network("no_throttling")

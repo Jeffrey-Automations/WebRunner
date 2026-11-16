@@ -111,13 +111,11 @@ def generate_allure_report(output_dir: str = "allure-results") -> list[str]:
     written: list[str] = []
     for case in cases:
         out_path = target_dir / f"{case['uuid']}-result.json"
-        try:
-            _lock.acquire()
-            with open(out_path, "w", encoding="utf-8") as out_file:
-                json.dump(case, out_file, indent=2)
-            written.append(str(out_path))
-        except OSError as error:
-            web_runner_logger.error(f"generate_allure_report write failed: {error!r}")
-        finally:
-            _lock.release()
+        with _lock:
+            try:
+                with open(out_path, "w", encoding="utf-8") as out_file:
+                    json.dump(case, out_file, indent=2)
+                written.append(str(out_path))
+            except OSError as error:
+                web_runner_logger.error(f"generate_allure_report write failed: {error!r}")
     return written

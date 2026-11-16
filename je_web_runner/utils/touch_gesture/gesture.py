@@ -24,6 +24,7 @@ class TouchGestureError(WebRunnerException):
 
 
 class Phase(str, Enum):
+    """The ``type`` values of CDP ``Input.dispatchTouchEvent``."""
     START = "touchStart"
     MOVE = "touchMove"
     END = "touchEnd"
@@ -32,6 +33,7 @@ class Phase(str, Enum):
 
 @dataclass
 class TouchPoint:
+    """One finger on the screen: position, id, contact radius and force."""
     x: float
     y: float
     id: int = 0
@@ -48,6 +50,7 @@ class TouchFrame:
     points: list[TouchPoint] = field(default_factory=list)
 
     def to_cdp(self) -> dict[str, Any]:
+        """Return the frame as the parameters of CDP ``Input.dispatchTouchEvent``."""
         return {
             "type": self.type.value,
             "touchPoints": [
@@ -65,6 +68,7 @@ def _validate_point(x: float, y: float) -> None:
 
 
 def tap(x: float, y: float) -> list[TouchFrame]:
+    """Frames for a one-finger tap at ``(x, y)``: a touch start, then a touch end."""
     _validate_point(x, y)
     return [
         TouchFrame(type=Phase.START, points=[TouchPoint(x=x, y=y, id=1)]),
@@ -73,6 +77,9 @@ def tap(x: float, y: float) -> list[TouchFrame]:
 
 
 def long_press(x: float, y: float, *, hold_ms: int = 800) -> list[TouchFrame]:
+    """Frames for a one-finger long press at ``(x, y)``: start, a zero-distance move,
+    end. ``hold_ms`` is only validated here: below 500 raises ``TouchGestureError``.
+    """
     if hold_ms < 500:
         raise TouchGestureError(
             "hold_ms must be >= 500 to count as long-press on most platforms"
@@ -91,6 +98,10 @@ def swipe(
     start: tuple[float, float], end: tuple[float, float],
     *, steps: int = 8,
 ) -> list[TouchFrame]:
+    """Frames for a one-finger swipe: a start at ``start``, ``steps - 1`` evenly spaced
+    moves towards ``end``, then an end.
+    Raises ``TouchGestureError`` when ``steps`` is below 2.
+    """
     if steps < 2:
         raise TouchGestureError("steps must be >= 2 for a credible swipe")
     sx, sy = start
@@ -138,12 +149,16 @@ def pinch(
 
 @dataclass
 class RecordedTouch:
+    """A ``TouchEvent`` the page reported: its type, finger count and target."""
     type: str        # "touchstart" | "touchmove" | "touchend" | "touchcancel"
     touch_count: int = 0
     target: str = ""
 
 
 def parse_touch_events(payload: Any) -> list[RecordedTouch]:
+    """Turn the list recorded in the page into ``RecordedTouch`` records, skipping
+    entries that are not objects. Raises ``TouchGestureError`` when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise TouchGestureError("payload must be a list")
     out: list[RecordedTouch] = []
@@ -161,6 +176,7 @@ def parse_touch_events(payload: Any) -> list[RecordedTouch]:
 def assert_received(
     events: Iterable[RecordedTouch], *, event_type: str,
 ) -> None:
+    """Raise ``TouchGestureError`` when no recorded event has type ``event_type``."""
     if not any(e.type == event_type for e in events):
         raise TouchGestureError(
             f"page never received {event_type!r} event"
@@ -168,6 +184,7 @@ def assert_received(
 
 
 def assert_two_finger(events: Iterable[RecordedTouch]) -> None:
+    """Raise ``TouchGestureError`` when no recorded event had two or more fingers down."""
     if not any(e.touch_count >= 2 for e in events):
         raise TouchGestureError(
             "no touch event with >=2 simultaneous fingers"

@@ -32,9 +32,11 @@ class _TaskOutcome:
 
     @property
     def succeeded(self) -> bool:
+        """True when the task raised no error."""
         return self.error is None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the outcome as a dict; result and error are given as their ``repr``."""
         return {
             "name": self.name,
             "duration_seconds": round(self.duration_seconds, 4),
@@ -54,23 +56,28 @@ def _safe_repr(value: Any) -> Any:
 
 @dataclass
 class FanOutResult:
+    """The outcomes of every task of one fan-out."""
     outcomes: list[_TaskOutcome] = field(default_factory=list)
 
     @property
     def succeeded(self) -> bool:
+        """True when every task succeeded."""
         return all(o.succeeded for o in self.outcomes)
 
     @property
     def failures(self) -> list[_TaskOutcome]:
+        """Return the outcomes of the tasks that failed."""
         return [o for o in self.outcomes if not o.succeeded]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the overall flag and every outcome as a dict."""
         return {
             "succeeded": self.succeeded,
             "outcomes": [o.to_dict() for o in self.outcomes],
         }
 
     def raise_for_failures(self) -> None:
+        """Raise ``FanOutError`` naming up to five failed tasks; does nothing when all succeeded."""
         if self.succeeded:
             return
         sample = [

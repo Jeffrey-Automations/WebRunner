@@ -59,9 +59,11 @@ class HealingRegistry:
         self._fallbacks.setdefault(name, []).append((strategy, value))
 
     def get(self, name: str) -> list[tuple[str, str]]:
+        """Return a copy of the fallback ``(strategy, value)`` pairs registered for ``name``."""
         return list(self._fallbacks.get(name, []))
 
     def clear(self) -> None:
+        """Forget every registered fallback."""
         self._fallbacks = {}
 
 
@@ -111,7 +113,7 @@ def find_with_healing_selenium(name: str):
             return element
         except AmbiguousLocatorError:
             raise
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the next candidate is tried
             last_error = error
     raise HealingError(
         f"no candidate matched for {name!r}; last error: {last_error!r}"
@@ -143,7 +145,7 @@ def find_with_healing_playwright(name: str):
             return element
         except AmbiguousLocatorError:
             raise
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the next candidate is tried
             last_error = error
     raise HealingError(
         f"no Playwright candidate matched for {name!r}; last error: {last_error!r}"
@@ -167,4 +169,5 @@ def register_fallbacks(name: str, fallbacks: list[Any]) -> None:
 
 
 def clear_fallbacks() -> None:
+    """Forget every fallback in the shared ``healing_registry``."""
     healing_registry.clear()

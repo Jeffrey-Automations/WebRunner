@@ -83,7 +83,7 @@ _KEYS: dict[str, tuple[Callable[[Any], bool], str]] = {
 
 
 @dataclass(frozen=True)
-class ProjectConfig:
+class ProjectConfig:  # pylint: disable=too-many-instance-attributes  # one field per configuration key
     """The settings of a configuration file; a field left out of the file keeps its default here."""
 
     source: str | None = None

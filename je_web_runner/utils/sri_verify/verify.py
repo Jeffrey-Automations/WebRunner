@@ -31,6 +31,7 @@ class SriVerifyError(WebRunnerException):
 
 
 class Verdict(str, Enum):
+    """Outcome of checking one tag's ``integrity`` attribute."""
     OK = "ok"
     MISSING = "missing"
     WEAK_ALG = "weak_alg"
@@ -144,7 +145,24 @@ class SriFinding:
     detail: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``verdict`` enum replaced by its string value."""
         return {**asdict(self), "verdict": self.verdict.value}
+
+
+def _payload_finding(tag: ResourceTag, pairs: Any, payload: bytes) -> SriFinding:
+    """OK when a strong-algorithm hash of ``pairs`` matches ``payload``, else HASH_MISMATCH."""
+    for alg, expected in pairs:
+        if alg not in _STRONG_ALGS:
+            continue
+        actual = compute_integrity(payload, alg)
+        actual_b64 = actual.split("-", 1)[1]
+        if actual_b64 == expected:
+            return SriFinding(tag=tag.tag, url=tag.url, verdict=Verdict.OK)
+    return SriFinding(
+        tag=tag.tag, url=tag.url,
+        verdict=Verdict.HASH_MISMATCH,
+        detail=f"no {sorted(_STRONG_ALGS)} hash matched payload",
+    )
 
 
 def verify_tag(
@@ -183,18 +201,7 @@ def verify_tag(
             detail="cross-origin resource must set crossorigin=anonymous",
         )
     if payload is not None:
-        for alg, expected in pairs:
-            if alg not in _STRONG_ALGS:
-                continue
-            actual = compute_integrity(payload, alg)
-            actual_b64 = actual.split("-", 1)[1]
-            if actual_b64 == expected:
-                return SriFinding(tag=tag.tag, url=tag.url, verdict=Verdict.OK)
-        return SriFinding(
-            tag=tag.tag, url=tag.url,
-            verdict=Verdict.HASH_MISMATCH,
-            detail=f"no {sorted(_STRONG_ALGS)} hash matched payload",
-        )
+        return _payload_finding(tag, pairs, payload)
     return SriFinding(tag=tag.tag, url=tag.url, verdict=Verdict.OK)
 
 

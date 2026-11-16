@@ -44,6 +44,7 @@ class ConsentDismisser:
     selectors: list[str] = field(default_factory=lambda: list(_DEFAULT_SELECTORS))
 
     def add_selector(self, selector: str) -> None:
+        """Add a selector to try, unless it is empty or already in the list."""
         if not selector or selector in self.selectors:
             return
         self.selectors.append(selector)
@@ -91,6 +92,7 @@ class ConsentDismisser:
 
 
 def common_dismiss_selectors() -> list[str]:
+    """Return a copy of the built-in consent-button selectors."""
     return list(_DEFAULT_SELECTORS)
 
 

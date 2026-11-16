@@ -28,23 +28,31 @@ class BrowserStateSnapshot:
 
 @dataclass
 class StateChanges:
+    """單一儲存區的新增 / 移除 / 變更
+    Keys added, removed and changed (as ``(before, after)``) in one storage area.
+    """
     added: dict[str, Any] = field(default_factory=dict)
     removed: dict[str, Any] = field(default_factory=dict)
     changed: dict[str, tuple[Any, Any]] = field(default_factory=dict)
 
     @property
     def has_changes(self) -> bool:
+        """True when any key was added, removed or changed."""
         return bool(self.added or self.removed or self.changed)
 
 
 @dataclass
 class StateDiff:
+    """cookies、localStorage、sessionStorage 三區的差異
+    The changes of cookies, localStorage and sessionStorage between two snapshots.
+    """
     cookies: StateChanges = field(default_factory=StateChanges)
     local_storage: StateChanges = field(default_factory=StateChanges)
     session_storage: StateChanges = field(default_factory=StateChanges)
 
     @property
     def has_changes(self) -> bool:
+        """True when any of the three areas changed."""
         return any(
             section.has_changes
             for section in (self.cookies, self.local_storage, self.session_storage)
@@ -66,6 +74,10 @@ def _diff_dicts(before: dict[str, Any], after: dict[str, Any]) -> StateChanges:
 
 
 def diff_states(before: BrowserStateSnapshot, after: BrowserStateSnapshot) -> StateDiff:
+    """比較前後兩份快照
+    Compare two snapshots area by area; raises ``StateDiffError`` when an input
+    is not a ``BrowserStateSnapshot``.
+    """
     if not isinstance(before, BrowserStateSnapshot) or not isinstance(after, BrowserStateSnapshot):
         raise StateDiffError("inputs must be BrowserStateSnapshot")
     return StateDiff(

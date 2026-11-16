@@ -163,6 +163,7 @@ class HashResult:
     bits: str  # "0101…" of length kind-dependent
 
     def hex(self) -> str:
+        """Return the hash bits as lowercase hexadecimal, zero-padded to a whole number of digits."""
         # pad bits to multiple of 4
         bits = self.bits
         if len(bits) % 4:
@@ -309,6 +310,25 @@ class SimilarityResult:
     threshold: float
 
 
+def _structural_similarity(pa: Sequence[float], pb: Sequence[float]) -> float:
+    """The SSIM formula over two equally long luminance lists, clamped to [-1, 1]; 0 when they are empty."""
+    count = len(pa)
+    if count == 0:
+        return 0.0
+    mean_a = sum(pa) / count
+    mean_b = sum(pb) / count
+    var_a = sum((x - mean_a) ** 2 for x in pa) / count
+    var_b = sum((y - mean_b) ** 2 for y in pb) / count
+    cov = sum((x - mean_a) * (y - mean_b) for x, y in zip(pa, pb, strict=False)) / count
+    c1 = 0.01 ** 2
+    c2 = 0.03 ** 2
+    num = (2 * mean_a * mean_b + c1) * (2 * cov + c2)
+    den = (mean_a ** 2 + mean_b ** 2 + c1) * (var_a + var_b + c2)
+    if den == 0:
+        return 1.0 if num == 0 else 0.0
+    return max(-1.0, min(1.0, num / den))
+
+
 def _ssim_proxy(
     source_a: bytes | str | Path | Any,
     source_b: bytes | str | Path | Any,
@@ -330,21 +350,7 @@ def _ssim_proxy(
     b = img_b.convert("L").resize((size, size), pil_image.Resampling.LANCZOS)
     pa = [p / 255.0 for p in _flattened_pixels(a)]
     pb = [p / 255.0 for p in _flattened_pixels(b)]
-    n = len(pa)
-    if n == 0:
-        return 0.0
-    mean_a = sum(pa) / n
-    mean_b = sum(pb) / n
-    var_a = sum((x - mean_a) ** 2 for x in pa) / n
-    var_b = sum((y - mean_b) ** 2 for y in pb) / n
-    cov = sum((x - mean_a) * (y - mean_b) for x, y in zip(pa, pb, strict=False)) / n
-    c1 = 0.01 ** 2
-    c2 = 0.03 ** 2
-    num = (2 * mean_a * mean_b + c1) * (2 * cov + c2)
-    den = (mean_a ** 2 + mean_b ** 2 + c1) * (var_a + var_b + c2)
-    if den == 0:
-        return 1.0 if num == 0 else 0.0
-    return max(-1.0, min(1.0, num / den))
+    return _structural_similarity(pa, pb)
 
 
 def compare_images(
@@ -376,16 +382,15 @@ def compare_images(
         raise VisualAIError(f"threshold must be in [0,1], got {threshold}")
 
     hash_kwargs: dict[str, Any] = {"crop_box": crop_box, "mask_boxes": mask_boxes}
-    a_a = average_hash(source_a, **hash_kwargs)
-    a_b = average_hash(source_b, **hash_kwargs)
-    d_a = difference_hash(source_a, **hash_kwargs)
-    d_b = difference_hash(source_b, **hash_kwargs)
-    p_a = perceptual_hash(source_a, **hash_kwargs)
-    p_b = perceptual_hash(source_b, **hash_kwargs)
-
-    a_sim = hash_similarity(a_a, a_b)
-    d_sim = hash_similarity(d_a, d_b)
-    p_sim = hash_similarity(p_a, p_b)
+    a_sim = hash_similarity(
+        average_hash(source_a, **hash_kwargs), average_hash(source_b, **hash_kwargs),
+    )
+    d_sim = hash_similarity(
+        difference_hash(source_a, **hash_kwargs), difference_hash(source_b, **hash_kwargs),
+    )
+    p_sim = hash_similarity(
+        perceptual_hash(source_a, **hash_kwargs), perceptual_hash(source_b, **hash_kwargs),
+    )
     s_sim = max(0.0, _ssim_proxy(source_a, source_b, **hash_kwargs))
 
     composite = (

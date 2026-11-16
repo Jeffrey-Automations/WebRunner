@@ -42,14 +42,19 @@ class LockEntry:
 
 @dataclass
 class WorkspaceLock:
+    """一份 lock 的內容
+    The content of a lock file: the Python version, when it was generated, and its entries.
+    """
     python_version: str
     generated_at: str
     entries: list[LockEntry] = field(default_factory=list)
 
     def by_kind(self, kind: str) -> list[LockEntry]:
+        """Return the entries whose ``kind`` equals ``kind``."""
         return [entry for entry in self.entries if entry.kind == kind]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the lock as a plain dict, with each entry as a dict."""
         return {
             "python_version": self.python_version,
             "generated_at": self.generated_at,
@@ -67,7 +72,7 @@ _DISTRIBUTION_CACHE: list[tuple] | None = None
 
 def _scan_distributions() -> list[tuple]:
     """Walk ``importlib.metadata`` once and cache the (name, version) tuples."""
-    global _DISTRIBUTION_CACHE
+    global _DISTRIBUTION_CACHE  # pylint: disable=global-statement  # module-level cache of the scan
     if _DISTRIBUTION_CACHE is not None:
         return _DISTRIBUTION_CACHE
     scanned: list[tuple] = []
@@ -89,7 +94,7 @@ def _scan_distributions() -> list[tuple]:
 
 def reset_distribution_cache() -> None:
     """Clear the cached distribution list (useful in tests / venv reloads)."""
-    global _DISTRIBUTION_CACHE
+    global _DISTRIBUTION_CACHE  # pylint: disable=global-statement  # module-level cache of the scan
     _DISTRIBUTION_CACHE = None
 
 
@@ -149,6 +154,9 @@ def build_lock(
 
 
 def write_lock(lock: WorkspaceLock, path: str | Path) -> Path:
+    """將 lock 寫成 JSON 檔
+    Write the lock to ``path`` as sorted JSON (creating parent directories) and return the path.
+    """
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
@@ -159,6 +167,10 @@ def write_lock(lock: WorkspaceLock, path: str | Path) -> Path:
 
 
 def load_lock(path: str | Path) -> WorkspaceLock:
+    """讀取 lock 檔
+    Read a lock file back into a ``WorkspaceLock``. Raises ``WorkspaceLockError`` when the
+    file is missing, is not JSON, or does not have the expected structure.
+    """
     fp = Path(path)
     if not fp.is_file():
         raise WorkspaceLockError(f"lock file not found: {path!r}")

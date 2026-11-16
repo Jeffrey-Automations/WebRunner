@@ -306,8 +306,10 @@ def build_stealth_chrome_driver(
         service_kwargs["log_output"] = str(chromedriver_log)
     try:
         service = ChromeService(**service_kwargs)
-        driver = webdriver.Chrome(service=service, options=opts)
-    except Exception as first_err:
+        driver = webdriver.Chrome(  # pylint: disable=not-callable  # Selenium loads the class lazily
+            service=service, options=opts,
+        )
+    except Exception as first_err:  # pylint: disable=broad-exception-caught  # re-raised, or logged and retried once
         if not retry_once:
             raise ChromeProfileError(
                 f"chrome spawn failed: {first_err!r}"
@@ -323,7 +325,9 @@ def build_stealth_chrome_driver(
         time.sleep(1.5)
         try:
             service = ChromeService(**service_kwargs)
-            driver = webdriver.Chrome(service=service, options=opts)
+            driver = webdriver.Chrome(  # pylint: disable=not-callable  # Selenium loads the class lazily
+                service=service, options=opts,
+            )
         except Exception as second_err:
             raise ChromeProfileError(
                 f"chrome spawn failed twice: {second_err!r}"
@@ -364,7 +368,7 @@ def chrome_profile_session(
     finally:
         try:
             driver.quit()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # quitting is best effort and logged
             web_runner_logger.warning(f"driver.quit failed: {error!r}")
         if sync_back and snapshot_path is not None:
             try:
@@ -463,13 +467,13 @@ def minimise_chrome_windows(profile_dir: Path) -> int:
 
     def _maybe_minimise(hwnd, _arg):
         nonlocal hidden
-        if not win32gui.IsWindowVisible(hwnd):
+        if not win32gui.IsWindowVisible(hwnd):  # pylint: disable=c-extension-no-member  # C extension
             return
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)  # pylint: disable=c-extension-no-member  # C extension
         if pid in target_pids:
-            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)  # pylint: disable=c-extension-no-member  # C extension
             hidden += 1
 
-    win32gui.EnumWindows(_maybe_minimise, None)
+    win32gui.EnumWindows(_maybe_minimise, None)  # pylint: disable=c-extension-no-member  # C extension
     web_runner_logger.info(f"minimise_chrome_windows: hidden={hidden}")
     return hidden

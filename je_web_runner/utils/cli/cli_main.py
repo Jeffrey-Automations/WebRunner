@@ -73,7 +73,8 @@ def _run_one_file(path: str) -> bool:
     try:
         with file_isolation(executor), executor.files.scope(path):
             execute_action(read_action_json(path))
-    except Exception:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # any failure fails the file, the run goes on
+        web_runner_logger.warning(f"execute_file, path: {path}, failed: {error!r}")
         failed = True
         note_failed_file()
     if failure_baseline is not None:
@@ -93,10 +94,14 @@ def _run_one_file_isolated(path: str) -> tuple[str, bool, list]:
     """
     # Re-import inside the worker so the child process initialises its own
     # singletons; this is the whole point of parallel-mode=process.
-    from je_web_runner.utils.executor.action_executor import execute_action as _execute
-    from je_web_runner.utils.executor.action_executor import executor as _executor
-    from je_web_runner.utils.json.json_file.json_file import read_action_json as _read_json
-    from je_web_runner.utils.test_record.test_record_class import (
+    from je_web_runner.utils.executor.action_executor import (  # pylint: disable=reimported  # see above
+        execute_action as _execute,
+        executor as _executor,
+    )
+    from je_web_runner.utils.json.json_file.json_file import (  # pylint: disable=reimported  # see above
+        read_action_json as _read_json,
+    )
+    from je_web_runner.utils.test_record.test_record_class import (  # pylint: disable=reimported  # see above
         test_record_instance as _records,
     )
 
@@ -194,7 +199,7 @@ def _run_file_unrecorded(path: str) -> bool:
     before = thread_failure_count()
     try:
         execute_files([path])
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # any failure fails the file, the run goes on
         web_runner_logger.error(f"execute_file, path: {path}, failed: {error!r}")
         note_failed_file()
         return False
@@ -276,7 +281,7 @@ def _run_with_asyncio(files, parallel: int, ledger_path: str | None) -> dict[str
     for path in files:
         try:
             actions = read_action_json(path)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # an unreadable file fails alone
             web_runner_logger.error(f"execute_file, path: {path}, failed: {error!r}")
             note_failed_file()
             outcome[path] = False

@@ -47,8 +47,16 @@ class BrowserAcceptance:
         scenario_task(case)
         workspace.verify_scope()
         tree = workspace.fingerprint()
-        command = ["python", "/trusted/entry.py", "/manifest/plan.json"]
-        settings = replace(self.config, checks={"browser": command})
+        result = self._run_container(workspace, {"case": case, "tree": tree, "signature": signature}, timeout)
+        evidence = self._evidence(result.get("output", ""), tree, signature)
+        passed = result.get("passed") is True and evidence.get("status") == "success" and \
+            evidence.get("conditions_verified") == len(case["task"]["success"])
+        return {"name": name, "tree": tree, "signature": signature, "passed": passed,
+                "output": result.get("output", ""), "evidence": evidence}
+
+    def _run_container(self, workspace: IssueWorkspace, plan: dict[str, Any], timeout: float) -> dict[str, Any]:
+        """Run the trusted entry on an exported copy of the workspace, with ``plan`` mounted as its manifest."""
+        settings = replace(self.config, checks={"browser": ["python", "/trusted/entry.py", "/manifest/plan.json"]})
         sandbox = PodmanSandbox(settings)
         with tempfile.TemporaryDirectory(prefix="webrunner-browser-check-") as temporary:
             root = Path(temporary)
@@ -56,26 +64,29 @@ class BrowserAcceptance:
             workspace.export(source)
             self._trusted_bundle(root / "trusted")
             manifest = root / "plan.json"
-            manifest.write_text(json.dumps({"case": case, "tree": tree, "signature": signature}), encoding="utf-8")
+            manifest.write_text(json.dumps(plan), encoding="utf-8")
             container = "webrunner-issue-" + secrets.token_hex(12)
             argv = sandbox.argv(workspace, "browser", source, container)
-            image_position = argv.index(settings.image)
-            for path, destination in ((root / "trusted", "/trusted"), (manifest, "/manifest/plan.json")):
-                mount = f"type=bind,src={path},destination={destination},ro=true"
-                argv[image_position:image_position] = ["--mount", mount]
-                image_position += 2
+            self._mount_read_only(argv, settings.image,
+                                  ((root / "trusted", "/trusted"), (manifest, "/manifest/plan.json")))
             argv[argv.index("PYTHONPATH=/work")] = "PYTHONPATH=/trusted"
             try:
-                result = sandbox._execute(argv, container, root / "output.log", timeout)
+                result = sandbox._execute(  # pylint: disable=protected-access  # package-internal sandbox call
+                    argv, container, root / "output.log", timeout)
             except (OSError, subprocess.SubprocessError) as error:
                 raise EnvironmentUnavailable("browser container infrastructure is unavailable") from error
             if result.get("exit_code") in {125, 126, 127}:
                 raise EnvironmentUnavailable("browser container could not start")
-        evidence = self._evidence(result.get("output", ""), tree, signature)
-        passed = result.get("passed") is True and evidence.get("status") == "success" and \
-            evidence.get("conditions_verified") == len(case["task"]["success"])
-        return {"name": name, "tree": tree, "signature": signature, "passed": passed,
-                "output": result.get("output", ""), "evidence": evidence}
+        return result
+
+    @staticmethod
+    def _mount_read_only(argv: list[str], image: str, mounts: tuple[tuple[Path, str], ...]) -> None:
+        """Insert a read-only bind mount per ``(path, destination)`` just before the image in ``argv``."""
+        image_position = argv.index(image)
+        for path, destination in mounts:
+            mount = f"type=bind,src={path},destination={destination},ro=true"
+            argv[image_position:image_position] = ["--mount", mount]
+            image_position += 2
 
     def _trusted_bundle(self, destination: Path) -> None:
         for name, content in self.sources.items():

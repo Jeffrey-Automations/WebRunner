@@ -73,6 +73,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class SeedCredential:
+    """A credential the mock should hand out from ``navigator.credentials.get``."""
     id: str
     type: str = "password"        # "password" | "federated"
     name: str = ""
@@ -80,10 +81,12 @@ class SeedCredential:
     provider: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the credential as a plain dict."""
         return asdict(self)
 
 
 def build_seed(credentials: list[SeedCredential]) -> dict[str, Any]:
+    """Return the seed payload for the page shim; raise unless every entry is a ``SeedCredential`` with an id."""
     if not isinstance(credentials, list):
         raise CredentialManagementError("credentials must be a list")
     for c in credentials:
@@ -96,6 +99,7 @@ def build_seed(credentials: list[SeedCredential]) -> dict[str, Any]:
 
 @dataclass
 class StoredCall:
+    """One ``navigator.credentials.store`` call the page made."""
     id: str = ""
     type: str = ""
     password: str = ""
@@ -104,12 +108,14 @@ class StoredCall:
 
 @dataclass
 class CmLog:
+    """What the shim recorded: stored credentials, ``get`` options and ``preventSilentAccess`` calls."""
     stored: list[StoredCall] = field(default_factory=list)
     gets: list[dict[str, Any]] = field(default_factory=list)
     prevent_count: int = 0
 
 
 def parse_log(payload: Any) -> CmLog:
+    """Build a ``CmLog`` from the shim's payload; raise ``CredentialManagementError`` if it is malformed."""
     if not isinstance(payload, dict):
         raise CredentialManagementError("payload must be a dict")
     stored_raw = payload.get("stored") or []
@@ -133,6 +139,7 @@ def parse_log(payload: Any) -> CmLog:
 
 
 def assert_stored(log: CmLog, *, credential_id: str) -> StoredCall:
+    """Return the ``store`` call for ``credential_id``; raise if the page never stored it."""
     if not credential_id:
         raise CredentialManagementError("credential_id must be non-empty")
     for s in log.stored:
@@ -154,6 +161,7 @@ def assert_no_password_in_clear(log: CmLog) -> None:
 
 
 def assert_prevent_silent_access_called(log: CmLog, *, at_least: int = 1) -> None:
+    """Raise ``CredentialManagementError`` unless ``preventSilentAccess`` was called at least ``at_least`` times."""
     if at_least < 1:
         raise CredentialManagementError("at_least must be >= 1")
     if log.prevent_count < at_least:
@@ -166,6 +174,7 @@ def assert_prevent_silent_access_called(log: CmLog, *, at_least: int = 1) -> Non
 def assert_get_requested_mediation(
     log: CmLog, *, mediation: str = "required",
 ) -> None:
+    """Raise ``CredentialManagementError`` when a ``credentials.get`` call used another mediation mode."""
     if mediation not in ("silent", "optional", "required", "conditional"):
         raise CredentialManagementError(f"unknown mediation {mediation!r}")
     for opts in log.gets:

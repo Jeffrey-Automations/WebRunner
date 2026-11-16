@@ -1,3 +1,8 @@
+"""
+產生 XML 測試報告
+Build the success and failure XML test reports from the JSON report structure.
+"""
+
 from threading import Lock
 
 from defusedxml.minidom import parseString  # type: ignore[import-untyped]

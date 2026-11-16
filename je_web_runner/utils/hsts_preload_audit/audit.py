@@ -33,6 +33,7 @@ _PRELOAD_TOKEN = "preload"  # nosec B105
 
 @dataclass
 class HstsHeader:
+    """A parsed Strict-Transport-Security header: max-age, includeSubDomains and preload."""
     raw: str
     max_age: int = 0
     include_subdomains: bool = False
@@ -40,6 +41,10 @@ class HstsHeader:
 
 
 def parse_header(value: str) -> HstsHeader:
+    """Parse a Strict-Transport-Security header value.
+
+    Raises HstsPreloadAuditError when the value is empty or its max-age cannot be read.
+    """
     if not isinstance(value, str) or not value.strip():
         raise HstsPreloadAuditError("HSTS header value must be non-empty")
     out = HstsHeader(raw=value)
@@ -62,6 +67,9 @@ def parse_header(value: str) -> HstsHeader:
 
 
 def assert_preload_ready(header: HstsHeader) -> None:
+    """Raise HstsPreloadAuditError listing what is missing for the preload list: a long enough
+    max-age, includeSubDomains, the preload directive.
+    """
     problems = []
     if header.max_age < PRELOAD_MIN_MAX_AGE:
         problems.append(
@@ -78,6 +86,7 @@ def assert_preload_ready(header: HstsHeader) -> None:
 
 
 def assert_served_over_https(scheme: str) -> None:
+    """Raise HstsPreloadAuditError unless ``scheme`` is ``https`` (any case)."""
     if not isinstance(scheme, str):
         raise HstsPreloadAuditError("scheme must be a string")
     if scheme.lower() != "https":

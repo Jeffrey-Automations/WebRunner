@@ -59,6 +59,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class ShareCall:
+    """The data passed to one ``navigator.share`` call, with the number of files."""
     title: str | None = None
     text: str | None = None
     url: str | None = None
@@ -67,17 +68,22 @@ class ShareCall:
 
 @dataclass
 class FallbackEvent:
+    """One use of the page's fallback share UI, by element id and timestamp."""
     id: str = ""
     ts_ms: int = 0
 
 
 @dataclass
 class ShareLog:
+    """The share calls and fallback events recorded in the page."""
     shares: list[ShareCall] = field(default_factory=list)
     fallbacks: list[FallbackEvent] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> ShareLog:
+    """Build a ``ShareLog`` from the dict recorded in the page, skipping entries that
+    are not objects. Raises ``WebShareAssertError`` when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise WebShareAssertError("payload must be a dict")
     shares: list[ShareCall] = []
@@ -102,6 +108,7 @@ def parse_log(payload: Any) -> ShareLog:
 
 
 def assert_shared(log: ShareLog) -> ShareCall:
+    """Return the first share call; raises ``WebShareAssertError`` when the page never shared."""
     if not log.shares:
         raise WebShareAssertError(
             "page never called navigator.share()"
@@ -110,6 +117,9 @@ def assert_shared(log: ShareLog) -> ShareCall:
 
 
 def assert_url_origin(log: ShareLog, *, expected_origin: str) -> None:
+    """Raise ``WebShareAssertError`` when a shared URL has an origin other than
+    ``expected_origin``; shares without a URL are skipped.
+    """
     if not expected_origin:
         raise WebShareAssertError("expected_origin must be non-empty")
     for s in log.shares:
@@ -123,7 +133,9 @@ def assert_url_origin(log: ShareLog, *, expected_origin: str) -> None:
             )
 
 
-def assert_has_field(log: ShareLog, *, field: str) -> None:
+def assert_has_field(  # pylint: disable=redefined-outer-name  # public keyword name
+    log: ShareLog, *, field: str,
+) -> None:
     """At least one share must have a non-empty value for ``field``."""
     if field not in ("title", "text", "url"):
         raise WebShareAssertError(

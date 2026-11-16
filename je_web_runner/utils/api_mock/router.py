@@ -35,6 +35,7 @@ class MockResponse:
     content_type: str = "application/json"
 
     def to_payload(self) -> dict[str, Any]:
+        """Return the ``status`` / ``headers`` / ``body`` dict to fulfil a route with; dict and list bodies as JSON."""
         if isinstance(self.body, (dict, list)):
             body_text = json.dumps(self.body, ensure_ascii=False)
         else:
@@ -55,11 +56,13 @@ class MockRoute:
     times_seen: int = 0
 
     def matches(self, method: str, url: str) -> bool:
+        """True when the route's method (or ``*``) and URL pattern match the request."""
         if self.method.upper() != method.upper() and self.method != "*":
             return False
         return _url_matches(self.url_pattern, url)
 
     def consume(self) -> bool:
+        """Count one use of the route; False once its ``times`` limit is used up."""
         if self.times is None:
             return True
         if self.times_seen >= self.times:
@@ -99,6 +102,7 @@ class MockRouter:
         content_type: str = "application/json",
         times: int | None = None,
     ) -> MockRoute:
+        """Append a mock route and return it; raise ``ApiMockError`` for an empty method or URL pattern."""
         if not isinstance(method, str) or not method:
             raise ApiMockError("method must be a non-empty string")
         if not isinstance(url_pattern, str) or not url_pattern:
@@ -118,6 +122,7 @@ class MockRouter:
         return route
 
     def match(self, method: str, url: str) -> MockRoute | None:
+        """Record the call and return the first matching route that still has uses left, else None."""
         self._calls.append((method.upper(), url))
         for route in self._routes:
             if route.matches(method, url) and route.consume():
@@ -125,6 +130,7 @@ class MockRouter:
         return None
 
     def calls(self) -> list[tuple[str, str]]:
+        """Return a copy of the ``(method, url)`` pairs seen by ``match``."""
         return list(self._calls)
 
     def attach_to_page(self, page: Any) -> None:
@@ -176,4 +182,5 @@ def reset_global_router() -> None:
 
 
 def global_router() -> MockRouter:
+    """Return the module-wide ``MockRouter``."""
     return _GLOBAL

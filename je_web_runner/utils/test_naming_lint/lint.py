@@ -28,6 +28,7 @@ class NamingLintError(WebRunnerException):
 
 
 class Convention(str, Enum):
+    """The naming conventions the linter can enforce."""
     SHOULD_WHEN = "snake_case_should_when"
     GIVEN_WHEN_THEN = "given_when_then"
     CAMEL_SUBJECT = "camel_subject"
@@ -73,6 +74,7 @@ _MATCHERS = {
 
 @dataclass
 class NamingFinding:
+    """One rule broken by one test name, with the message to show."""
     rule: str
     test: str
     message: str
@@ -82,6 +84,10 @@ def lint_test_name(
     name: str, *, convention: Convention,
     max_length: int = 100,
 ) -> list[NamingFinding]:
+    """Check one test name: the ``test_`` prefix (nothing else is checked without it),
+    a doubled underscore after it, the length limit and the chosen convention.
+    Raises ``NamingLintError`` for arguments of the wrong type or ``max_length`` below 10.
+    """
     if not isinstance(name, str):
         raise NamingLintError("name must be string")
     if not isinstance(convention, Convention):
@@ -118,6 +124,7 @@ def lint_many(
     names: Iterable[str], *, convention: Convention,
     max_length: int = 100,
 ) -> list[NamingFinding]:
+    """Lint each name with ``lint_test_name`` and return all findings in input order."""
     out: list[NamingFinding] = []
     for n in names:
         out.extend(lint_test_name(n, convention=convention,
@@ -126,6 +133,7 @@ def lint_many(
 
 
 def assert_clean(findings: Iterable[NamingFinding]) -> None:
+    """Raise ``NamingLintError`` when there are findings, quoting the first five."""
     items = list(findings)
     if items:
         details = [f"{f.test} ({f.rule})" for f in items[:5]]

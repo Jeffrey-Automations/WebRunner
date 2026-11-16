@@ -25,6 +25,7 @@ class SbomDiffError(WebRunnerException):
 
 @dataclass(frozen=True)
 class Component:
+    """One SBOM component: name, version, package URL and licences."""
     name: str
     version: str = ""
     purl: str = ""
@@ -32,21 +33,27 @@ class Component:
 
     @property
     def key(self) -> str:
+        """The identity used to match components: the purl, else ``name@version``."""
         return self.purl or f"{self.name}@{self.version}"
 
 
 @dataclass
 class VersionChange:
+    """A component whose version differs between base and head."""
     name: str
     base_version: str
     head_version: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the change fields as a plain dict."""
         return asdict(self)
 
 
 @dataclass
 class SbomReport:
+    """What changed between two SBOMs: components added, removed, upgraded or downgraded,
+    new licences and new vulnerable components.
+    """
     added: list[Component] = field(default_factory=list)
     removed: list[Component] = field(default_factory=list)
     upgraded: list[VersionChange] = field(default_factory=list)
@@ -56,6 +63,7 @@ class SbomReport:
 
     @property
     def has_changes(self) -> bool:
+        """True when any of the report's lists is non-empty."""
         return bool(
             self.added or self.removed or self.upgraded
             or self.downgraded or self.new_licenses or self.new_vulnerable
@@ -141,6 +149,22 @@ def diff_sboms(base: dict[str, Any], head: dict[str, Any]) -> SbomReport:
     """Compare two CycloneDX SBOMs and return a high-level report."""
     base_comps = _parse_components(base)
     head_comps = _parse_components(head)
+    report = _added_and_removed(base_comps, head_comps)
+    _record_version_changes(report, base_comps, head_comps)
+
+    base_licenses = {lic for c in base_comps for lic in c.licenses}
+    head_licenses = {lic for c in head_comps for lic in c.licenses}
+    report.new_licenses = sorted(head_licenses - base_licenses)
+
+    head_vuln_purls = _vulnerable_purls(head)
+    base_vuln_purls = _vulnerable_purls(base)
+    report.new_vulnerable = sorted(head_vuln_purls - base_vuln_purls)
+
+    return report
+
+
+def _added_and_removed(base_comps: list[Component], head_comps: list[Component]) -> SbomReport:
+    """Start a report with the components only in head or only in base; a version change is neither."""
     base_idx = _index(base_comps)
     head_idx = _index(head_comps)
 
@@ -158,11 +182,18 @@ def diff_sboms(base: dict[str, Any], head: dict[str, Any]) -> SbomReport:
         base_names[name].key for name in head_names if name in base_names
     }
 
-    report = SbomReport(
+    return SbomReport(
         added=[head_idx[k] for k in sorted(treat_as_added_keys)],
         removed=[base_idx[k] for k in sorted(treat_as_removed_keys)],
     )
 
+
+def _record_version_changes(
+    report: SbomReport, base_comps: list[Component], head_comps: list[Component],
+) -> None:
+    """Add a VersionChange per component name whose version differs; an unknown order counts as an upgrade."""
+    base_names = {c.name: c for c in base_comps}
+    head_names = {c.name: c for c in head_comps}
     for name, head_c in head_names.items():
         if name not in base_names:
             continue
@@ -180,19 +211,9 @@ def diff_sboms(base: dict[str, Any], head: dict[str, Any]) -> SbomReport:
         else:
             report.upgraded.append(change)  # unknown order → treat as change
 
-    base_licenses = {lic for c in base_comps for lic in c.licenses}
-    head_licenses = {lic for c in head_comps for lic in c.licenses}
-    report.new_licenses = sorted(head_licenses - base_licenses)
-
-    head_vuln_purls = _vulnerable_purls(head)
-    base_vuln_purls = _vulnerable_purls(base)
-    new_vuln_refs = head_vuln_purls - base_vuln_purls
-    report.new_vulnerable = sorted(new_vuln_refs)
-
-    return report
-
 
 def assert_no_new_vulnerable(report: SbomReport) -> None:
+    """Raise SbomDiffError when the head SBOM introduces vulnerable components."""
     if report.new_vulnerable:
         raise SbomDiffError(
             f"PR introduces vulnerable components: {report.new_vulnerable}"
@@ -202,6 +223,9 @@ def assert_no_new_vulnerable(report: SbomReport) -> None:
 def assert_no_disallowed_licenses(
     report: SbomReport, disallowed: Iterable[str],
 ) -> None:
+    """Raise SbomDiffError when a new licence is in ``disallowed`` (case-insensitive),
+    or ``disallowed`` is empty.
+    """
     disallowed_set = {lic.upper() for lic in disallowed}
     if not disallowed_set:
         raise SbomDiffError("disallowed list must be non-empty")
@@ -211,6 +235,10 @@ def assert_no_disallowed_licenses(
 
 
 def report_markdown(report: SbomReport) -> str:
+    """Render the report as Markdown, one section per kind of change.
+
+    Raises SbomDiffError when ``report`` is not an SbomReport.
+    """
     if not isinstance(report, SbomReport):
         raise SbomDiffError("report must be SbomReport")
     lines = ["## SBOM diff"]

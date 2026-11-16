@@ -27,6 +27,9 @@ class NameFilter:
     exclude: list[re.Pattern] = field(default_factory=list)
 
     def matches(self, path: str | Path) -> bool:
+        """True when ``path`` (compared with forward slashes) hits no exclude pattern and,
+        if include patterns exist, hits at least one of them.
+        """
         text = str(path).replace("\\", "/")
         for pattern in self.exclude:
             if pattern.search(text):

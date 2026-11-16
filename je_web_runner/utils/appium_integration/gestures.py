@@ -27,6 +27,7 @@ _DIRECTIONS = {"up", "down", "left", "right"}
 
 @dataclass(frozen=True)
 class Point:
+    """A screen coordinate in pixels."""
     x: int
     y: int
 

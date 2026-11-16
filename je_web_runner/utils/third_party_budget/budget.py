@@ -58,6 +58,7 @@ class ThirdPartyRequest:
     blocking: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 
@@ -73,7 +74,46 @@ def _classify_vendor(
     return None
 
 
-def classify_har(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
+def _timing_total_ms(timings: dict[str, Any]) -> float:
+    """Sum of the positive HAR timing phases, in milliseconds."""
+    duration = 0.0
+    for key in ("blocked", "dns", "connect", "send", "wait", "receive"):
+        phase = timings.get(key)
+        if isinstance(phase, (int, float)) and phase > 0:
+            duration += float(phase)
+    return duration
+
+
+def _third_party_request(
+    entry: Any, first: str, extra: dict[str, Sequence[str]],
+) -> ThirdPartyRequest | None:
+    """The request of one HAR entry, or None for a malformed or first-party entry."""
+    if not isinstance(entry, dict):
+        return None
+    url = ((entry.get("request") or {}).get("url")) or ""
+    if not url:
+        return None
+    hostname = (urlparse(url).hostname or "").lower()
+    if not hostname or _is_first_party(hostname, first):
+        return None
+    vendor = _classify_vendor(hostname, extra) or "unknown_third_party"
+    response = entry.get("response") or {}
+    size = max(
+        int(response.get("_transferSize") or 0),
+        int((response.get("content") or {}).get("size") or 0),
+    )
+    duration = _timing_total_ms(entry.get("timings") or {})
+    resource_type = str(
+        entry.get("_resourceType") or entry.get("resourceType") or "",
+    ).lower()
+    return ThirdPartyRequest(
+        url=url, vendor=vendor, hostname=hostname,
+        bytes_transferred=size, duration_ms=duration,
+        blocking=resource_type in ("script", "stylesheet"),
+    )
+
+
+def classify_har(
     har: str | dict[str, Any],
     *,
     first_party_hostname: str,
@@ -90,35 +130,9 @@ def classify_har(  # NOSONAR S3776 — cohesive logic; planned refactor in follo
     first = first_party_hostname.lower()
     out: list[ThirdPartyRequest] = []
     for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        url = ((entry.get("request") or {}).get("url")) or ""
-        if not url:
-            continue
-        hostname = (urlparse(url).hostname or "").lower()
-        if not hostname or _is_first_party(hostname, first):
-            continue
-        vendor = _classify_vendor(hostname, extra) or "unknown_third_party"
-        response = entry.get("response") or {}
-        size = max(
-            int(response.get("_transferSize") or 0),
-            int((response.get("content") or {}).get("size") or 0),
-        )
-        timings = entry.get("timings") or {}
-        duration = 0.0
-        for key in ("blocked", "dns", "connect", "send", "wait", "receive"):
-            v = timings.get(key)
-            if isinstance(v, (int, float)) and v > 0:
-                duration += float(v)
-        resource_type = str(
-            entry.get("_resourceType") or entry.get("resourceType") or "",
-        ).lower()
-        blocking = resource_type in ("script", "stylesheet")
-        out.append(ThirdPartyRequest(
-            url=url, vendor=vendor, hostname=hostname,
-            bytes_transferred=size, duration_ms=duration,
-            blocking=blocking,
-        ))
+        request = _third_party_request(entry, first, extra)
+        if request is not None:
+            out.append(request)
     return out
 
 
@@ -171,6 +185,7 @@ class ThirdPartyReport:
     breaches: list[str] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """True when no budget was breached."""
         return not self.breaches
 
 
@@ -221,6 +236,7 @@ def evaluate(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
 
 
 def assert_within_budget(report: ThirdPartyReport) -> None:
+    """Raise ``ThirdPartyBudgetError`` listing the breaches when the report did not pass."""
     if not isinstance(report, ThirdPartyReport):
         raise ThirdPartyBudgetError("assert_within_budget expects ThirdPartyReport")
     if report.passed():

@@ -29,6 +29,7 @@ class HarReplayError(WebRunnerException):
 
 @dataclass
 class HarEntry:
+    """One recorded response: method, path, status, headers and body (optionally base64)."""
     method: str
     path: str
     status: int
@@ -104,7 +105,7 @@ class _Bucket:
     cursor: int = 0
 
 
-class HarReplayServer:
+class HarReplayServer:  # pylint: disable=too-many-instance-attributes  # public settings plus server state
     """In-process HTTP server that replays HAR responses."""
 
     def __init__(
@@ -139,6 +140,10 @@ class HarReplayServer:
             self._buckets[method].append(bucket)
 
     def find(self, method: str, path: str) -> HarEntry | None:
+        """Record the request in ``calls`` and return the next recorded entry for it, or None.
+
+        Repeated requests walk through the recorded entries in order and stay on the last one.
+        """
         method_upper = method.upper()
         self.calls.append((method_upper, path))
         candidates = self._buckets.get(method_upper) or []
@@ -151,6 +156,10 @@ class HarReplayServer:
         return None
 
     def start(self) -> str:
+        """Start serving on a daemon thread and return the base URL.
+
+        Raises HarReplayError when the server is already started.
+        """
         if self._server is not None:
             raise HarReplayError("HAR replay server already started")
         handler = _make_handler(self)
@@ -164,6 +173,7 @@ class HarReplayServer:
         return f"http://{self.host}:{self.port}"  # NOSONAR — local mock
 
     def stop(self) -> None:
+        """Shut the server down and release its socket; a no-op when it is not running."""
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()
@@ -223,13 +233,16 @@ def _make_handler(server: HarReplayServer) -> Callable:
             self.end_headers()
             self.wfile.write(body_bytes)
 
-        def do_GET(self):
+        def do_GET(self):  # pylint: disable=invalid-name  # name fixed by BaseHTTPRequestHandler
+            """Answer a GET with the recorded response."""
             self._serve()
 
-        def do_DELETE(self):
+        def do_DELETE(self):  # pylint: disable=invalid-name  # name fixed by BaseHTTPRequestHandler
+            """Answer a DELETE with the recorded response."""
             self._serve()
 
-        def do_POST(self):
+        def do_POST(self):  # pylint: disable=invalid-name  # name fixed by BaseHTTPRequestHandler
+            """Read and discard the request body, then answer with the recorded response."""
             self._drain_body()
             self._serve()
 

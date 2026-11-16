@@ -30,14 +30,17 @@ class _Bucket:
 
     @property
     def total(self) -> int:
+        """Number of runs in the bucket, passed plus failed."""
         return self.passed + self.failed
 
     @property
     def pass_rate(self) -> float:
+        """Fraction of the bucket's runs that passed; 0 for an empty bucket."""
         return self.passed / self.total if self.total else 0.0
 
     @property
     def avg_duration(self) -> float:
+        """Mean duration of the bucket's runs; 0 for an empty bucket."""
         return self.total_duration / self.total if self.total else 0.0
 
 
@@ -184,6 +187,10 @@ def _render_pass_rate_svg(daily: list[dict[str, Any]]) -> str:
 
 def write_dashboard(trend: dict[str, Any], output_path: str,
                     title: str = "WebRunner trend") -> Path:
+    """將趨勢資料輸出成 HTML 檔
+    Render ``trend`` as HTML, write it to ``output_path`` (creating parent
+    directories) and return the path.
+    """
     text = render_html(trend, title=title)
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)

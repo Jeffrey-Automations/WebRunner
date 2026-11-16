@@ -26,6 +26,7 @@ class GraphqlNPlus1Error(WebRunnerException):
 
 
 class Severity(str, Enum):
+    """How serious a finding is: ``warn`` or ``error``."""
     WARN = "warn"
     ERROR = "error"
 
@@ -50,6 +51,7 @@ class QueryRow:
 
 @dataclass
 class Finding:
+    """One repeated-query pattern: the rule, the field, how often the query template repeated."""
     severity: Severity
     rule: str
     field: str
@@ -58,10 +60,15 @@ class Finding:
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
 def parse_rows(payload: Any) -> list[QueryRow]:
+    """Turn a list of trace dicts into QueryRow objects, skipping entries that are not dicts.
+
+    Raises GraphqlNPlus1Error when the payload is not a list.
+    """
     if not isinstance(payload, list):
         raise GraphqlNPlus1Error("payload must be a list of dicts")
     out: list[QueryRow] = []
@@ -122,6 +129,7 @@ def detect_cartesian(rows: Sequence[QueryRow]) -> list[Finding]:
 
 
 def assert_no_n_plus_1(findings: Iterable[Finding]) -> None:
+    """Raise GraphqlNPlus1Error when any finding has ERROR severity."""
     bad = [f for f in findings if f.severity == Severity.ERROR]
     if bad:
         raise GraphqlNPlus1Error(
@@ -130,6 +138,7 @@ def assert_no_n_plus_1(findings: Iterable[Finding]) -> None:
 
 
 def report_markdown(findings: Iterable[Finding]) -> str:
+    """Render the findings as a Markdown bullet list, or a one-line note when there are none."""
     findings = list(findings)
     if not findings:
         return "## GraphQL N+1 audit\n_No N+1 patterns detected._"

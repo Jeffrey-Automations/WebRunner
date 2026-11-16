@@ -57,6 +57,7 @@ class ConsoleMessage:
         object.__setattr__(self, "severity", normalised)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the message as a plain dict."""
         return asdict(self)
 
 
@@ -72,6 +73,7 @@ class BudgetReport:
     sampled: list[ConsoleMessage] = field(default_factory=list)
 
     def raise_if_failed(self) -> None:
+        """Raise ``ConsoleBudgetError`` listing the breaches when the budget was exceeded."""
         if not self.passed:
             joined = "; ".join(self.breaches) or "budget exceeded"
             raise ConsoleBudgetError(joined)

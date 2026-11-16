@@ -52,6 +52,7 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class WakeLockEvent:
+    """One wake-lock acquire or release recorded in the page."""
     kind: str        # "acquire" | "release"
     type: str = "screen"
     ts_ms: int = 0
@@ -60,18 +61,25 @@ class WakeLockEvent:
 
 @dataclass
 class WakeLockLog:
+    """The wake-lock events of a page, in recorded order."""
     events: list[WakeLockEvent] = field(default_factory=list)
 
     @property
     def acquired_count(self) -> int:
+        """Number of acquire events."""
         return sum(1 for e in self.events if e.kind == "acquire")
 
     @property
     def released_count(self) -> int:
+        """Number of release events."""
         return sum(1 for e in self.events if e.kind == "release")
 
 
 def parse_log(payload: Any) -> WakeLockLog:
+    """Build a ``WakeLockLog`` from the list recorded in the page, keeping only the
+    ``acquire`` and ``release`` entries. Raises ``WakeLockAssertError`` when the payload
+    is not a list.
+    """
     if not isinstance(payload, list):
         raise WakeLockAssertError("payload must be a list")
     events: list[WakeLockEvent] = []
@@ -91,6 +99,7 @@ def parse_log(payload: Any) -> WakeLockLog:
 
 
 def assert_acquired(log: WakeLockLog) -> None:
+    """Raise ``WakeLockAssertError`` when the page never acquired a wake lock."""
     if log.acquired_count == 0:
         raise WakeLockAssertError(
             "page never called navigator.wakeLock.request()"

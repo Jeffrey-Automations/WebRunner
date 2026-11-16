@@ -36,6 +36,21 @@ def _lookup_header(headers: dict[str, str], name: str) -> str | None:
     return None
 
 
+_ALLOWED_VALUES = {
+    "deny_or_sameorigin": {"deny", "sameorigin"},
+    "nosniff": {"nosniff"},
+}
+
+
+def _value_problem(rule: str, value: str, lowered: str) -> str | None:
+    """Return the problem of a present header value under ``rule``; None if it conforms."""
+    if rule == "presence_and_max_age":
+        return None if "max-age" in lowered else "no max-age directive"
+    if rule in ("deny_or_sameorigin", "nosniff"):
+        return None if lowered.strip() in _ALLOWED_VALUES[rule] else f"unexpected value {value!r}"
+    return f"unknown rule {rule!r}"
+
+
 def _check_rule(rule: str, value: str | None) -> str | None:
     """Return a problem string when the rule is violated; None if OK."""
     if value is None:
@@ -43,19 +58,7 @@ def _check_rule(rule: str, value: str | None) -> str | None:
     lowered = value.lower()
     if rule == "presence":
         return None
-    if rule == "presence_and_max_age":
-        if "max-age" not in lowered:
-            return "no max-age directive"
-        return None
-    if rule == "deny_or_sameorigin":
-        if lowered.strip() not in {"deny", "sameorigin"}:
-            return f"unexpected value {value!r}"
-        return None
-    if rule == "nosniff":
-        if lowered.strip() != "nosniff":
-            return f"unexpected value {value!r}"
-        return None
-    return f"unknown rule {rule!r}"
+    return _value_problem(rule, value, lowered)
 
 
 def audit_headers(
@@ -95,7 +98,7 @@ def audit_url(
     GET ``url`` 並稽核回應 headers
     Issue a GET request and audit the response headers.
     """
-    if not isinstance(url, str) or not (url.startswith(("http://", "https://"))):  # NOSONAR — scheme allow-list
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):  # NOSONAR — scheme allow-list
         raise SecurityHeadersError(f"URL must be http(s): {url!r}")
     web_runner_logger.info(f"audit_url: {url}")
     response = requests.get(url, timeout=timeout, allow_redirects=True)

@@ -112,7 +112,7 @@ class AsyncExecutor:
                 try:
                     with self.sync.fail_fast.step():
                         record[key] = await self._run_action(action, state, context_options)
-                except Exception as error:  # every action's own failure is recorded, not raised
+                except Exception as error:  # pylint: disable=broad-exception-caught  # each failure is recorded
                     web_runner_logger.error(f"async execute_action, action: {action}, failed: {error!r}")
                     record[key] = str(error) if isinstance(error, _RecordedFailure) else describe_error(error)
                     failed.append(key)

@@ -24,6 +24,7 @@ class ViewportAuditError(WebRunnerException):
 
 @dataclass
 class ViewportMeta:
+    """The ``content`` of a viewport meta tag and its parsed ``key=value`` pairs."""
     content: str = ""
     parsed: dict[str, str] = field(default_factory=dict)
 
@@ -70,6 +71,7 @@ def parse_meta(html: str) -> ViewportMeta | None:
 
 
 def assert_meta_present(meta: ViewportMeta | None) -> None:
+    """Raise ``ViewportAuditError`` when the page has no viewport meta tag (``meta`` is ``None``)."""
     if meta is None:
         raise ViewportAuditError(
             "<meta name='viewport'> is missing — mobile layout will be broken"
@@ -83,6 +85,7 @@ def _present(meta: ViewportMeta | None) -> ViewportMeta:
 
 
 def assert_responsive_width(meta: ViewportMeta | None) -> None:
+    """Raise ``ViewportAuditError`` unless the viewport meta declares ``width=device-width``."""
     width = _present(meta).parsed.get("width")
     if width != "device-width":
         raise ViewportAuditError(
@@ -113,6 +116,7 @@ def assert_user_scalable_allowed(meta: ViewportMeta | None) -> None:
 
 
 def assert_notch_aware(meta: ViewportMeta | None) -> None:
+    """Raise ``ViewportAuditError`` unless the viewport meta declares ``viewport-fit=cover``."""
     fit = _present(meta).parsed.get("viewport-fit")
     if fit != "cover":
         raise ViewportAuditError(
@@ -147,6 +151,9 @@ HARVEST_SCRIPT = r"""
 
 
 def parse_safe_area(payload: Any) -> SafeAreaSnapshot:
+    """Build a ``SafeAreaSnapshot`` from the dict read in the page; a missing padding
+    becomes ``0px``. Raises ``ViewportAuditError`` when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise ViewportAuditError("payload must be a dict")
     return SafeAreaSnapshot(

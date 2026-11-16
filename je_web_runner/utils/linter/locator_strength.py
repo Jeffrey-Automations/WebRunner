@@ -18,6 +18,7 @@ class LocatorStrengthError(WebRunnerException):
 
 @dataclass
 class LocatorScore:
+    """The strength score of one locator and the reasons behind it."""
     strategy: str
     value: str
     score: int

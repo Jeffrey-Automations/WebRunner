@@ -19,6 +19,7 @@ class BootstrapError(WebRunnerException):
 
 @dataclass
 class StarterFile:
+    """A file of the starter workspace: its path relative to the target directory and its content."""
     relative_path: str
     content: str
 

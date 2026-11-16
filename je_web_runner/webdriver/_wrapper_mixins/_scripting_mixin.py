@@ -14,7 +14,7 @@ from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_fail
 from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 
-class _ScriptingMixin(_WrapperBase):
+class _ScriptingMixin(_WrapperBase):  # pylint: disable=too-many-public-methods  # one method per command
     """提供同步 / 非同步 JS、CDP、BiDi、Fetch 攔截原語。
 
     Synchronous and asynchronous JavaScript, CDP commands, BiDi listeners,
@@ -36,7 +36,7 @@ class _ScriptingMixin(_WrapperBase):
         try:
             record_action_to_list("webdriver wrapper execute", param, None)
             return self.current_webdriver.execute(driver_command, params)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper execute, driver_command: {driver_command}, params: {params}, failed: {error!r}"
             )
@@ -60,7 +60,7 @@ class _ScriptingMixin(_WrapperBase):
             value = self.current_webdriver.execute_script(script, *args)
             record_action_to_list("webdriver wrapper execute_script", param, None)
             return value
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper execute_script, script: {script}, failed: {error!r}")
             record_action_to_list("webdriver wrapper execute_script", param, error)
             settle_wrapper_failure(error)
@@ -330,7 +330,7 @@ class _ScriptingMixin(_WrapperBase):
             self._bidi_script().remove_console_message_handler(subscription_id)
             record_action_to_list("webdriver wrapper remove_console_listener", param, None)
             return True
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper remove_console_listener failed: {error!r}")
             record_action_to_list("webdriver wrapper remove_console_listener", param, error)
             settle_wrapper_failure(error)
@@ -347,7 +347,7 @@ class _ScriptingMixin(_WrapperBase):
             self._bidi_script().remove_javascript_error_handler(subscription_id)
             record_action_to_list("webdriver wrapper remove_js_error_listener", param, None)
             return True
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper remove_js_error_listener failed: {error!r}")
             record_action_to_list("webdriver wrapper remove_js_error_listener", param, error)
             settle_wrapper_failure(error)
@@ -516,7 +516,7 @@ class _ScriptingMixin(_WrapperBase):
             result = self.current_webdriver.execute_async_script(script, *args)
             record_action_to_list("webdriver wrapper execute_async_script", param, None)
             return result
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper execute_async_script, script: {script}, failed: {error!r}"
             )

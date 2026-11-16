@@ -48,6 +48,7 @@ class WsFrame:
             )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
     def as_json(self) -> Any:
@@ -72,6 +73,7 @@ class WsFrameRecorder:
         return len(self._frames)
 
     def record(self, frame: WsFrame) -> None:
+        """Append a frame; raises ``WebSocketAssertError`` when it is not a ``WsFrame``."""
         if not isinstance(frame, WsFrame):
             raise WebSocketAssertError(
                 f"record() expects WsFrame, got {type(frame).__name__}"
@@ -79,12 +81,15 @@ class WsFrameRecorder:
         self._frames.append(frame)
 
     def record_sent(self, url: str, payload: str, *, opcode: int = 1) -> None:
+        """Record a frame the page sent to ``url``."""
         self.record(WsFrame(direction=SENT, url=url, payload=payload, opcode=opcode))
 
     def record_received(self, url: str, payload: str, *, opcode: int = 1) -> None:
+        """Record a frame the page received from ``url``."""
         self.record(WsFrame(direction=RECEIVED, url=url, payload=payload, opcode=opcode))
 
     def clear(self) -> None:
+        """Drop every recorded frame."""
         self._frames.clear()
 
     def frames(
@@ -152,7 +157,7 @@ def assert_frame_received(
         try:
             if predicate(frame):
                 return frame
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # user predicate; logged, skipped
             web_runner_logger.warning(f"ws predicate raised: {error!r}")
     raise WebSocketAssertError(f"no received frame matched: {description}")
 

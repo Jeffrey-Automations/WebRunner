@@ -103,16 +103,18 @@ def _try_selenium_screenshot() -> bytes | None:
         if webdriver_wrapper_instance.current_webdriver is None:
             return None
         return webdriver_wrapper_instance.get_screenshot_as_png()
-    except Exception:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
+        web_runner_logger.warning(f"failure screenshot unavailable (Selenium): {error!r}")
         return None
 
 
 def _try_playwright_screenshot() -> bytes | None:
     try:
-        if not _pw.playwright_wrapper_instance._pages:
+        if not _pw.playwright_wrapper_instance._pages:  # pylint: disable=protected-access  # is a page open
             return None
         return _pw.playwright_wrapper_instance.screenshot_bytes()
-    except Exception:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
+        web_runner_logger.warning(f"failure screenshot unavailable (Playwright): {error!r}")
         return None
 
 
@@ -172,7 +174,7 @@ def _refuse_command(_name: str) -> WebRunnerAddCommandException:
     return WebRunnerAddCommandException(add_command_exception_tag)
 
 
-class Executor(ActionExecutor):
+class Executor(ActionExecutor):  # pylint: disable=too-many-instance-attributes,too-many-public-methods  # facade
     """
     執行 WebRunner 動作清單
     Runs WebRunner action lists: je_action_core's executor with WebRunner's action format, gates, retries,
@@ -345,7 +347,7 @@ class Executor(ActionExecutor):
             with track_records() as records:
                 try:
                     return self._execute_event(action)
-                except Exception as error:
+                except Exception as error:  # pylint: disable=broad-exception-caught  # re-raised after the last retry
                     if attempt >= retries:
                         raise
                     # The attempt is retried, so what it recorded is not a failure of the run.
@@ -420,7 +422,7 @@ class Executor(ActionExecutor):
             return None
         try:
             return wrapper.save_trace_chunk(str(target))
-        except Exception as error:  # the action already failed; its trace is best effort
+        except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
             web_runner_logger.error(f"failure trace save failed: {error!r}")
             return None
 
@@ -572,7 +574,7 @@ class Executor(ActionExecutor):
         # A dict must carry its actions under "webdriver_wrapper"; the result must be a list
         # (a string would otherwise be iterated character by character).
         actions: Any = action_list
-        if type(action_list) is dict:
+        if type(action_list) is dict:  # pylint: disable=unidiomatic-typecheck  # a plain dict only, as before
             actions = action_list.get("webdriver_wrapper", None)
         action_list = actions
         if not isinstance(action_list, list):

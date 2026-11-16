@@ -35,7 +35,9 @@ def start_remote_driver(
     options = webdriver.ChromeOptions()
     for key, value in capabilities.items():
         options.set_capability(key, value)
-    driver = webdriver.Remote(command_executor=hub_url, options=options)
+    driver = webdriver.Remote(  # pylint: disable=not-callable  # Selenium loads the class lazily
+        command_executor=hub_url, options=options,
+    )
     if register:
         # set_active_driver (not a bare current_webdriver assignment) so the
         # wrapper's ActionChains bind to this remote driver.

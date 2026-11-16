@@ -28,7 +28,7 @@ def execute_case(case: dict[str, Any], workdir: Path) -> dict[str, Any]:
     temporary = tempfile.gettempdir()
     environment.update({"PYTHONPATH": str(workdir), "PYTHONDONTWRITEBYTECODE": "1", "HOME": temporary,
                         "WEBRUNNER_LOG_PATH": str(Path(temporary) / "webrunner-app.log"), "SE_OFFLINE": "true"})
-    process = subprocess.Popen(  # nosec B603
+    process = subprocess.Popen(  # nosec B603  # pylint: disable=consider-using-with  # stopped by _stop_server
         case["server"], cwd=workdir, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
         creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
     )
@@ -80,7 +80,7 @@ def main(path: str) -> int:
                   "conditions_verified": len(manifest["case"]["task"]["success"])
                   if full_report["status"] == "success" else 0, "conditions": full_report.get("conditions", [])}
         report.update({"tree": manifest["tree"], "signature": manifest["signature"]})
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # any failure becomes a failed report
         report = {"status": "failed", "stopped_reason": type(error).__name__}
     print(RESULT_MARKER + json.dumps(report, ensure_ascii=False))
     return 0 if report["status"] == "success" else 1

@@ -105,7 +105,7 @@ def execute_browser_action(browser: Any, action: AgentAction, redactor: Redactor
     return command_executor.execute_one(["WR_agent_step"])
 
 
-class AgentRunner:
+class AgentRunner:  # pylint: disable=too-many-instance-attributes  # the state of one run, shared by its steps
     """One task runner; injected browsers remain owned by their caller."""
 
     def __init__(self, task: TaskSpec, browser: Any = None, planner: Any = None,
@@ -148,7 +148,7 @@ class AgentRunner:
         except TimeoutError:
             self.report.status = "timeout"
             self.report.stopped_reason = "agent task exceeded its total time limit"
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # any failure ends the task as a report
             self.report.stopped_reason = self.redactor.clean(f"{type(error).__name__}: {error}")
             web_runner_logger.warning("agent task failed: %s", self.report.stopped_reason)
         finally:
@@ -164,7 +164,7 @@ class AgentRunner:
     def _cleanup(self, resource: Any) -> None:
         try:
             resource.close()
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # cleanup is best effort and logged
             web_runner_logger.warning("agent resource cleanup failed: %s", type(error).__name__)
 
     def _setup(self) -> None:
@@ -270,7 +270,7 @@ class AgentRunner:
             target = self.artifact_dir / "failure.png"
             self.browser.screenshot(target, self.redactor.secrets)
             self.report.artifacts.append(str(target.resolve()))
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort capture after a failure
             web_runner_logger.warning("agent failure screenshot unavailable: %s", type(error).__name__)
 
 

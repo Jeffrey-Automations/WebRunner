@@ -54,13 +54,15 @@ class EventCapture:
         self._page = None
 
     def clear(self) -> None:
+        """Drop every captured console message and network response."""
         self.console_messages = []
         self.network_responses = []
 
     def _on_console(self, message: Any) -> None:
         try:
             location = message.location
-        except Exception:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # a driver object may raise anything
+            web_runner_logger.warning(f"console message location unavailable: {error!r}")
             location = None
         self.console_messages.append({
             "type": getattr(message, "type", None),
@@ -79,16 +81,19 @@ class EventCapture:
     # ----- assertions ------------------------------------------------
 
     def assert_no_console_errors(self) -> None:
+        """Raise EventCaptureError when a console message of type ``error`` was captured."""
         errors = [m for m in self.console_messages if m.get("type") == "error"]
         if errors:
             raise EventCaptureError(f"console errors detected: {errors[:3]}")
 
     def assert_no_5xx(self) -> None:
+        """Raise EventCaptureError when a captured response has a status of 500 or more."""
         bad = [r for r in self.network_responses if r.get("status", 0) >= 500]
         if bad:
             raise EventCaptureError(f"5xx responses detected: {bad[:3]}")
 
     def assert_no_4xx_or_5xx(self) -> None:
+        """Raise EventCaptureError when a captured response has a status of 400 or more."""
         bad = [r for r in self.network_responses if r.get("status", 0) >= 400]
         if bad:
             raise EventCaptureError(f"4xx/5xx responses detected: {bad[:3]}")
@@ -106,29 +111,36 @@ def start_event_capture() -> None:
 
 
 def stop_event_capture() -> None:
+    """Detach the shared capture from the page it listens to."""
     web_runner_logger.info("stop_event_capture")
     event_capture.detach()
 
 
 def get_console_messages() -> list[dict[str, Any]]:
+    """Return a copy of the console messages the shared capture holds."""
     return list(event_capture.console_messages)
 
 
 def get_network_responses() -> list[dict[str, Any]]:
+    """Return a copy of the network responses the shared capture holds."""
     return list(event_capture.network_responses)
 
 
 def clear_event_capture() -> None:
+    """Drop everything the shared capture holds."""
     event_capture.clear()
 
 
 def assert_no_console_errors() -> None:
+    """Raise EventCaptureError when the shared capture holds a console error."""
     event_capture.assert_no_console_errors()
 
 
 def assert_no_5xx() -> None:
+    """Raise EventCaptureError when the shared capture holds a 5xx response."""
     event_capture.assert_no_5xx()
 
 
 def assert_no_4xx_or_5xx() -> None:
+    """Raise EventCaptureError when the shared capture holds a 4xx or 5xx response."""
     event_capture.assert_no_4xx_or_5xx()

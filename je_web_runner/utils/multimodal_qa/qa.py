@@ -63,6 +63,7 @@ class QaRequest:
             raise MultimodalQaError("question must be a non-empty string")
 
     def b64_image(self) -> str:
+        """The image bytes as a base64 ASCII string."""
         return base64.b64encode(bytes(self.image_bytes)).decode("ascii")
 
 
@@ -77,9 +78,11 @@ class QaResponse:
     raw: str = ""
 
     def is_pass(self) -> bool:
+        """Return True when the verdict is PASS."""
         return self.verdict == Verdict.PASS
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the response as a dict with the verdict as its string value."""
         return {**asdict(self), "verdict": self.verdict.value}
 
 
@@ -88,7 +91,8 @@ class QaResponse:
 class VisionClient(Protocol):
     """LLM client interface."""
 
-    def ask(self, prompt: str, image_b64: str) -> str: ...
+    def ask(self, prompt: str, image_b64: str) -> str:
+        """Return the vision model's raw answer to ``prompt`` about the base64 image."""
 
 
 # ---------- prompt -----------------------------------------------------

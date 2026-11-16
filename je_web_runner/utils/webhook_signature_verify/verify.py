@@ -34,6 +34,7 @@ _GITHUB_SIG_PREFIX = "sha256="
 
 
 class Scheme(str, Enum):
+    """The provider signature schemes the verifier understands."""
     GITHUB = "github"
     STRIPE = "stripe"
     SLACK = "slack"
@@ -42,6 +43,7 @@ class Scheme(str, Enum):
 
 @dataclass
 class VerifyResult:
+    """Whether a signature verified, under which scheme, and why not."""
     ok: bool
     scheme: Scheme
     note: str = ""
@@ -157,6 +159,7 @@ def verify(
 
 
 def assert_valid(result: VerifyResult) -> None:
+    """Raise ``WebhookSignatureVerifyError`` when the result is not ok, quoting its note."""
     if not result.ok:
         raise WebhookSignatureVerifyError(
             f"signature failed verification for {result.scheme.value}"
@@ -167,16 +170,23 @@ def assert_valid(result: VerifyResult) -> None:
 # ----------- helper for tests: produce a signature for a body --------
 
 def sign_github(body: bytes, secret: str) -> str:
+    """Return the GitHub signature header value for ``body``: the prefix and the hex HMAC."""
     return _GITHUB_SIG_PREFIX + _hex(secret, body)
 
 
 def sign_stripe(body: bytes, secret: str, ts: int | None = None) -> str:
+    """Return a ``Stripe-Signature`` style value ``t=<ts>,v1=<hmac>`` over ``<ts>.<body>``;
+    ``ts`` defaults to the current time.
+    """
     ts = int(ts or time.time())
     signed = f"{ts}.".encode() + body
     return f"t={ts},v1={_hex(secret, signed)}"
 
 
 def sign_slack(body: bytes, secret: str, ts: int | None = None) -> str:
+    """Return a Slack signature ``v0=<hmac>`` over ``v0:<ts>:<body>``;
+    ``ts`` defaults to the current time.
+    """
     ts = int(ts or time.time())
     base = f"v0:{ts}:".encode() + body
     return "v0=" + _hex(secret, base)

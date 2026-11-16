@@ -30,8 +30,11 @@ class DbSnapshotError(WebRunnerException):
 class SnapshotBackend(Protocol):
     """Minimal DB interface: take a named savepoint, roll back to it."""
 
-    def savepoint(self, name: str) -> None: ...
-    def rollback_to(self, name: str) -> None: ...
+    def savepoint(self, name: str) -> None:
+        """Take a savepoint called ``name``."""
+
+    def rollback_to(self, name: str) -> None:
+        """Undo everything done since the savepoint called ``name``."""
 
 
 # ---------- in-memory backend (for tests / dry runs) --------------------
@@ -48,19 +51,23 @@ class InMemoryBackend:
     _snapshots: dict[str, dict[str, dict[Any, Any]]] = field(default_factory=dict)
 
     def insert(self, table: str, key: Any, value: Any) -> None:
+        """Set ``key`` to ``value`` in ``table``, creating the table if needed."""
         self.tables.setdefault(table, {})[key] = value
 
     def delete(self, table: str, key: Any) -> None:
+        """Remove ``key`` from ``table``; a missing table or key is ignored."""
         if table in self.tables:
             self.tables[table].pop(key, None)
 
     def savepoint(self, name: str) -> None:
+        """Copy every table under ``name``; raise ``DbSnapshotError`` if that savepoint already exists."""
         if name in self._snapshots:
             raise DbSnapshotError(f"savepoint {name!r} already exists")
         self._snapshots[name] = {t: dict(rows) for t, rows in self.tables.items()}
         web_runner_logger.info(f"db_snapshot in-memory savepoint {name!r}")
 
     def rollback_to(self, name: str) -> None:
+        """Restore the tables saved under ``name`` and drop that savepoint; raise if it does not exist."""
         snap = self._snapshots.pop(name, None)
         if snap is None:
             raise DbSnapshotError(f"no savepoint named {name!r}")
@@ -90,6 +97,7 @@ class SnapshotScope:
     _stack: list[SnapshotHandle] = field(default_factory=list)
 
     def create(self) -> SnapshotHandle:
+        """Take a savepoint with a unique name, push it on the stack and return its handle."""
         name = f"{self.prefix}_{uuid.uuid4().hex[:12]}"
         try:
             self.backend.savepoint(name)
@@ -102,6 +110,7 @@ class SnapshotScope:
         return handle
 
     def rollback(self, handle: SnapshotHandle) -> None:
+        """Roll back to ``handle``, which must be the newest snapshot; raise ``DbSnapshotError`` otherwise."""
         if not self._stack:
             raise DbSnapshotError("no active snapshots to roll back")
         top = self._stack[-1]
@@ -119,6 +128,7 @@ class SnapshotScope:
         self._stack.pop()
 
     def active(self) -> int:
+        """Number of snapshots taken and not yet rolled back."""
         return len(self._stack)
 
 

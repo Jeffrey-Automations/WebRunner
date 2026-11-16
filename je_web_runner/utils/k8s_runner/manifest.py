@@ -33,7 +33,7 @@ _REQUIRED: Any = object()
 
 
 @dataclass
-class ShardJobConfig:
+class ShardJobConfig:  # pylint: disable=too-many-instance-attributes  # one field per Job setting
     """
     Inputs for a single batch of shard Jobs.
 

@@ -101,6 +101,22 @@ def _unpinned_passing(
     return filtered, constrained_out
 
 
+def _check_matrix_inputs(flags: Sequence[FlagSpec], sample_size: int | None) -> None:
+    """Raise ``FlagMatrixError`` for no flag, a duplicate flag name or a non-positive ``sample_size``."""
+    if not flags:
+        raise FlagMatrixError("at least one FlagSpec is required")
+    seen_names = [f.name for f in flags]
+    if len(set(seen_names)) != len(seen_names):
+        raise FlagMatrixError(f"duplicate flag name in: {seen_names}")
+    if sample_size is not None and sample_size <= 0:
+        raise FlagMatrixError("sample_size must be > 0 when provided")
+
+
+def _all_combos(names: Sequence[str], variant_lists: Sequence[Sequence[Any]]) -> list[Combo]:
+    """Every combination of one variant per flag, in ``itertools.product`` order."""
+    return [dict(zip(names, tup, strict=False)) for tup in itertools.product(*variant_lists)]
+
+
 def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
     flags: Sequence[FlagSpec],
     *,
@@ -114,13 +130,7 @@ def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follo
     combo. ``pinned`` always appears at the front. ``sample_size`` (if
     set) limits the total combo count via deterministic seeded sampling.
     """
-    if not flags:
-        raise FlagMatrixError("at least one FlagSpec is required")
-    seen_names = [f.name for f in flags]
-    if len(set(seen_names)) != len(seen_names):
-        raise FlagMatrixError(f"duplicate flag name in: {seen_names}")
-    if sample_size is not None and sample_size <= 0:
-        raise FlagMatrixError("sample_size must be > 0 when provided")
+    _check_matrix_inputs(flags, sample_size)
 
     names = [f.name for f in flags]
     variant_lists = [list(f.variants) for f in flags]
@@ -128,30 +138,23 @@ def build_matrix(  # NOSONAR S3776 — cohesive logic; planned refactor in follo
     for variants in variant_lists:
         total_possible *= len(variants)
 
-    all_combos: list[Combo] = []
-    for tup in itertools.product(*variant_lists):
-        combo = dict(zip(names, tup, strict=False))
-        all_combos.append(combo)
-
     pinned_combos, pinned_keys = _unique_pinned(pinned, names, variant_lists)
-    filtered, constrained_out = _unpinned_passing(all_combos, pinned_keys, constraints)
+    filtered, constrained_out = _unpinned_passing(_all_combos(names, variant_lists), pinned_keys, constraints)
 
     if not pinned_combos and not filtered:
         raise FlagMatrixError("all combos were filtered out by constraints")
 
     if sample_size is not None and len(filtered) > max(0, sample_size - len(pinned_combos)):
-        rng = random.Random(seed)  # nosec B311 — deterministic flag-combo sampling, not crypto
         keep_count = max(0, sample_size - len(pinned_combos))
-        # S2245 ok: deterministic seeded sampling for reproducible test combos;
+        # S2245 / B311 ok: deterministic seeded sampling for reproducible test combos;
         # not used for any cryptographic / security decision.
-        filtered = rng.sample(filtered, keep_count)  # NOSONAR S2245 — non-crypto sampling
+        filtered = random.Random(seed).sample(filtered, keep_count)  # nosec B311  # NOSONAR S2245
         sampled = True
     else:
         sampled = False
 
-    combos = pinned_combos + filtered
     return FlagMatrix(
-        combos=combos,
+        combos=pinned_combos + filtered,
         total_possible=total_possible,
         pinned_count=len(pinned_combos),
         constrained_out=constrained_out,

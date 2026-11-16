@@ -46,7 +46,8 @@ class IssueDoctor:
     def _probe(name: str, operation: Callable[[], Any], hint: str) -> dict[str, Any]:
         try:
             operation()
-        except Exception:  # Report a bounded code, never raw errors containing host secrets.
+        except Exception:  # pylint: disable=broad-exception-caught  # recorded as a bounded code, never the raw error
+            # Raw errors can contain host secrets.
             return {"name": name, "status": "failed", "required": True, "code": name + "_unavailable",
                     "hint": hint}
         return {"name": name, "status": "passed", "required": True, "code": name + "_ready", "hint": ""}

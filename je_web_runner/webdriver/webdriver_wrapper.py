@@ -18,11 +18,12 @@ from functools import partial
 from pathlib import Path
 
 from selenium import webdriver
-from selenium.webdriver import ActionChains
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.webdriver.ie.options import Options as IEOptions, Options
+from selenium.webdriver.ie.options import Options as IEOptions
+from selenium.webdriver.ie.options import Options  # pylint: disable=reimported  # the name annotations use
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.safari.options import Options as SafariOptions
@@ -246,8 +247,7 @@ class WebDriverWrapper(
             f"webdriver_manager_option_dict: {webdriver_manager_option_dict}"
         )
         param = locals()
-        install_path: str = str(Path.cwd())
-        cache_manager = DriverCacheManager(install_path)
+        cache_manager = DriverCacheManager(str(Path.cwd()))
 
         try:
             webdriver_name = str(webdriver_name).lower()
@@ -375,7 +375,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_element", param, None)
             return web_element_wrapper.current_web_element
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper find_element, test_object: {test_object}, failed: {error!r}"
             )
@@ -402,7 +402,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_elements", param, None)
             return web_element_wrapper.current_web_element_list
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper find_elements, test_object: {test_object}, failed: {error!r}"
             )
@@ -433,7 +433,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_element_with_test_object_record", param, None)
             return web_element_wrapper.current_web_element
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper find_element_with_test_object_record, element_name: {element_name}, "
                 f"failed: {error!r}"
@@ -465,7 +465,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_elements_with_test_object_record", param, None)
             return web_element_wrapper.current_web_element_list
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper find_elements_with_test_object_record, element_name: {element_name}, "
                 f"failed: {error!r}"
@@ -487,7 +487,7 @@ class WebDriverWrapper(
         try:
             self.current_webdriver.implicitly_wait(time_to_wait)
             record_action_to_list("webdriver wrapper implicitly_wait", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper implicitly_wait, time_to_wait: {time_to_wait}, failed: {error!r}"
             )
@@ -515,7 +515,7 @@ class WebDriverWrapper(
             if until_type is False and method:
                 return WebDriverWait(self.current_webdriver, wait_time).until_not(method)
             return WebDriverWait(self.current_webdriver, wait_time)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebDriverWrapper explict_wait failed: {error!r}"
             )
@@ -531,7 +531,7 @@ class WebDriverWrapper(
         try:
             self.current_webdriver.set_script_timeout(time_to_wait)
             record_action_to_list("webdriver wrapper set_script_timeout", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper set_script_timeout failed: {error!r}")
             record_action_to_list("webdriver wrapper set_script_timeout", param, error)
             settle_wrapper_failure(error)
@@ -543,7 +543,7 @@ class WebDriverWrapper(
         try:
             self.current_webdriver.set_page_load_timeout(time_to_wait)
             record_action_to_list("webdriver wrapper set_page_load_timeout", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper set_page_load_timeout failed: {error!r}")
             record_action_to_list("webdriver wrapper set_page_load_timeout", param, error)
             settle_wrapper_failure(error)
@@ -561,7 +561,7 @@ class WebDriverWrapper(
         try:
             check_webdriver_details(self.current_webdriver, check_dict)
             record_action_to_list("webdriver wrapper check_current_webdriver", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebDriverWrapper check_current_webdriver failed: {error!r}")
             record_action_to_list("webdriver wrapper check_current_webdriver", param, error)
             settle_wrapper_failure(error)

@@ -1,3 +1,6 @@
+"""測試物件：封裝元素的定位方式與定位值。
+TestObject: holds the locator strategy and locator value of an element.
+"""
 from selenium.webdriver.common.by import By
 
 # 可用的定位方式清單

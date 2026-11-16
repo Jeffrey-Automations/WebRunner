@@ -20,14 +20,21 @@ class AsyncCommandError(WebRunnerException):
     """An async assertion failed or a wait ran out."""
 
 
-async def goto(session: AsyncSession, url: str, wait_until: str = "load") -> str:
+async def goto(
+        session: AsyncSession,
+        url: str,  # pylint: disable=redefined-outer-name  # command parameter, passed by keyword
+        wait_until: str = "load",
+) -> str:
     """Navigate the current page (opening one first if none is open); returns the final URL."""
     page = session.page if session.pages else await session.new_page()
     await page.goto(url, wait_until=wait_until)
     return page.url
 
 
-async def new_page(session: AsyncSession, url: str | None = None) -> int:
+async def new_page(
+        session: AsyncSession,
+        url: str | None = None,  # pylint: disable=redefined-outer-name  # command parameter, passed by keyword
+) -> int:
     """Open a page (another tab of the same user), make it current, optionally load ``url``; returns its index."""
     page = await session.new_page()
     if url:
@@ -109,7 +116,10 @@ async def screenshot(session: AsyncSession, path: str, full_page: bool = False) 
     return path
 
 
-async def sleep(session: AsyncSession, seconds: float) -> None:  # the session is unused: every command takes it
+async def sleep(
+        session: AsyncSession,  # pylint: disable=unused-argument  # every command takes the session
+        seconds: float,
+) -> None:
     """Pause this action list only; the others keep running."""
     await asyncio.sleep(float(seconds))
 

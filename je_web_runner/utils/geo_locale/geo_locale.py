@@ -19,6 +19,7 @@ class GeoLocaleError(WebRunnerException):
 
 @dataclass(frozen=True)
 class GeoOverride:
+    """Geolocation, timezone and locale to override in the browser; unset fields are left alone."""
     latitude: float | None = None
     longitude: float | None = None
     accuracy_meters: float = 50.0
@@ -26,6 +27,9 @@ class GeoOverride:
     locale: str | None = None
 
     def validate(self) -> None:
+        """Raise GeoLocaleError when only one coordinate is set, a coordinate is out of range,
+        the timezone has no ``/`` or the locale is shorter than two characters.
+        """
         if (self.latitude is None) ^ (self.longitude is None):
             raise GeoLocaleError("latitude and longitude must be set together")
         if self.latitude is not None and not -90.0 <= self.latitude <= 90.0:

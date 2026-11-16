@@ -137,7 +137,7 @@ def run() -> int:
         return main()
     except KeyboardInterrupt:
         return 130
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # CLI last resort: one sanitized line, exit 1
         # Provider/worker exceptions deliberately omit HTTP response bodies and auth values.
         print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1

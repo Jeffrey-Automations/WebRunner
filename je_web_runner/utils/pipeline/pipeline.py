@@ -35,6 +35,9 @@ class PipelineError(WebRunnerException):
 
 @dataclass
 class PipelineStage:
+    """A named group of action files, the statuses that count as success for it and whether
+    the pipeline goes on when it fails.
+    """
     name: str
     files: list[str]
     required_status: list[str] = field(default_factory=lambda: ["passed"])
@@ -43,6 +46,7 @@ class PipelineStage:
 
 @dataclass
 class PipelineResult:
+    """The status of one stage (passed, failed or skipped) with its per-file results."""
     stage_name: str
     status: str  # "passed" / "failed" / "skipped"
     file_results: list[dict[str, Any]] = field(default_factory=list)
@@ -51,9 +55,11 @@ class PipelineResult:
 
 @dataclass
 class Pipeline:
+    """An ordered list of stages."""
     stages: list[PipelineStage] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the stages as a plain dict."""
         return {"stages": [
             {
                 "name": stage.name,

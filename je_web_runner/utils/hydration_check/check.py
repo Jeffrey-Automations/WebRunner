@@ -131,9 +131,11 @@ class HydrationReport:
     findings: list[HydrationFinding] = field(default_factory=list)
 
     def passed(self) -> bool:
+        """Return True when no hydration finding was recorded."""
         return not self.findings
 
     def by_kind(self) -> dict[str, int]:
+        """Count the findings per kind."""
         out: dict[str, int] = {}
         for f in self.findings:
             out[f.kind] = out.get(f.kind, 0) + 1

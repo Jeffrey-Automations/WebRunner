@@ -20,6 +20,7 @@ class ContractError(WebRunnerException):
 
 @dataclass
 class SchemaResult:
+    """The outcome of validating a value against a schema: whether it is valid and the error messages."""
     valid: bool
     errors: list[str] = field(default_factory=list)
 

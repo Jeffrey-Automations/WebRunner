@@ -31,6 +31,7 @@ class MutationTestingError(WebRunnerException):
 
 
 class MutationType(str, Enum):
+    """The kinds of change a mutant can apply to an action list."""
     LOCATOR_SWAP = "locator_swap"
     TIMEOUT_SHRINK = "timeout_shrink"
     URL_CHANGE = "url_change"
@@ -59,6 +60,7 @@ class Mutation:
     mutated: Any = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the mutation as a dict with the type as its string value."""
         out = asdict(self)
         out["type"] = self.type.value
         return out
@@ -73,6 +75,7 @@ class MutationResult:
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the mutation, whether it was killed and the error, as a dict."""
         return {
             "mutation": self.mutation.to_dict(),
             "killed": self.killed,
@@ -91,6 +94,7 @@ class MutationScore:
     results: list[MutationResult] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the totals, the score and every result as plain dicts."""
         return {
             "total": self.total,
             "killed": self.killed,
@@ -365,7 +369,7 @@ def run_mutation_testing(
         mutated = apply_mutation(actions, mutation)
         try:
             passed = bool(executor(mutated))
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # an executor error counts as a kill
             results.append(MutationResult(
                 mutation=mutation, killed=True, error=repr(error),
             ))

@@ -57,7 +57,8 @@ HARVEST_SCRIPT = r"""
 
 
 @dataclass
-class ElementBox:
+class ElementBox:  # pylint: disable=too-many-instance-attributes  # value object, one field per measured style
+    """The position and the direction-related computed styles of one element."""
     tag: str
     text: str = ""
     left: float = 0
@@ -74,6 +75,7 @@ class ElementBox:
 
 @dataclass
 class Snapshot:
+    """The document direction and the measured elements, grouped by selector."""
     document_dir: str
     selectors: dict[str, list[ElementBox]] = field(default_factory=dict)
 
@@ -108,6 +110,10 @@ def _parse_item(item: Any, snap: Snapshot) -> None:
 
 
 def parse_snapshot(payload: Any) -> Snapshot:
+    """Build a Snapshot from the dict collected in the page.
+
+    Raises RtlLayoutVerifyError when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise RtlLayoutVerifyError("payload must be a dict")
     snap = Snapshot(document_dir=str(payload.get("documentDir") or ""))
@@ -117,6 +123,7 @@ def parse_snapshot(payload: Any) -> Snapshot:
 
 
 def assert_document_rtl(snap: Snapshot) -> None:
+    """Raise RtlLayoutVerifyError unless the document direction is ``rtl``."""
     if snap.document_dir.lower() != "rtl":
         raise RtlLayoutVerifyError(
             f"<html dir> is {snap.document_dir!r}, expected 'rtl'"

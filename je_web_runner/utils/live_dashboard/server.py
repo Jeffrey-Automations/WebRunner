@@ -133,7 +133,8 @@ def _make_handler(config: DashboardConfig) -> type[BaseHTTPRequestHandler]:
     class DashboardHandler(_ResponseWriter):
         """Routes one server's requests to the pages and data of its ``config``."""
 
-        def do_GET(self) -> None:
+        def do_GET(self) -> None:  # pylint: disable=invalid-name  # name fixed by BaseHTTPRequestHandler
+            """Route a GET to the matching HTML, JSON or text route; unknown paths get the 404 page."""
             parsed = urllib.parse.urlparse(self.path)
             path = parsed.path
             try:
@@ -145,7 +146,8 @@ def _make_handler(config: DashboardConfig) -> type[BaseHTTPRequestHandler]:
                     self._send(200, *text_routes[path])
                 else:
                     self._send_html(render_not_found(path), status=404)
-            except Exception as error:  # NOSONAR python:S5754 — a 500, not a dead worker thread
+            except Exception as error:  # pylint: disable=broad-exception-caught  # NOSONAR S5754 — becomes a 500
+                # A 500 response, not a dead worker thread.
                 web_runner_logger.warning(f"dashboard handler error: {error!r}")
                 self._send_json({"error": repr(error)}, status=500)
 
@@ -221,6 +223,10 @@ class DashboardServer:
 
     @property
     def url(self) -> str:
+        """The URL to open the dashboard at; a bind-all host is shown as 127.0.0.1.
+
+        Raises LiveDashboardError when the server is not started.
+        """
         if self._bound is None:
             raise LiveDashboardError("server not started")
         host, port = self._bound

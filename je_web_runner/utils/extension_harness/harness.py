@@ -29,6 +29,7 @@ class ExtensionHarnessError(WebRunnerException):
 
 @dataclass
 class ExtensionInfo:
+    """What a browser extension's ``manifest.json`` declares, plus the directory it was read from."""
     name: str
     version: str
     manifest_version: int

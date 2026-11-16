@@ -1,3 +1,10 @@
+"""
+Public API of WebRunner (``je_web_runner``).
+
+Re-exports by name the Selenium wrapper singletons, the Playwright backend, the action executor,
+the report generators and the helpers of the ``utils`` subpackages, so callers import them from
+``je_web_runner`` itself.
+"""
 from je_web_runner.element.web_element_wrapper import web_element_wrapper
 from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
 from je_web_runner.manager.webrunner_manager import get_webdriver_manager

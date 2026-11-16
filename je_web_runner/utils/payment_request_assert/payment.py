@@ -70,27 +70,35 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class ConstructedPaymentRequest:
+    """The arguments one ``new PaymentRequest(...)`` call was given."""
     method_data: list[dict[str, Any]] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
     options: dict[str, Any] = field(default_factory=dict)
 
     def supports_method(self, method: str) -> bool:
+        """Return True when ``method`` is one of the request's supportedMethods."""
         return any((m.get("supportedMethods") or "") == method
                    for m in self.method_data if isinstance(m, dict))
 
 
 @dataclass
 class CompletedPayment:
+    """The status one ``PaymentResponse.complete()`` call was given."""
     status: str = "unknown"
 
 
 @dataclass
 class PaymentLog:
+    """Every PaymentRequest the page constructed and every completion it reported."""
     constructed: list[ConstructedPaymentRequest] = field(default_factory=list)
     completed: list[CompletedPayment] = field(default_factory=list)
 
 
 def parse_log(payload: Any) -> PaymentLog:
+    """Build a PaymentLog from the dict recorded in the page, skipping entries that are not dicts.
+
+    Raises PaymentRequestAssertError when the payload is not a dict.
+    """
     if not isinstance(payload, dict):
         raise PaymentRequestAssertError("payload must be dict")
     constructed: list[ConstructedPaymentRequest] = []
@@ -111,6 +119,7 @@ def parse_log(payload: Any) -> PaymentLog:
 
 
 def assert_supports(log: PaymentLog, *, method: str) -> None:
+    """Raise PaymentRequestAssertError unless some constructed PaymentRequest supports ``method``."""
     if not method:
         raise PaymentRequestAssertError("method must be non-empty")
     if not log.constructed:
@@ -126,6 +135,9 @@ def assert_supports(log: PaymentLog, *, method: str) -> None:
 
 
 def assert_total_currency(log: PaymentLog, *, currency: str) -> None:
+    """Raise PaymentRequestAssertError when a constructed PaymentRequest's total is not in ``currency``,
+    or none was constructed.
+    """
     if not currency:
         raise PaymentRequestAssertError("currency must be non-empty")
     if not log.constructed:
@@ -140,6 +152,9 @@ def assert_total_currency(log: PaymentLog, *, currency: str) -> None:
 
 
 def assert_completed(log: PaymentLog, *, status: str = "success") -> None:
+    """Raise PaymentRequestAssertError unless ``complete()`` was called with ``status``
+    (``success``, ``fail`` or ``unknown``).
+    """
     if status not in ("success", "fail", "unknown"):
         raise PaymentRequestAssertError(f"invalid status {status!r}")
     if not log.completed:
@@ -155,6 +170,7 @@ def assert_completed(log: PaymentLog, *, status: str = "success") -> None:
 
 
 def assert_shipping_required(log: PaymentLog) -> None:
+    """Raise PaymentRequestAssertError when a PaymentRequest was constructed without ``requestShipping``."""
     for c in log.constructed:
         if not c.options.get("requestShipping"):
             raise PaymentRequestAssertError(

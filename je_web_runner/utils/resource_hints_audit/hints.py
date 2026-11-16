@@ -25,6 +25,7 @@ class ResourceHintsAuditError(WebRunnerException):
 
 
 class HintKind(str, Enum):
+    """The ``<link rel>`` values that are resource hints."""
     PRELOAD = "preload"
     PREFETCH = "prefetch"
     PRECONNECT = "preconnect"
@@ -34,12 +35,14 @@ class HintKind(str, Enum):
 
 @dataclass
 class Hint:
+    """One resource hint: its kind, target, ``as`` value and whether it is crossorigin."""
     kind: HintKind
     href: str
     as_: str = ""        # only for preload
     crossorigin: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the hint as a dict with the kind as its string value."""
         return {**asdict(self), "kind": self.kind.value}
 
 
@@ -57,6 +60,10 @@ def _parse_attrs(tag: str) -> dict[str, str]:
 
 
 def parse_hints(html: str) -> list[Hint]:
+    """Return the resource hints declared by the ``<link>`` tags of ``html``.
+
+    Raises ResourceHintsAuditError when ``html`` is not a string.
+    """
     if not isinstance(html, str):
         raise ResourceHintsAuditError("html must be a string")
     out: list[Hint] = []
@@ -77,6 +84,7 @@ def parse_hints(html: str) -> list[Hint]:
 
 
 def assert_preload_has_as(hints: Iterable[Hint]) -> None:
+    """Raise ResourceHintsAuditError when a preload hint has no ``as`` attribute."""
     bad = [h for h in hints
            if h.kind == HintKind.PRELOAD and not h.as_]
     if bad:
@@ -89,6 +97,7 @@ def assert_preload_has_as(hints: Iterable[Hint]) -> None:
 def find_unused_hints(
     hints: Sequence[Hint], used_urls: Iterable[str],
 ) -> list[Hint]:
+    """Return the preload, prefetch and modulepreload hints whose href matches none of ``used_urls``."""
     used = {u for u in used_urls if isinstance(u, str)}
     return [h for h in hints
             if h.kind in (HintKind.PRELOAD, HintKind.PREFETCH,
@@ -102,6 +111,7 @@ def find_unused_hints(
 def assert_no_unused_hints(
     hints: Sequence[Hint], used_urls: Iterable[str],
 ) -> None:
+    """Raise ResourceHintsAuditError when a hinted resource was never used."""
     unused = find_unused_hints(hints, used_urls)
     if unused:
         raise ResourceHintsAuditError(
@@ -113,6 +123,9 @@ def assert_no_unused_hints(
 def assert_origin_preconnected(
     hints: Iterable[Hint], *, origin: str,
 ) -> None:
+    """Raise ResourceHintsAuditError unless a preconnect hint targets ``origin``
+    (a trailing slash is ignored).
+    """
     if not origin:
         raise ResourceHintsAuditError("origin must be non-empty")
     for h in hints:

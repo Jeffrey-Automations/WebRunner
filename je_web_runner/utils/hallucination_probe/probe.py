@@ -27,6 +27,9 @@ class HallucinationProbeError(WebRunnerException):
 
 @dataclass
 class Probe:
+    """One question for the model, with the substrings its answer must contain, must not contain,
+    or whether it is expected to refuse. At least one of the three expectations is required.
+    """
     name: str
     prompt: str
     expected_substrings: list[str] = field(default_factory=list)
@@ -59,21 +62,25 @@ def _looks_like_refusal(text: str) -> bool:
 
 @dataclass
 class ProbeResult:
+    """The model's answer to one probe, whether it passed and why not."""
     name: str
     answer: str
     passed: bool
     reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the result fields as a plain dict."""
         return asdict(self)
 
 
 @dataclass
 class ProbeReport:
+    """The results of a probe run."""
     results: list[ProbeResult] = field(default_factory=list)
 
     @property
     def hallucination_rate(self) -> float:
+        """Share of probes that failed, from 0.0 to 1.0; 0.0 when there are no results."""
         if not self.results:
             return 0.0
         return sum(1 for r in self.results if not r.passed) / len(self.results)
@@ -108,6 +115,11 @@ def _evaluate(probe: Probe, answer: str) -> ProbeResult:
 
 
 def run_probes(probes: Sequence[Probe], caller: Caller) -> ProbeReport:
+    """Ask ``caller`` every probe's prompt and score the answers into a ProbeReport.
+
+    A caller that raises is recorded as a failed probe instead of stopping the run.
+    Raises HallucinationProbeError when ``probes`` is empty or ``caller`` is not callable.
+    """
     if not isinstance(probes, (list, tuple)) or not probes:
         raise HallucinationProbeError("probes must be a non-empty sequence")
     if not callable(caller):
@@ -116,7 +128,7 @@ def run_probes(probes: Sequence[Probe], caller: Caller) -> ProbeReport:
     for probe in probes:
         try:
             answer = caller(probe.prompt)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded as a failed probe
             report.results.append(ProbeResult(
                 name=probe.name, answer="",
                 passed=False, reason=f"caller raised {error!r}",
@@ -135,6 +147,9 @@ def run_probes(probes: Sequence[Probe], caller: Caller) -> ProbeReport:
 def assert_hallucination_rate_under(
     report: ProbeReport, *, max_rate: float,
 ) -> None:
+    """Raise HallucinationProbeError when the report's hallucination rate exceeds ``max_rate``
+    (which must be within [0, 1]).
+    """
     if not 0 <= max_rate <= 1:
         raise HallucinationProbeError("max_rate must be in [0, 1]")
     rate = report.hallucination_rate

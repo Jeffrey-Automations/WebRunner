@@ -115,6 +115,7 @@ class TokenFinding:
     location: str = ""  # url / request id / log line offset
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 

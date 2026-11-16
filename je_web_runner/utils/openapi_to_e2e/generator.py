@@ -25,7 +25,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
@@ -52,6 +52,7 @@ class GeneratedTest:
     scenario: str  # "happy" | "missing_body" | "bad_path_param" | etc.
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the generated test, actions included, as a plain dict."""
         return {
             "name": self.name,
             "method": self.method,
@@ -72,6 +73,7 @@ class GenerationResult:
     skipped: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the spec title, base URL, generated tests and skipped operations as a dict."""
         return {
             "spec_title": self.spec_title,
             "base_url": self.base_url,
@@ -204,6 +206,11 @@ def synthesize_example(  # NOSONAR S3776 — cohesive logic
     declared = _declared_example(schema)
     if declared is not _NO_EXAMPLE:
         return declared
+    return _typed_example(spec, schema, depth)
+
+
+def _typed_example(spec: dict[str, Any], schema: dict[str, Any], depth: int) -> Any:
+    """An example built from the schema's type: object, array, first enum value or the type default."""
     schema_type = schema.get("type")
     if schema_type == "object" or "properties" in schema:
         return _object_example(spec, schema, depth)
@@ -500,13 +507,9 @@ def _build_negative_tests(
 
 
 def _expand_operation(
-    spec: dict[str, Any], base_url: str, path: str, method: str, operation: Any,
+    spec: dict[str, Any], base_url: str, path: str, method: str, operation: dict[str, Any],
     extra_headers: dict[str, str], include_negative: bool,
-    skipped: list[dict[str, str]],
 ) -> list[GeneratedTest]:
-    if not isinstance(operation, dict):
-        skipped.append({"path": path, "method": method, "reason": "operation not a dict"})
-        return []
     out: list[GeneratedTest] = [
         _build_happy_test(spec, base_url, method, path, operation, extra_headers),
     ]
@@ -523,6 +526,25 @@ def _select_method(
     """Return True iff ``method`` should be emitted under the current filter."""
     lower = method.lower()
     return lower in SUPPORTED_METHODS and lower in methods_lower
+
+
+def _iter_operations(
+    paths: dict[str, Any], methods_lower: set, path_prefix_filter: str | None,
+    skipped: list[dict[str, str]],
+) -> Iterator[tuple[str, str, dict[str, Any]]]:
+    """Yield ``(path, method, operation)`` for what the filters keep; a non-dict operation goes to ``skipped``."""
+    for path, operations in paths.items():
+        if not isinstance(path, str) or not isinstance(operations, dict):
+            continue
+        if path_prefix_filter and not path.startswith(path_prefix_filter):
+            continue
+        for method, operation in operations.items():
+            if not _select_method(method, methods_lower):
+                continue
+            if not isinstance(operation, dict):
+                skipped.append({"path": path, "method": method, "reason": "operation not a dict"})
+                continue
+            yield path, method, operation
 
 
 def generate_tests_from_spec(
@@ -546,18 +568,10 @@ def generate_tests_from_spec(
     )
     tests: list[GeneratedTest] = []
     skipped: list[dict[str, str]] = []
-    for path, operations in paths.items():
-        if not isinstance(path, str) or not isinstance(operations, dict):
-            continue
-        if path_prefix_filter and not path.startswith(path_prefix_filter):
-            continue
-        for method, operation in operations.items():
-            if not _select_method(method, methods_lower):
-                continue
-            tests.extend(_expand_operation(
-                spec, base_url, path, method, operation, extra_headers,
-                include_negative, skipped,
-            ))
+    for path, method, operation in _iter_operations(paths, methods_lower, path_prefix_filter, skipped):
+        tests.extend(_expand_operation(
+            spec, base_url, path, method, operation, extra_headers, include_negative,
+        ))
     web_runner_logger.info(
         f"generate_tests_from_spec: title={title!r} produced={len(tests)} "
         f"skipped={len(skipped)}"

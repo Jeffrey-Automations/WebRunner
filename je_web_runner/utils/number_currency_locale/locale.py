@@ -24,6 +24,7 @@ class NumberCurrencyLocaleError(WebRunnerException):
 
 @dataclass(frozen=True)
 class NumberRules:
+    """The decimal separator, thousands separator and digit grouping of a locale."""
     decimal: str
     thousands: str
     grouping: tuple[int, ...] = (3,)
@@ -31,6 +32,7 @@ class NumberRules:
 
 @dataclass(frozen=True)
 class CurrencyRules:
+    """The currency symbol and code of a locale, and whether the symbol comes first or last."""
     symbol: str
     code: str
     symbol_position: str = "prefix"     # "prefix" | "suffix"
@@ -112,6 +114,9 @@ def assert_number_format(rendered: str, locale: str) -> None:
 
 
 def assert_currency_symbol(rendered: str, locale: str) -> None:
+    """Raise NumberCurrencyLocaleError when ``rendered`` lacks the currency symbol of ``locale``
+    or has it on the wrong side; also when the locale has no currency rule.
+    """
     rules = CURRENCY_RULES.get(locale)
     if rules is None:
         raise NumberCurrencyLocaleError(
@@ -142,6 +147,9 @@ _DATE_PATTERNS = {
 
 
 def assert_date_format(rendered: str, fmt: str) -> None:
+    """Raise NumberCurrencyLocaleError when ``rendered`` does not match the date pattern ``fmt``,
+    or ``fmt`` is not a known pattern name.
+    """
     if fmt not in _DATE_PATTERNS:
         raise NumberCurrencyLocaleError(
             f"unknown date format {fmt!r}; choose one of {list(_DATE_PATTERNS)}"

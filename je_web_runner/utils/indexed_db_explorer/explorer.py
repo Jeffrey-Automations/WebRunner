@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
 class IndexedDbExplorerError(WebRunnerException):
@@ -91,11 +92,15 @@ class StoreSnapshot:
     keys: list[Any] = field(default_factory=list)
 
     def find_one(self, predicate: Callable[[Any], bool]) -> Any | None:
+        """Return the first record ``predicate`` accepts, or None. A record on which the predicate
+        raises is skipped.
+        """
         for r in self.records:
             try:
                 if predicate(r):
                     return r
-            except Exception:  # nosec B112 — user predicate may legitimately raise; skip + continue
+            except Exception as error:  # pylint: disable=broad-exception-caught  # predicate is user code
+                web_runner_logger.warning(f"find_one: predicate raised, record skipped: {error!r}")
                 continue
         return None
 
@@ -111,6 +116,10 @@ class IdbSnapshot:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IdbSnapshot:
+        """Build a snapshot from the dict harvested in the browser, skipping stores that are not dicts.
+
+        Raises IndexedDbExplorerError when the data or its ``stores`` is not a dict.
+        """
         if not isinstance(data, dict):
             raise IndexedDbExplorerError(
                 f"snapshot must be dict, got {type(data).__name__}"
@@ -137,6 +146,7 @@ class IdbSnapshot:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the snapshot, stores included, as a plain dict."""
         return {
             "name": self.name,
             "exists": self.exists,
@@ -148,6 +158,7 @@ class IdbSnapshot:
 # ---------- assertions --------------------------------------------------
 
 def assert_db_exists(snapshot: IdbSnapshot) -> None:
+    """Raise IndexedDbExplorerError when the snapshot says the database does not exist."""
     if not isinstance(snapshot, IdbSnapshot):
         raise IndexedDbExplorerError("expected IdbSnapshot")
     if not snapshot.exists:
@@ -155,6 +166,7 @@ def assert_db_exists(snapshot: IdbSnapshot) -> None:
 
 
 def assert_store_present(snapshot: IdbSnapshot, store_name: str) -> StoreSnapshot:
+    """Return the store ``store_name``; raises IndexedDbExplorerError when the snapshot has no such store."""
     if not isinstance(store_name, str) or not store_name:
         raise IndexedDbExplorerError("store_name must be a non-empty string")
     store = snapshot.stores.get(store_name)
@@ -189,6 +201,7 @@ def assert_record_count(
 
 
 def assert_key_present(snapshot: IdbSnapshot, store_name: str, key: Any) -> None:
+    """Raise IndexedDbExplorerError when ``key`` is not among the keys of the store."""
     store = assert_store_present(snapshot, store_name)
     if key not in store.keys:
         raise IndexedDbExplorerError(
@@ -216,6 +229,7 @@ def assert_record_matching(
 def assert_index_present(
     snapshot: IdbSnapshot, store_name: str, index_name: str,
 ) -> None:
+    """Raise IndexedDbExplorerError when the store has no index called ``index_name``."""
     store = assert_store_present(snapshot, store_name)
     if index_name not in store.index_names:
         raise IndexedDbExplorerError(

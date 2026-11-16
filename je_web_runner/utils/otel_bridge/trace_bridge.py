@@ -41,10 +41,12 @@ class TraceContext:
     tracestate: str | None = None
 
     def to_traceparent(self) -> str:
+        """Format the context as a W3C ``traceparent`` header value."""
         flags = "01" if self.sampled else "00"
         return f"{self.version}-{self.trace_id}-{self.span_id}-{flags}"
 
     def as_headers(self) -> dict[str, str]:
+        """Return the ``traceparent`` header, plus ``tracestate`` when one is set."""
         headers = {"traceparent": self.to_traceparent()}
         if self.tracestate:
             headers["tracestate"] = self.tracestate
@@ -164,7 +166,7 @@ def clear_headers_selenium(driver: Any) -> None:
         return
     try:
         cdp("Network.setExtraHTTPHeaders", {"headers": {}})
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
         web_runner_logger.warning(f"clear_headers_selenium failed: {error!r}")
 
 
@@ -197,7 +199,7 @@ def clear_headers_playwright(page: Any) -> None:
         return
     try:
         setter({})
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
         web_runner_logger.warning(f"clear_headers_playwright failed: {error!r}")
 
 
@@ -222,7 +224,7 @@ def bridged_span_selenium(
         from opentelemetry import trace  # type: ignore[import-not-found]
         tracer = trace.get_tracer("je_web_runner.otel_bridge")
         span_ctx = tracer.start_as_current_span(span_name)
-        span_ctx.__enter__()
+        span_ctx.__enter__()  # pylint: disable=unnecessary-dunder-call  # exited in the finally below
         context = current_otel_context() or fallback_context or random_trace_context()
     except ImportError:
         context = fallback_context or random_trace_context()
@@ -234,7 +236,7 @@ def bridged_span_selenium(
         if span_ctx is not None:
             try:
                 span_ctx.__exit__(None, None, None)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
                 web_runner_logger.warning(f"span exit failed: {error!r}")
 
 
@@ -251,7 +253,7 @@ def bridged_span_playwright(
         from opentelemetry import trace  # type: ignore[import-not-found]
         tracer = trace.get_tracer("je_web_runner.otel_bridge")
         span_ctx = tracer.start_as_current_span(span_name)
-        span_ctx.__enter__()
+        span_ctx.__enter__()  # pylint: disable=unnecessary-dunder-call  # exited in the finally below
         context = current_otel_context() or fallback_context or random_trace_context()
     except ImportError:
         context = fallback_context or random_trace_context()
@@ -263,7 +265,7 @@ def bridged_span_playwright(
         if span_ctx is not None:
             try:
                 span_ctx.__exit__(None, None, None)
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort cleanup, logged
                 web_runner_logger.warning(f"span exit failed: {error!r}")
 
 

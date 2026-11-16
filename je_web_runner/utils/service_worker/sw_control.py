@@ -74,6 +74,10 @@ def selenium_bypass_service_worker(bypass: bool = True) -> None:
 
 
 def playwright_unregister_service_workers() -> list[bool]:
+    """解除註冊當前 Playwright 頁面的所有 Service Worker
+    Unregister all service workers on the current Playwright page; returns one
+    boolean per registration, or an empty list when the API is unavailable.
+    """
     web_runner_logger.info("playwright_unregister_service_workers")
     page = playwright_wrapper_instance.page
     return page.evaluate(
@@ -86,6 +90,10 @@ def playwright_unregister_service_workers() -> list[bool]:
 
 
 def playwright_clear_caches() -> list[str]:
+    """清空當前 Playwright 頁面的 Cache Storage
+    Delete every Cache Storage entry on the current Playwright page; returns the
+    names of the deleted caches.
+    """
     web_runner_logger.info("playwright_clear_caches")
     page = playwright_wrapper_instance.page
     return page.evaluate(

@@ -31,6 +31,7 @@ class Factory:
         self._defaults: dict[str, Any] = dict(defaults)
 
     def build(self, **overrides: Any) -> dict[str, Any]:
+        """Return one entity: every default (callables are called), then ``overrides`` on top."""
         web_runner_logger.info("Factory.build")
         out: dict[str, Any] = {}
         for key, value in self._defaults.items():
@@ -39,6 +40,7 @@ class Factory:
         return out
 
     def build_batch(self, count: int, **overrides: Any) -> list[dict[str, Any]]:
+        """Return ``count`` entities, each built with the same ``overrides``."""
         return [self.build(**overrides) for _ in range(int(count))]
 
     def extend(self, **extra_defaults: Any) -> Factory:
@@ -63,7 +65,8 @@ def _faker_safe(method: str, fallback: Callable[[], Any]) -> Callable[[], Any]:
         try:
             from je_web_runner.utils.test_data.faker_integration import fake_value
             return fake_value(method)
-        except Exception:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # faker missing or failing: fall back
+            web_runner_logger.warning(f"faker {method!r} unavailable, using fallback: {error!r}")
             return fallback()
     return _value
 
@@ -80,6 +83,7 @@ def user_factory(prefix: str = "user") -> Factory:
 
 
 def order_factory(default_currency: str = "USD") -> Factory:
+    """Return a factory of pending orders with a running id, an amount of 100 and ``default_currency``."""
     counter = _counter()
     return Factory({
         "id": counter,
@@ -90,6 +94,7 @@ def order_factory(default_currency: str = "USD") -> Factory:
 
 
 def product_factory() -> Factory:
+    """Return a factory of in-stock products with a running id, a name and a fixed price."""
     counter = _counter()
     return Factory({
         "id": counter,

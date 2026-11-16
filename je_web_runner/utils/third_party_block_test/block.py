@@ -14,6 +14,7 @@ from enum import Enum
 from typing import Any, Callable, Sequence
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
+from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 
 
 class ThirdPartyBlockError(WebRunnerException):
@@ -21,6 +22,7 @@ class ThirdPartyBlockError(WebRunnerException):
 
 
 class Resilience(str, Enum):
+    """How the flow behaved while one vendor was blocked."""
     RESILIENT = "resilient"
     DEGRADED = "degraded"
     BROKEN = "broken"
@@ -69,6 +71,7 @@ _BUILTIN_VENDORS: Sequence[Vendor] = (
 
 
 def builtin_vendors() -> list[Vendor]:
+    """Return a copy of the built-in vendor catalogue."""
     return list(_BUILTIN_VENDORS)
 
 
@@ -84,11 +87,13 @@ class BlockOutcome:
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``resilience`` enum replaced by its string value."""
         return {**asdict(self), "resilience": self.resilience.value}
 
 
 @dataclass
 class BlockReport:
+    """The outcome of the flow for each blocked vendor."""
     outcomes: list[BlockOutcome] = field(default_factory=list)
 
     def broken(self) -> list[BlockOutcome]:
@@ -96,6 +101,7 @@ class BlockReport:
         return [o for o in self.outcomes if o.resilience == Resilience.BROKEN]
 
     def by_vendor(self) -> dict[str, BlockOutcome]:
+        """Return the outcomes keyed by vendor name."""
         return {o.vendor: o for o in self.outcomes}
 
 
@@ -138,15 +144,15 @@ def run_block_matrix(
     # restore (unblock all)
     try:
         cdp_block([])
-    except Exception:  # nosec B110 — best-effort restore
-        pass
+    except Exception as error:  # pylint: disable=broad-exception-caught  # best-effort restore; logged
+        web_runner_logger.warning(f"third_party_block: removing the URL blocks failed: {error!r}")
     return report
 
 
 def _execute_flow(vendor: Vendor, flow: Callable[[], str | None]) -> BlockOutcome:
     try:
         message = flow()
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught  # any flow error is the BROKEN outcome
         return BlockOutcome(
             vendor=vendor.name,
             resilience=Resilience.BROKEN,

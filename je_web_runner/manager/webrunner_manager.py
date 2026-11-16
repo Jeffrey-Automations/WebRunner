@@ -18,7 +18,7 @@ class WebdriverManager:
     Keeps every started WebDriver and points the shared wrapper at the active one.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:  # pylint: disable=unused-argument  # public signature
         # 當前 WebDriver 實例清單
         # List of current WebDriver instances
         self._current_webdriver_list: list[WebDriver] = []
@@ -53,7 +53,7 @@ class WebdriverManager:
             self.current_webdriver = webdriver_wrapper_instance.set_driver(webdriver_name, options=options, **kwargs)
             self._current_webdriver_list.append(self.current_webdriver)
             record_action_to_list("web runner manager new_driver", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             # 錯誤處理與關閉所有 WebDriver
             # Handle error and quit all WebDrivers
             web_runner_logger.error(
@@ -78,7 +78,7 @@ class WebdriverManager:
             # the switched driver instead of staying on the previous one.
             self.webdriver_wrapper.set_active_driver(self.current_webdriver)
             record_action_to_list("web runner manager change_webdriver", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(
                 f"WebdriverManager change_webdriver, index_of_webdriver: {index_of_webdriver}, failed: {error!r}")
             record_action_to_list("web runner manager change_webdriver", param, error)
@@ -115,7 +115,7 @@ class WebdriverManager:
             self.current_webdriver = None
             self._detach_wrapper_if_active(closed)
             record_action_to_list("web runner manager close_current_webdriver", None, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebdriverManager close_current_webdriver, failed: {error!r}")
             record_action_to_list("web runner manager close_current_webdriver", None, error)
             settle_wrapper_failure(error)
@@ -137,7 +137,7 @@ class WebdriverManager:
                 self.current_webdriver = None
             self._detach_wrapper_if_active(chosen)
             record_action_to_list("web runner manager close_choose_webdriver", param, None)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
             web_runner_logger.error(f"WebdriverManager close_choose_webdriver, failed: {error!r}")
             record_action_to_list("web runner manager close_choose_webdriver", param, error)
             settle_wrapper_failure(error)

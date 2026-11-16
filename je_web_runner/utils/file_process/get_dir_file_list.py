@@ -1,3 +1,5 @@
+"""List the files below a directory that have a given extension."""
+
 from os import getcwd, walk
 from os.path import abspath, join
 

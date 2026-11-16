@@ -25,7 +25,7 @@ class PrRiskScoreError(WebRunnerException):
 # ---------- inputs ------------------------------------------------------
 
 @dataclass
-class PrSignals:
+class PrSignals:  # pylint: disable=too-many-instance-attributes  # value object, one field per risk signal
     """
     Per-PR aggregate signals. Each field is optional so a partial signal
     set still produces a (less-confident) score.
@@ -80,6 +80,7 @@ class RiskWeights:
     security: float = 1.0
 
     def total(self) -> float:
+        """Sum of every weight."""
         return sum(asdict(self).values())
 
 
@@ -93,6 +94,7 @@ class RiskReport:
     contributions: dict[str, float] = field(default_factory=dict)
 
     def is_blocking(self, block_at: float = 75.0) -> bool:
+        """Return True when the score reaches ``block_at``."""
         return self.score >= block_at
 
 

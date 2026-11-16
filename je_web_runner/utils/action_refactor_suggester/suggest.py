@@ -26,6 +26,7 @@ class ActionRefactorSuggesterError(WebRunnerException):
 
 
 class Severity(str, Enum):
+    """How serious a refactor suggestion is."""
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
@@ -33,12 +34,14 @@ class Severity(str, Enum):
 
 @dataclass
 class Suggestion:
+    """One refactor suggestion: the rule that fired, its severity, a message and the steps concerned."""
     rule: str
     severity: Severity
     message: str
     step_indexes: list[int] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the suggestion as a dict, with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 
@@ -152,6 +155,7 @@ def analyze(actions: Sequence[dict[str, Any]]) -> list[Suggestion]:
 
 
 def report_markdown(suggestions: Iterable[Suggestion]) -> str:
+    """Render the suggestions as a Markdown bullet list, or a "looks clean" note when there are none."""
     suggestions = list(suggestions)
     if not suggestions:
         return "## Action refactor suggestions\n_No suggestions — looks clean._"
@@ -165,6 +169,7 @@ def report_markdown(suggestions: Iterable[Suggestion]) -> str:
 
 
 def assert_no_warns_or_errors(suggestions: Iterable[Suggestion]) -> None:
+    """Raise ``ActionRefactorSuggesterError`` naming the rules of every WARN or ERROR suggestion."""
     bad = [s for s in suggestions
            if s.severity in (Severity.WARN, Severity.ERROR)]
     if bad:

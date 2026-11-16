@@ -44,6 +44,7 @@ class ScheduledRunner:
         return dict(self._counts)
 
     def stop(self) -> None:
+        """Ask ``run_for`` / ``run_forever`` to return; jobs that fire afterwards do nothing."""
         self._stop_event.set()
 
     def _enqueue(self, job: dict[str, Any]) -> None:
@@ -53,7 +54,7 @@ class ScheduledRunner:
             try:
                 job["callback"]()
                 self._counts[job["name"]] = self._counts.get(job["name"], 0) + 1
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # logged; the schedule goes on
                 web_runner_logger.error(f"scheduled job {job['name']!r} raised: {error!r}")
             self._enqueue(job)
         self._scheduler.enter(job["interval"], 1, _fire)
@@ -100,26 +101,31 @@ _runner = ScheduledRunner()
 
 
 def schedule(name: str, interval_seconds: float, callback: Callable[[], Any]) -> None:
+    """Register ``callback`` on the module-level runner to fire every ``interval_seconds``."""
     _runner.add(name, interval_seconds, callback)
 
 
 def run_scheduler_for(seconds: float) -> None:
+    """Run the module-level runner's jobs for ``seconds``, then return."""
     _runner.run_for(seconds)
 
 
 def run_scheduler_forever() -> None:
+    """Run the module-level runner's jobs until ``stop_scheduler`` is called."""
     _runner.run_forever()
 
 
 def stop_scheduler() -> None:
+    """Stop the module-level runner."""
     _runner.stop()
 
 
 def scheduler_counts() -> dict[str, int]:
+    """Return how many times each job of the module-level runner has fired, by name."""
     return _runner.counts()
 
 
 def reset_scheduler() -> None:
     """Drop all registered jobs and counts (mainly for tests)."""
-    global _runner
+    global _runner  # pylint: disable=global-statement  # the module-level runner is replaced on reset
     _runner = ScheduledRunner()

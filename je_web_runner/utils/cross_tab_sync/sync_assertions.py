@@ -88,7 +88,7 @@ def get_storage_value(
         return raw
 
 
-def wait_for_storage(
+def wait_for_storage(  # pylint: disable=too-many-arguments  # public signature
     page: Any,
     key: str,
     expected: Any,
@@ -225,7 +225,8 @@ def wait_for_broadcast(
             data = entry.get("data") if isinstance(entry, dict) else None
             try:
                 hit = matcher(data)
-            except Exception:
+            except Exception as error:  # pylint: disable=broad-exception-caught  # a matcher that raises does not match
+                web_runner_logger.warning(f"broadcast matcher raised: {error!r}")
                 hit = False
             if hit:
                 return entry
@@ -246,7 +247,7 @@ class PropagationResult:
     elapsed_seconds: float = 0.0
 
 
-def assert_state_propagates(
+def assert_state_propagates(  # pylint: disable=too-many-arguments  # public signature
     source_page: Any,
     listener_pages: Sequence[Any],
     *,

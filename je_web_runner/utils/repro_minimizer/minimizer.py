@@ -39,6 +39,7 @@ class MinimizationResult:
 
     @property
     def reduction_pct(self) -> float:
+        """Percentage of the original actions that were removed; 0.0 for an empty original."""
         if self.original_size <= 0:
             return 0.0
         return (1.0 - self.minimized_size / self.original_size) * 100.0

@@ -45,12 +45,14 @@ HARVEST_SCRIPT = r"""
 
 
 class ChunkType(str, Enum):
+    """Whether an encoded chunk is a key frame or a delta frame."""
     KEY = "key"
     DELTA = "delta"
 
 
 @dataclass
 class EncodedChunk:
+    """Metadata of one encoded video or audio chunk captured in the page."""
     type: ChunkType
     timestamp_us: int
     duration_us: int = 0
@@ -60,10 +62,15 @@ class EncodedChunk:
     height: int = 0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict, with the ``type`` enum replaced by its string value."""
         return {**asdict(self), "type": self.type.value}
 
 
 def parse_chunks(payload: Any) -> list[EncodedChunk]:
+    """Turn the list captured in the page into ``EncodedChunk`` records, skipping
+    entries that are not objects. Raises ``WebcodecsAssertError`` when the payload is
+    not a list or a chunk has an unknown type.
+    """
     if not isinstance(payload, list):
         raise WebcodecsAssertError("payload must be a list")
     out: list[EncodedChunk] = []
@@ -90,6 +97,9 @@ def parse_chunks(payload: Any) -> list[EncodedChunk]:
 
 
 def assert_codec(chunks: Sequence[EncodedChunk], expected: str) -> None:
+    """Raise ``WebcodecsAssertError`` when there are no chunks, or when a chunk that
+    declares a codec declares one other than ``expected``.
+    """
     if not chunks:
         raise WebcodecsAssertError("chunks empty")
     bad = [c for c in chunks if c.codec and c.codec != expected]
@@ -103,6 +113,9 @@ def assert_codec(chunks: Sequence[EncodedChunk], expected: str) -> None:
 def assert_resolution(
     chunks: Sequence[EncodedChunk], *, width: int, height: int,
 ) -> None:
+    """Raise ``WebcodecsAssertError`` when a chunk that carries a size is not
+    ``width`` x ``height``.
+    """
     if width <= 0 or height <= 0:
         raise WebcodecsAssertError("width/height must be positive")
     for c in chunks:
@@ -115,6 +128,9 @@ def assert_resolution(
 def assert_keyframe_interval(
     chunks: Sequence[EncodedChunk], *, max_gap: int,
 ) -> None:
+    """Raise ``WebcodecsAssertError`` when more than ``max_gap`` delta chunks follow
+    one another without a key chunk.
+    """
     if max_gap <= 0:
         raise WebcodecsAssertError("max_gap must be positive")
     gap = 0
@@ -147,6 +163,7 @@ def estimate_framerate(chunks: Sequence[EncodedChunk]) -> float:
 def assert_framerate_at_least(
     chunks: Sequence[EncodedChunk], *, min_fps: float,
 ) -> None:
+    """Raise ``WebcodecsAssertError`` when the estimated frame rate is below ``min_fps``."""
     if min_fps <= 0:
         raise WebcodecsAssertError("min_fps must be positive")
     fps = estimate_framerate(chunks)

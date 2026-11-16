@@ -61,6 +61,7 @@ class MixedFinding:
     source_url: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict with the severity as its string value."""
         return {**asdict(self), "severity": self.severity.value}
 
 

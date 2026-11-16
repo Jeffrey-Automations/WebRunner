@@ -47,15 +47,18 @@ class FallbackHitTracker:
         self._fallback_used: dict[str, int] = {}
 
     def track_primary(self, name: str) -> None:
+        """Count one lookup of ``name`` that its primary locator resolved."""
         with self._lock:
             self._hits[name] = self._hits.get(name, 0) + 1
 
     def track_fallback(self, name: str) -> None:
+        """Count one lookup of ``name`` that needed a fallback locator."""
         with self._lock:
             self._hits[name] = self._hits.get(name, 0) + 1
             self._fallback_used[name] = self._fallback_used.get(name, 0) + 1
 
     def stats(self) -> dict[str, dict[str, int]]:
+        """Return ``{name: {"hits", "fallback_used"}}`` for every tracked locator."""
         with self._lock:
             return {
                 name: {
@@ -66,6 +69,7 @@ class FallbackHitTracker:
             }
 
     def clear(self) -> None:
+        """Reset every counter."""
         with self._lock:
             self._hits.clear()
             self._fallback_used.clear()
@@ -77,7 +81,7 @@ fallback_hit_tracker = FallbackHitTracker()
 # ---------- scanning -----------------------------------------------------
 
 @dataclass
-class LocatorFinding:
+class LocatorFinding:  # pylint: disable=too-many-instance-attributes  # report record, one field per value
     """One locator discovered while scanning an action file."""
 
     file_path: str
@@ -92,9 +96,11 @@ class LocatorFinding:
 
     @property
     def fallback_rate(self) -> float:
+        """Share of lookups that needed a fallback; 0.0 when there were no hits."""
         return (self.fallback_used / self.hits) if self.hits else 0.0
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a dict, with ``fallback_rate`` rounded to 4 decimals."""
         out = asdict(self)
         out["fallback_rate"] = round(self.fallback_rate, 4)
         return out
@@ -193,7 +199,7 @@ def scan_project(
 # ---------- report -------------------------------------------------------
 
 @dataclass
-class LocatorHealthReport:
+class LocatorHealthReport:  # pylint: disable=too-many-instance-attributes  # report record, one field per value
     """Aggregate health report rendered for humans or CI dashboards."""
 
     total: int
@@ -206,6 +212,7 @@ class LocatorHealthReport:
     threshold: int = 60
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the totals and every finding list as plain dicts."""
         return {
             "total": self.total,
             "weak": self.weak,
@@ -275,6 +282,7 @@ class UpgradeSuggestion:
     rationale: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the suggestion fields as a plain dict."""
         return asdict(self)
 
 

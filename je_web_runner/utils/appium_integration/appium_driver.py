@@ -104,6 +104,7 @@ def build_ios_caps(
     automation_name: str = "XCUITest",
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Build the Appium capabilities dict for an iOS app (XCUITest by default)."""
     caps: dict[str, Any] = {
         "platformName": "iOS",
         "appium:platformVersion": platform_version,

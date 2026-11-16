@@ -109,7 +109,7 @@ def build_instrumentation_script() -> str:
 # ---------- data --------------------------------------------------------
 
 @dataclass
-class TransitionRun:
+class TransitionRun:  # pylint: disable=too-many-instance-attributes  # value object; its fields are the public shape
     """One ``startViewTransition`` call's outcome."""
 
     id: str
@@ -122,9 +122,11 @@ class TransitionRun:
     groups: list[str] = field(default_factory=list)
 
     def is_finished(self) -> bool:
+        """True when the transition has a finish time and recorded no error."""
         return self.finished_at is not None and self.error is None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the fields as a plain dict for JSON output."""
         return asdict(self)
 
 

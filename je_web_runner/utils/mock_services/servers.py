@@ -33,9 +33,11 @@ class MockS3Storage:
     buckets: dict[str, dict[str, bytes]] = field(default_factory=dict)
 
     def create_bucket(self, name: str) -> None:
+        """Create the bucket ``name``; an existing bucket keeps its objects."""
         self.buckets.setdefault(name, {})
 
     def put_object(self, bucket: str, key: str, body: bytes) -> None:
+        """Store ``body`` under ``key``; raises MockServiceError for a missing bucket or a non-bytes body."""
         if bucket not in self.buckets:
             raise MockServiceError(f"bucket {bucket!r} does not exist")
         if not isinstance(body, (bytes, bytearray)):
@@ -43,12 +45,14 @@ class MockS3Storage:
         self.buckets[bucket][key] = bytes(body)
 
     def get_object(self, bucket: str, key: str) -> bytes:
+        """Return the stored bytes; raises MockServiceError when the bucket or key is missing."""
         try:
             return self.buckets[bucket][key]
         except KeyError as error:
             raise MockServiceError(f"object {key!r} not found in {bucket!r}") from error
 
     def list_objects(self, bucket: str) -> list[str]:
+        """Sorted keys of the bucket; an empty list for an unknown bucket."""
         return sorted(self.buckets.get(bucket, {}).keys())
 
 
@@ -109,6 +113,10 @@ class MockSmtpServer:
         self._thread: threading.Thread | None = None
 
     def start(self) -> int:
+        """Start serving on a daemon thread and return the bound port.
+
+        Raises MockServiceError when the server is already started.
+        """
         if self._server is not None:
             raise MockServiceError("SMTP server already started")
         srv = socketserver.TCPServer((self.host, self.port), _SmtpHandler)
@@ -121,6 +129,7 @@ class MockSmtpServer:
         return self.port
 
     def stop(self) -> None:
+        """Shut the server down and release its socket; a no-op when it is not running."""
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()
@@ -147,7 +156,8 @@ def _make_oauth_handler(server_state: dict[str, Any]) -> Callable:
             self.end_headers()
             self.wfile.write(body)
 
-        def do_POST(self):
+        def do_POST(self):  # pylint: disable=invalid-name  # name fixed by BaseHTTPRequestHandler
+            """Issue and record a random bearer token for ``/token``; answer 404 for any other path."""
             if self.path == "/token":
                 token = secrets.token_hex(16)
                 server_state["issued"].append(token)
@@ -176,6 +186,10 @@ class MockOAuthServer:
         self._thread: threading.Thread | None = None
 
     def start(self) -> str:
+        """Start serving on a daemon thread and return the base URL.
+
+        Raises MockServiceError when the server is already started.
+        """
         if self._server is not None:
             raise MockServiceError("OAuth server already started")
         handler = _make_oauth_handler(self._state)
@@ -188,6 +202,7 @@ class MockOAuthServer:
         return f"http://{self.host}:{self.port}"  # NOSONAR — local mock
 
     def stop(self) -> None:
+        """Shut the server down and release its socket; a no-op when it is not running."""
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()

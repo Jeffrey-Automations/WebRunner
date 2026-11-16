@@ -24,8 +24,7 @@ class IssueMetrics:
         """Aggregate immutable run/revision outcomes; never infer unrecorded historical successes."""
         cutoff = self._cutoff(since_hours)
         if issue is not None:
-            source, _separator, external_id = issue.partition(":")
-            IssueSnapshot(source, external_id, "", "", "")
+            self._check_issue_key(issue)
         with self.store.connection() as connection:
             rows = connection.execute("SELECT payload,recorded FROM outcomes WHERE recorded>=? "
                                       "AND (? IS NULL OR job_key=?) ORDER BY recorded",
@@ -33,25 +32,17 @@ class IssueMetrics:
             tracked = {tuple(row) for row in connection.execute("SELECT job_key,run,revision FROM outcomes")}
             since = connection.execute("SELECT value FROM settings WHERE name='metrics_since'").fetchone()["value"]
         outcomes = [{**json.loads(row["payload"]), "recorded": row["recorded"]} for row in rows]
-        groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
-        daily: dict[tuple[str, str], Counter] = defaultdict(Counter)
-        for item in outcomes:
-            groups[(item["source"], item["kind"])].append(item)
-            day = datetime.fromtimestamp(item["recorded"], timezone.utc).date().isoformat()
-            daily[(day, item["source"])][item["status"]] += 1
-        failures = Counter(item["reason_code"] for item in outcomes if item["status"] != "awaiting_review")
-        failure_groups = Counter((item["source"], item["reason_code"]) for item in outcomes
-                                 if item["status"] != "awaiting_review")
+        sections = _breakdown(outcomes)
         queue, legacy = self._queue(tracked, issue)
         return {"generated": time.time(), "recording_since": float(since), "since_hours": since_hours, "issue": issue,
-                "business_acceptance": "not_measured", "summary": _aggregate(outcomes),
-                "groups": [{"source": source, "kind": kind, **_aggregate(items)}
-                           for (source, kind), items in sorted(groups.items())],
-                "failures": [{"reason_code": code, "count": count} for code, count in failures.most_common()],
-                "failure_groups": [{"source": source, "reason_code": code, "count": count}
-                                   for (source, code), count in failure_groups.most_common()],
-                "daily": [{"date": day, "source": source, **counts} for (day, source), counts in sorted(daily.items())],
+                "business_acceptance": "not_measured", "summary": _aggregate(outcomes), **sections,
                 "queue": queue, "legacy_observations": legacy, "recent": outcomes[-50:]}
+
+    @staticmethod
+    def _check_issue_key(issue: str) -> None:
+        """Reject an ``issue`` filter that is not a valid ``source:id`` key, through IssueSnapshot's check."""
+        source, _separator, external_id = issue.partition(":")
+        IssueSnapshot(source, external_id, "", "", "")
 
     def write_report(self, base: str | Path, since_hours: float | None = None,
                      report: dict[str, Any] | None = None, issue: str | None = None) -> tuple[str, str]:
@@ -96,6 +87,27 @@ class IssueMetrics:
                 not math.isfinite(since_hours) or since_hours <= 0:
             raise IssueWorkerError("since_hours must be finite and positive")
         return time.time() - since_hours * 3600
+
+
+def _breakdown(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
+    """The report sections that split the outcomes by source and kind, failure reason and day."""
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    daily: dict[tuple[str, str], Counter] = defaultdict(Counter)
+    for item in outcomes:
+        groups[(item["source"], item["kind"])].append(item)
+        day = datetime.fromtimestamp(item["recorded"], timezone.utc).date().isoformat()
+        daily[(day, item["source"])][item["status"]] += 1
+    failures = Counter(item["reason_code"] for item in outcomes if item["status"] != "awaiting_review")
+    failure_groups = Counter((item["source"], item["reason_code"]) for item in outcomes
+                             if item["status"] != "awaiting_review")
+    return {
+        "groups": [{"source": source, "kind": kind, **_aggregate(items)}
+                   for (source, kind), items in sorted(groups.items())],
+        "failures": [{"reason_code": code, "count": count} for code, count in failures.most_common()],
+        "failure_groups": [{"source": source, "reason_code": code, "count": count}
+                           for (source, code), count in failure_groups.most_common()],
+        "daily": [{"date": day, "source": source, **counts} for (day, source), counts in sorted(daily.items())],
+    }
 
 
 def _aggregate(outcomes: list[dict[str, Any]]) -> dict[str, Any]:

@@ -29,6 +29,7 @@ class DupDryError(WebRunnerException):
 
 @dataclass
 class DupSpec:
+    """A named test and its action list; an empty name or a non-list raises ``DupDryError``."""
     name: str
     actions: list[dict[str, Any]] = field(default_factory=list)
 
@@ -53,11 +54,15 @@ def _signature(actions: Sequence[dict[str, Any]]) -> str:
 
 @dataclass
 class DuplicateGroup:
+    """Tests whose action lists share one signature."""
     signature: str
     test_names: list[str]
 
 
 def find_duplicates(specs: Iterable[DupSpec]) -> list[DuplicateGroup]:
+    """Group the specs by action signature and return the groups of two or more tests.
+    Raises ``DupDryError`` when an item is not a ``DupSpec``.
+    """
     buckets: dict[str, list[str]] = defaultdict(list)
     for spec in specs:
         if not isinstance(spec, DupSpec):
@@ -70,6 +75,7 @@ def find_duplicates(specs: Iterable[DupSpec]) -> list[DuplicateGroup]:
 
 @dataclass
 class PrefixOverlap:
+    """Two tests and the number of leading actions they have in common."""
     a: str
     b: str
     common_prefix_len: int
@@ -87,6 +93,9 @@ def _common_prefix(la: list[str], lb: list[str]) -> int:
 def find_prefix_overlap(
     specs: Sequence[DupSpec], *, min_prefix: int = 5,
 ) -> list[PrefixOverlap]:
+    """Return the pairs of tests that share at least ``min_prefix`` leading actions
+    without one being a full prefix of the other.
+    """
     if min_prefix < 1:
         raise DupDryError("min_prefix must be >= 1")
     tokens = {s.name: [_signature_token(a) for a in s.actions
@@ -98,12 +107,13 @@ def find_prefix_overlap(
         for b in names[i + 1:]:
             la, lb = tokens[a], tokens[b]
             common = _common_prefix(la, lb)
-            if common >= min_prefix and common < min(len(la), len(lb)):
+            if min_prefix <= common < min(len(la), len(lb)):
                 out.append(PrefixOverlap(a=a, b=b, common_prefix_len=common))
     return sorted(out, key=lambda o: -o.common_prefix_len)
 
 
 def assert_no_duplicates(groups: Iterable[DuplicateGroup]) -> None:
+    """Raise ``DupDryError`` listing the test names of every duplicate group."""
     items = list(groups)
     if items:
         names = [g.test_names for g in items]

@@ -19,6 +19,9 @@ class WebAuthnError(WebRunnerException):
 
 @dataclass(frozen=True)
 class VirtualAuthenticator:
+    """已註冊的 virtual authenticator 及其設定
+    A registered virtual authenticator: its CDP id and the options it was created with.
+    """
     authenticator_id: str
     protocol: str = "ctap2"
     transport: str = "internal"
@@ -74,6 +77,10 @@ def enable_virtual_authenticator(
 
 
 def list_credentials(driver: Any, authenticator: VirtualAuthenticator) -> list[dict[str, Any]]:
+    """列出 authenticator 內的 credential
+    Return the credentials stored in the authenticator; raises ``WebAuthnError``
+    when CDP answers with something that is not a list.
+    """
     response = _send(driver, "WebAuthn.getCredentials", {
         "authenticatorId": authenticator.authenticator_id,
     })
@@ -88,6 +95,9 @@ def add_credential(
     authenticator: VirtualAuthenticator,
     credential: dict[str, Any],
 ) -> None:
+    """加入一筆 credential
+    Store ``credential`` (a CDP ``WebAuthn.Credential`` dict) in the authenticator.
+    """
     _send(driver, "WebAuthn.addCredential", {
         "authenticatorId": authenticator.authenticator_id,
         "credential": credential,
@@ -95,6 +105,9 @@ def add_credential(
 
 
 def clear_credentials(driver: Any, authenticator: VirtualAuthenticator) -> None:
+    """清空所有 credential
+    Remove every credential from the authenticator.
+    """
     _send(driver, "WebAuthn.clearCredentials", {
         "authenticatorId": authenticator.authenticator_id,
     })
@@ -104,6 +117,9 @@ def remove_virtual_authenticator(
     driver: Any,
     authenticator: VirtualAuthenticator,
 ) -> None:
+    """移除 virtual authenticator
+    Remove the virtual authenticator from the browser.
+    """
     _send(driver, "WebAuthn.removeVirtualAuthenticator", {
         "authenticatorId": authenticator.authenticator_id,
     })
@@ -114,6 +130,9 @@ def set_user_verified(
     authenticator: VirtualAuthenticator,
     is_user_verified: bool,
 ) -> None:
+    """設定使用者驗證結果
+    Set whether the authenticator's user verification succeeds from now on.
+    """
     _send(driver, "WebAuthn.setUserVerified", {
         "authenticatorId": authenticator.authenticator_id,
         "isUserVerified": is_user_verified,
@@ -125,6 +144,9 @@ def set_automatic_presence_simulation(
     authenticator: VirtualAuthenticator,
     enabled: bool,
 ) -> None:
+    """開關自動 user presence 模擬
+    Turn the authenticator's automatic user-presence simulation on or off.
+    """
     _send(driver, "WebAuthn.setAutomaticPresenceSimulation", {
         "authenticatorId": authenticator.authenticator_id,
         "enabled": enabled,

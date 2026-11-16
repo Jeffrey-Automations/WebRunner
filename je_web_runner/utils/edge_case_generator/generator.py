@@ -61,6 +61,7 @@ class EdgeCase:
     severity: str = "medium"        # "low" | "medium" | "high"
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the edge case as a dict, with the category as its string value."""
         out = asdict(self)
         out["category"] = self.category.value
         return out
@@ -74,6 +75,7 @@ class EdgeCaseSuite:
     cases: list[EdgeCase] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the source test name and every case as a dict."""
         return {
             "source_test_name": self.source_test_name,
             "cases": [c.to_dict() for c in self.cases],

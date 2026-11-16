@@ -15,6 +15,7 @@ runtime (skip with reason if the test id is currently quarantined).
 """
 from __future__ import annotations
 
+import builtins
 import functools
 import json
 import math
@@ -26,7 +27,6 @@ from typing import Any, Callable
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
-import builtins
 
 
 class FlakeDetectorError(WebRunnerException):
@@ -40,7 +40,7 @@ _DEFAULT_FLAKE_THRESHOLD = 0.25
 
 
 @dataclass
-class FlakeScore:
+class FlakeScore:  # pylint: disable=too-many-instance-attributes  # value object: the score's fields
     """Per-test rollup of the run history."""
 
     path: str
@@ -53,6 +53,7 @@ class FlakeScore:
     is_flaky: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the score as a plain dict."""
         return asdict(self)
 
 
@@ -116,21 +117,8 @@ def compute_flake_scores(  # NOSONAR S3776 — cohesive logic; planned refactor 
     )
 
 
-def compute_flake_scores_from_runs(  # NOSONAR S3776 — cohesive logic; planned refactor in follow-up
-    runs: list[dict[str, Any]],
-    *,
-    half_life_days: float = _DEFAULT_HALF_LIFE_DAYS,
-    min_runs: int = _DEFAULT_MIN_RUNS,
-    threshold: float = _DEFAULT_FLAKE_THRESHOLD,
-    now_epoch: float | None = None,
-) -> dict[str, FlakeScore]:
-    """
-    從已讀出的 run 紀錄計算 flake score
-    :func:`compute_flake_scores` for run records already read from a ledger
-    (``{"path", "passed", "time"}`` dicts), so a caller that has the runs does not
-    read the file twice.
-    """
-    now = now_epoch if now_epoch is not None else time.time()
+def _bucket_runs(runs: list[dict[str, Any]], now: float, half_life_days: float) -> dict[str, dict[str, Any]]:
+    """Per test path: run, pass and fail counts, the decayed weights and the newest run time."""
     buckets: dict[str, dict[str, Any]] = {}
     for run in runs:
         path = run.get("path")
@@ -156,28 +144,48 @@ def compute_flake_scores_from_runs(  # NOSONAR S3776 — cohesive logic; planned
             existing = record["last_run"]
             if existing is None or last_run > existing:
                 record["last_run"] = last_run
+    return buckets
 
-    out: dict[str, FlakeScore] = {}
-    for path, rec in buckets.items():
-        runs_n = rec["runs"]
-        passes = rec["passes"]
-        fails = rec["fails"]
-        pass_rate = (passes / runs_n) if runs_n else 0.0
-        weight_total = rec["weight_total"]
-        flake_score = (rec["weight_fails"] / weight_total) if weight_total else 0.0
-        has_both = passes > 0 and fails > 0
-        is_flaky = runs_n >= min_runs and has_both and flake_score >= threshold
-        out[path] = FlakeScore(
-            path=path,
-            runs=runs_n,
-            passes=passes,
-            fails=fails,
-            pass_rate=round(pass_rate, 4),
-            flake_score=round(flake_score, 4),
-            last_run=rec["last_run"],
-            is_flaky=is_flaky,
-        )
-    return out
+
+def _score_bucket(path: str, rec: dict[str, Any], min_runs: int, threshold: float) -> FlakeScore:
+    """The :class:`FlakeScore` of one test from its bucket of :func:`_bucket_runs`."""
+    runs_n = rec["runs"]
+    passes = rec["passes"]
+    fails = rec["fails"]
+    pass_rate = (passes / runs_n) if runs_n else 0.0
+    weight_total = rec["weight_total"]
+    flake_score = (rec["weight_fails"] / weight_total) if weight_total else 0.0
+    has_both = passes > 0 and fails > 0
+    is_flaky = runs_n >= min_runs and has_both and flake_score >= threshold
+    return FlakeScore(
+        path=path,
+        runs=runs_n,
+        passes=passes,
+        fails=fails,
+        pass_rate=round(pass_rate, 4),
+        flake_score=round(flake_score, 4),
+        last_run=rec["last_run"],
+        is_flaky=is_flaky,
+    )
+
+
+def compute_flake_scores_from_runs(
+    runs: list[dict[str, Any]],
+    *,
+    half_life_days: float = _DEFAULT_HALF_LIFE_DAYS,
+    min_runs: int = _DEFAULT_MIN_RUNS,
+    threshold: float = _DEFAULT_FLAKE_THRESHOLD,
+    now_epoch: float | None = None,
+) -> dict[str, FlakeScore]:
+    """
+    從已讀出的 run 紀錄計算 flake score
+    :func:`compute_flake_scores` for run records already read from a ledger
+    (``{"path", "passed", "time"}`` dicts), so a caller that has the runs does not
+    read the file twice.
+    """
+    now = now_epoch if now_epoch is not None else time.time()
+    buckets = _bucket_runs(runs, now, half_life_days)
+    return {path: _score_bucket(path, rec, min_runs, threshold) for path, rec in buckets.items()}
 
 
 def flaky_paths(
@@ -213,6 +221,7 @@ class QuarantineEntry:
     triage_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the entry as a plain dict."""
         return asdict(self)
 
 
@@ -269,12 +278,15 @@ class QuarantineRegistry:
             json.dump(payload, fp, ensure_ascii=False, indent=2)
 
     def is_quarantined(self, test_id: str) -> bool:
+        """True when ``test_id`` is in the registry."""
         return test_id in self._entries
 
     def get(self, test_id: str) -> QuarantineEntry | None:
+        """Return the entry of ``test_id``, or None when it is not quarantined."""
         return self._entries.get(test_id)
 
     def add(self, entry: QuarantineEntry) -> None:
+        """Add or replace the entry of its test and save the registry."""
         self._entries[entry.test_id] = entry
         self._save()
         web_runner_logger.info(
@@ -283,6 +295,7 @@ class QuarantineRegistry:
         )
 
     def remove(self, test_id: str) -> bool:
+        """Remove ``test_id`` and save the registry; False when it was not quarantined."""
         existing = self._entries.pop(test_id, None)
         if existing is None:
             return False
@@ -291,6 +304,7 @@ class QuarantineRegistry:
         return True
 
     def list(self) -> builtins.list[QuarantineEntry]:
+        """Return the entries, highest flake score first, then by test id."""
         return sorted(
             self._entries.values(),
             key=lambda e: (-e.flake_score, e.test_id),

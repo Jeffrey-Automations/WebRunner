@@ -21,12 +21,17 @@ class MqAssertError(WebRunnerException):
 
 @dataclass
 class Message:
+    """One message taken from a topic: body, optional key and headers."""
     topic: str
     body: Any
     key: str | None = None
     headers: dict[str, str] = field(default_factory=dict)
 
     def body_as_dict(self) -> dict[str, Any]:
+        """Return the body as a dict, decoding a JSON string or bytes body.
+
+        Raises MqAssertError when the body is not valid JSON, not a JSON object or of another type.
+        """
         if isinstance(self.body, dict):
             return self.body
         if isinstance(self.body, (bytes, str)):
@@ -43,12 +48,20 @@ class Message:
 
 
 class Consumer(Protocol):
-    def drain(self, topic: str, *, timeout: float = 5.0) -> Sequence[Message]: ...
+    """What a queue client must offer to be drained by this module."""
+
+    def drain(self, topic: str, *, timeout: float = 5.0) -> Sequence[Message]:
+        """Return the messages waiting on ``topic``, waiting at most ``timeout`` seconds."""
 
 
 def drain_topic(
     consumer: Consumer, topic: str, timeout: float = 5.0,
 ) -> list[Message]:
+    """Drain ``topic`` through ``consumer`` and return the messages as Message objects.
+
+    Raises MqAssertError when the topic is empty, the consumer has no ``drain`` or it does not
+    return a sequence.
+    """
     if not topic:
         raise MqAssertError("topic must be non-empty")
     if not hasattr(consumer, "drain"):

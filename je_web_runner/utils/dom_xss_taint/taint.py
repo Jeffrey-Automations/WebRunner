@@ -67,11 +67,13 @@ INSTALL_SCRIPT = r"""
 
 @dataclass
 class TaintFinding:
+    """A canary value that reached a dangerous sink."""
     sink: str
     canary: str
     snippet: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the finding as a plain dict."""
         return asdict(self)
 
 
@@ -87,6 +89,7 @@ def make_canaries(test_name: str) -> list[str]:
 
 
 def parse_findings(payload: Any) -> list[TaintFinding]:
+    """Build the findings from the page's payload, skipping entries without a sink or a canary."""
     if not isinstance(payload, list):
         raise DomXssTaintError("payload must be a list")
     out: list[TaintFinding] = []
@@ -105,6 +108,7 @@ def parse_findings(payload: Any) -> list[TaintFinding]:
 
 
 def assert_no_taint(findings: Iterable[TaintFinding]) -> None:
+    """Raise ``DomXssTaintError`` when any canary reached a sink."""
     items = list(findings)
     if items:
         details = [f"{f.canary} → {f.sink}" for f in items[:5]]
