@@ -6,9 +6,10 @@ from typing import Any
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import check_fields, recorded
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 
-class _StateMixin:
+class _StateMixin(_PlaywrightHost):
     """Cookie、截圖、等待條件、viewport 與網路 route 模擬。
 
     Cookies, screenshots, wait conditions, viewport size and network route

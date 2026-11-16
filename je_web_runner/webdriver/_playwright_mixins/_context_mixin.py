@@ -12,6 +12,7 @@ from je_web_runner.webdriver._playwright_mixins._common import (
     RUNTIME_NOT_STARTED,
     PlaywrightBackendError,
 )
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 _HAR_KEYS = ("record_har_path", "record_har_content")
 
@@ -29,7 +30,7 @@ def _fallback(route: Any) -> None:
     route.fallback()
 
 
-class _ContextMixin:
+class _ContextMixin(_PlaywrightHost):
     """裝置模擬、地理位置、權限、時區、時鐘、語系、HAR 錄製。
 
     Playwright fixes most of these when a context is created, so the wrapper keeps

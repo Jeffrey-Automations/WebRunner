@@ -110,19 +110,19 @@ class PlaywrightWrapper(
     # ----- lifecycle ---------------------------------------------------
 
     @property
-    def page(self):
+    def page(self) -> Any:
         if not self._pages or self._page_index < 0:
             raise PlaywrightBackendError("Playwright page not launched; call launch() first")
         return self._pages[self._page_index]
 
     @property
-    def context(self):
+    def context(self) -> Any:
         if self._context is None:
             raise PlaywrightBackendError("Playwright context not started; call launch() first")
         return self._context
 
     @property
-    def browser(self):
+    def browser(self) -> Any:
         if self._browser is None:
             raise PlaywrightBackendError(BROWSER_NOT_LAUNCHED)
         return self._browser
@@ -177,7 +177,7 @@ class PlaywrightWrapper(
             self._playwright.stop()
         self._playwright = None
 
-    def _open_context(self, storage_state: Any = None):
+    def _open_context(self, storage_state: Any = None) -> Any:
         """Create a context with the merged options (plus ``storage_state`` carried from the last one)."""
         kwargs = dict(self._context_options)
         if storage_state is not None:

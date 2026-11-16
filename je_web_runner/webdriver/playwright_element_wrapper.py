@@ -12,6 +12,7 @@ index switching.
 """
 from __future__ import annotations
 
+from typing import Any
 
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.webdriver._playwright_mixins._common import check_fields
@@ -42,7 +43,8 @@ class PlaywrightElementWrapper:
     """
 
     def __init__(self) -> None:
-        self.current_element = None
+        # A Playwright ElementHandle; Any because Playwright is an optional dependency.
+        self.current_element: Any = None
         self.current_element_list: list[object] | None = None
 
     def _require_element(self):

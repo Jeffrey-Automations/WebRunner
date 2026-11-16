@@ -6,10 +6,11 @@ from typing import Any
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import recorded
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, record
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 from je_web_runner.webdriver.playwright_locator import selector_for_recorded_name
 
 
-class _PageMixin:
+class _PageMixin(_PlaywrightHost):
     """分頁切換、URL 導航、預設逾時、依 selector 或 TestObject 找元素。
 
     Page (tab) management, URL navigation, default timeouts, and element lookup

@@ -4,9 +4,10 @@ from __future__ import annotations
 from typing import Any
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 
-class _ConnectMixin:
+class _ConnectMixin(_PlaywrightHost):
     """Ways to start other than :meth:`launch`.
 
     ``connect`` reaches a Playwright browser server and opens this wrapper's own

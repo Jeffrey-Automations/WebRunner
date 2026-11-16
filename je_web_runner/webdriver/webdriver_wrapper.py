@@ -70,7 +70,7 @@ _webdriver_dict = {
 # constructor kwarg, so wrap it in ``partial`` rather than pre-instantiating
 # it (a bare instance is not callable → ``instance()`` raised TypeError, and
 # pre-building it ran the manager's setup at import time).
-_webdriver_manager_dict = {
+_webdriver_manager_dict: dict[str, typing.Callable[..., typing.Any]] = {
     "chrome": ChromeDriverManager,
     "chromium": partial(ChromeDriverManager, chrome_type=ChromeType.CHROMIUM),
     "firefox": GeckoDriverManager,
@@ -172,10 +172,12 @@ class WebDriverWrapper(
     This class itself keeps: driver lifecycle, element finding, waits, check / quit.
     """
 
-    def __init__(self):
-        self.current_webdriver: WebDriver | None = None
+    def __init__(self) -> None:
+        # Both are None until set_driver / set_active_driver gives the wrapper a live driver;
+        # _WrapperBase declares their types (a write accepts None, a read is the live object).
+        self.current_webdriver = None
         self._webdriver_name: str | None = None
-        self._action_chain: ActionChains | None = None
+        self._action_chain = None
 
     def set_active_driver(self, driver: WebDriver | None) -> None:
         """
@@ -379,6 +381,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_element", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def find_elements(self, test_object: TestObject) -> list[WebElement] | None:
         """
@@ -405,6 +408,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper find_elements", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def find_element_with_test_object_record(self, element_name: str) -> WebElement | None:
         """
@@ -431,10 +435,12 @@ class WebDriverWrapper(
             return web_element_wrapper.current_web_element
         except Exception as error:
             web_runner_logger.error(
-                f"WebDriverWrapper find_element_with_test_object_record, element_name: {element_name}, failed: {error!r}"
+                f"WebDriverWrapper find_element_with_test_object_record, element_name: {element_name}, "
+                f"failed: {error!r}"
             )
             record_action_to_list("webdriver wrapper find_element_with_test_object_record", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def find_elements_with_test_object_record(self, element_name: str) -> list[WebElement] | None:
         """
@@ -461,10 +467,12 @@ class WebDriverWrapper(
             return web_element_wrapper.current_web_element_list
         except Exception as error:
             web_runner_logger.error(
-                f"WebDriverWrapper find_elements_with_test_object_record, element_name: {element_name}, failed: {error!r}"
+                f"WebDriverWrapper find_elements_with_test_object_record, element_name: {element_name}, "
+                f"failed: {error!r}"
             )
             record_action_to_list("webdriver wrapper find_elements_with_test_object_record", param, error)
             settle_wrapper_failure(error)
+            return None
 
     # wait
     def implicitly_wait(self, time_to_wait: int) -> None:
@@ -513,6 +521,7 @@ class WebDriverWrapper(
             )
             record_action_to_list("webdriver wrapper explict_wait", param, error)
             settle_wrapper_failure(error)
+            return None
 
     # timeout
     def set_script_timeout(self, time_to_wait: int) -> None:

@@ -1,4 +1,4 @@
-
+"""多個 WebDriver 的管理器 / Manager for several live WebDrivers (singleton ``web_runner``)."""
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -13,10 +13,15 @@ from je_web_runner.webdriver.webdriver_wrapper import webdriver_wrapper_instance
 
 
 class WebdriverManager:
-    def __init__(self, **kwargs):
+    """
+    管理多個 WebDriver，並讓共用的 wrapper 指向目前使用的那一個
+    Keeps every started WebDriver and points the shared wrapper at the active one.
+    """
+
+    def __init__(self, **kwargs) -> None:
         # 當前 WebDriver 實例清單
         # List of current WebDriver instances
-        self._current_webdriver_list = []
+        self._current_webdriver_list: list[WebDriver] = []
 
         # WebDriver 包裝器
         # WebDriver wrapper

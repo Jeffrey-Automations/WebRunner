@@ -11,9 +11,10 @@ from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_record.test_record_class import record_action_to_list
 from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_failure
+from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 
-class _ScriptingMixin:
+class _ScriptingMixin(_WrapperBase):
     """提供同步 / 非同步 JS、CDP、BiDi、Fetch 攔截原語。
 
     Synchronous and asynchronous JavaScript, CDP commands, BiDi listeners,
@@ -41,6 +42,7 @@ class _ScriptingMixin:
             )
             record_action_to_list("webdriver wrapper execute", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def execute_script(self, script: str, *args):
         """
@@ -520,3 +522,4 @@ class _ScriptingMixin:
             )
             record_action_to_list("webdriver wrapper execute_async_script", param, error)
             settle_wrapper_failure(error)
+            return None

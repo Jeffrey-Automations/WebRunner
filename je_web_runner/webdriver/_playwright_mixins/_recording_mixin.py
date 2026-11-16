@@ -5,9 +5,10 @@ from typing import Any
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, recorded
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 
-class _RecordingMixin:
+class _RecordingMixin(_PlaywrightHost):
     """Trace-viewer traces and video recordings of the current context.
 
     Tracing runs in chunks: :meth:`save_trace_chunk` writes what was recorded so far

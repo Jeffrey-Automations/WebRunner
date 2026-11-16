@@ -1,5 +1,5 @@
+"""依瀏覽器名稱建立 Options / Build a browser's Options object with arguments or capabilities."""
 from __future__ import annotations
-
 
 from selenium import webdriver
 from selenium.webdriver.ie.options import Options
@@ -71,6 +71,7 @@ def set_webdriver_options_argument(
             f"argument_iterable: {argument_iterable}, failed: {error!r}"
         )
         record_action_to_list("webdriver with options set_webdriver_options_argument", param, error)
+        return None
 
 
 def set_webdriver_options_capability_wrapper(
@@ -105,3 +106,4 @@ def set_webdriver_options_capability_wrapper(
             f"key_and_vale_dict: {key_and_vale_dict}, failed: {error!r}"
         )
         record_action_to_list("webdriver with options set_webdriver_options_capability_wrapper", param, error)
+        return None

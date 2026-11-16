@@ -1,10 +1,11 @@
 """同時開多個瀏覽器 / Several Playwright browsers at once, switched by index."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 # Everything that belongs to one browser session; the Playwright runtime is shared.
 _SESSION_FIELDS = (
@@ -14,7 +15,7 @@ _SESSION_FIELDS = (
 )
 
 
-class _SessionsMixin:
+class _SessionsMixin(_PlaywrightHost):
     """Several browsers in one wrapper, like Selenium's ``WR_new_driver`` / ``WR_change_index_of_webdriver``.
 
     Other modules import ``playwright_wrapper_instance`` by name, so the wrapper
@@ -35,6 +36,10 @@ class _SessionsMixin:
             setattr(self, name, state[name])
         self.element_wrapper.current_element = state["current_element"]
         self.element_wrapper.current_element_list = state["current_element_list"]
+
+    def _parked(self, index: int) -> dict[str, Any]:
+        """The saved state of browser ``index``; only the active browser's entry is ``None``."""
+        return cast(dict[str, Any], self._sessions[index])
 
     def _park_active(self) -> None:
         if self._sessions:
@@ -68,7 +73,7 @@ class _SessionsMixin:
         if index == self._session_index:
             return
         self._park_active()
-        self._restore(self._sessions[index])
+        self._restore(self._parked(index))
         self._sessions[index] = None
         self._session_index = index
 
@@ -85,7 +90,7 @@ class _SessionsMixin:
             self._stop_runtime()
             return
         self._session_index = min(self._session_index, len(self._sessions) - 1)
-        self._restore(self._sessions[self._session_index])
+        self._restore(self._parked(self._session_index))
         self._sessions[self._session_index] = None
 
     def _close_current(self) -> None:

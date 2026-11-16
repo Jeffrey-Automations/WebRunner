@@ -6,12 +6,13 @@ import base64
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_record.test_record_class import record_action_to_list
 from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_failure
+from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 _FULL_PAGE_SCREENSHOT_LOG = "webdriver wrapper save_full_page_screenshot"
 _PRINT_PAGE_LOG = "webdriver wrapper print_page"
 
 
-class _MediaMixin:
+class _MediaMixin(_WrapperBase):
     """截圖 / 列印 / log 取得 / Screenshots, printing, and driver log retrieval."""
 
     def save_screenshot(self, file_path: str) -> bool:
@@ -49,6 +50,7 @@ class _MediaMixin:
             web_runner_logger.error(f"WebDriverWrapper get_screenshot_as_png failed: {error!r}")
             record_action_to_list("webdriver wrapper get_screenshot_as_png", None, error)
             settle_wrapper_failure(error)
+            return None
 
     def save_full_page_screenshot(self, file_path: str) -> bool:
         """
@@ -130,6 +132,7 @@ class _MediaMixin:
             web_runner_logger.error(f"WebDriverWrapper get_screenshot_as_base64 failed: {error!r}")
             record_action_to_list("webdriver wrapper get_screenshot_as_base64", None, error)
             settle_wrapper_failure(error)
+            return None
 
     def get_log(self, log_type: str):
         """
@@ -154,8 +157,10 @@ class _MediaMixin:
         web_runner_logger.info(f"WebDriverWrapper get_log, log_type: {log_type}")
         try:
             record_action_to_list("webdriver wrapper get_log", None, None)
-            return self.current_webdriver.get_log(log_type)
+            # Only Chromium drivers have get_log; on the others the AttributeError is recorded below.
+            return self.current_webdriver.get_log(log_type)  # type: ignore[attr-defined]
         except Exception as error:
             web_runner_logger.error(f"WebDriverWrapper get_log failed: {error!r}")
             record_action_to_list("webdriver wrapper get_log", None, error)
             settle_wrapper_failure(error)
+            return None

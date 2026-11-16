@@ -1,14 +1,17 @@
 """導航、捲動、視窗 / Page navigation, scrolling, window management."""
 from __future__ import annotations
 
+from typing import Any
+
 from selenium.common import NoAlertPresentException
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_record.test_record_class import record_action_to_list
 from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_failure
+from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 
-class _NavigationMixin:
+class _NavigationMixin(_WrapperBase):
     """URL 導航、捲動、tab / window 切換、視窗大小位置。
 
     URL navigation, scrolling, tab/window switching, and window geometry.
@@ -296,7 +299,9 @@ class _NavigationMixin:
         param = locals()
         try:
             switch_type = switch_type.lower()
-            switch_type_dict = {
+            # Values are an element, an Alert (or None) and bound methods; an unknown
+            # switch_type gives None, and calling it is the TypeError recorded below.
+            switch_type_dict: dict[str, Any] = {
                 "active_element": self.current_webdriver.switch_to.active_element,
                 "default_content": self.current_webdriver.switch_to.default_content,
                 "frame": self.current_webdriver.switch_to.frame,
@@ -310,15 +315,17 @@ class _NavigationMixin:
                 web_runner_logger.error(f"WebDriverWrapper switch alert failed: {error!r}")
 
             record_action_to_list("webdriver wrapper switch", param, None)
+            target: Any = switch_type_dict.get(switch_type)
             if switch_type in ["active_element", "alert"]:
-                return switch_type_dict.get(switch_type)
+                return target
             if switch_type in ["default_content", "parent_frame"]:
-                return switch_type_dict.get(switch_type)()
-            return switch_type_dict.get(switch_type)(switch_target_name)
+                return target()
+            return target(switch_target_name)
         except Exception as error:
             web_runner_logger.error(f"WebDriverWrapper switch failed: {error!r}")
             record_action_to_list("webdriver wrapper switch", param, error)
             settle_wrapper_failure(error)
+            return None
 
     # window geometry
     def maximize_window(self) -> None:
@@ -412,6 +419,7 @@ class _NavigationMixin:
             )
             record_action_to_list("webdriver wrapper set_window_position", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def get_window_position(self, window_handle='current') -> dict | None:
         """
@@ -430,6 +438,7 @@ class _NavigationMixin:
             web_runner_logger.error(f"WebDriverWrapper get_window_position failed: {error!r}")
             record_action_to_list("webdriver wrapper get_window_position", param, error)
             settle_wrapper_failure(error)
+            return None
 
     def get_window_rect(self) -> dict | None:
         """
@@ -446,8 +455,10 @@ class _NavigationMixin:
             web_runner_logger.error(f"WebDriverWrapper get_window_rect failed: {error!r}")
             record_action_to_list("webdriver wrapper get_window_rect", None, error)
             settle_wrapper_failure(error)
+            return None
 
-    def set_window_rect(self, x: int | None = None, y: int | None = None, width: int | None = None, height: int | None = None) -> dict | None:
+    def set_window_rect(self, x: int | None = None, y: int | None = None, width: int | None = None,
+                        height: int | None = None) -> dict | None:
         """
         設定視窗矩形 (位置與大小)，僅支援 W3C 相容瀏覽器
         Set window rect (position and size), only supported for W3C compatible browsers
@@ -468,3 +479,4 @@ class _NavigationMixin:
             web_runner_logger.error(f"WebDriverWrapper set_window_rect failed: {error!r}")
             record_action_to_list("webdriver wrapper set_window_rect", param, error)
             settle_wrapper_failure(error)
+            return None

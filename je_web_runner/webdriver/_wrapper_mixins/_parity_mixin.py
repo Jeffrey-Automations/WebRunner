@@ -8,7 +8,7 @@ action, as the Playwright twins do.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
@@ -19,10 +19,11 @@ from je_web_runner.utils.device_emulation.presets import available_presets, cdp_
 from je_web_runner.utils.exception.exceptions import WebRunnerException
 from je_web_runner.utils.test_record.recorded import recorded_calls
 from je_web_runner.utils.time_freezer.freezer import build_freezer_script, freeze_at
+from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 recorded = recorded_calls("webdriver wrapper")
 
-_WAIT_STATES = {
+_WAIT_STATES: dict[str, Callable[..., Any]] = {
     "present": expected_conditions.presence_of_element_located,
     "visible": expected_conditions.visibility_of_element_located,
     "clickable": expected_conditions.element_to_be_clickable,
@@ -49,7 +50,7 @@ def resolve_by(by: str) -> str:
     raise WebRunnerException(f"unknown locator strategy {by!r}; use one of {sorted(values)}")
 
 
-class _ParityMixin:
+class _ParityMixin(_WrapperBase):
     """Commands the Playwright backend had and the Selenium one did not."""
 
     # ----- waits ---------------------------------------------------------

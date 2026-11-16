@@ -6,9 +6,10 @@ from typing import Any
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, recorded
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 
-class _InteractionMixin:
+class _InteractionMixin(_PlaywrightHost):
     """以 selector 直接操作元素、執行腳本、滑鼠與鍵盤、frame 查詢。
 
     Selector-based element shortcuts, script evaluation, mouse and keyboard,

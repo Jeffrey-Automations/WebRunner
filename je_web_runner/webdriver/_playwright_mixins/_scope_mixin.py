@@ -5,12 +5,13 @@ from typing import Any
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, recorded
+from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 _LOOKUPS = frozenset({"role", "text", "label", "placeholder", "alt_text", "title", "test_id"})
 _DIALOG_ACTIONS = frozenset({"accept", "dismiss", "default"})
 
 
-class _ScopeMixin:
+class _ScopeMixin(_PlaywrightHost):
     """Where the next selector-based commands act, and what happens to JavaScript dialogs.
 
     Like Selenium's frame switching, :meth:`switch_to_frame` makes the selector

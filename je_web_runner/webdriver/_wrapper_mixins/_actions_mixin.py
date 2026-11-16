@@ -9,9 +9,10 @@ from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_object.test_object_record.test_object_record_class import test_object_record
 from je_web_runner.utils.test_record.test_record_class import record_action_to_list
 from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_failure
+from je_web_runner.webdriver._wrapper_mixins._base import _WrapperBase
 
 
-class _ActionsMixin:
+class _ActionsMixin(_WrapperBase):
     """所有 ActionChains-based 滑鼠 / 鍵盤 / 拖曳動作。
 
     All ActionChains-based mouse, keyboard, and drag-and-drop operations.
@@ -496,7 +497,8 @@ class _ActionsMixin:
         :param element_name: 測試物件名稱 / test object name
         """
         web_runner_logger.info(
-            f"WebDriverWrapper press_key_with_test_object, keycode_on_key_class: {keycode_on_key_class}, element_name: {element_name}"
+            f"WebDriverWrapper press_key_with_test_object, keycode_on_key_class: {keycode_on_key_class}, "
+            f"element_name: {element_name}"
         )
         param = locals()
         try:
@@ -545,7 +547,8 @@ class _ActionsMixin:
         :param element_name: 測試物件名稱 / test object name
         """
         web_runner_logger.info(
-            f"WebDriverWrapper release_key_with_test_object, keycode_on_key_class: {keycode_on_key_class}, element_name: {element_name}"
+            f"WebDriverWrapper release_key_with_test_object, keycode_on_key_class: {keycode_on_key_class}, "
+            f"element_name: {element_name}"
         )
         param = locals()
         try:
@@ -645,7 +648,8 @@ class _ActionsMixin:
         :param keys_to_send: 要發送的鍵 / keys to send
         """
         web_runner_logger.info(
-            f"WebDriverWrapper send_keys_to_element_with_test_object, element_name: {element_name}, keys_to_send: {keys_to_send}"
+            f"WebDriverWrapper send_keys_to_element_with_test_object, element_name: {element_name}, "
+            f"keys_to_send: {keys_to_send}"
         )
         param = locals()
         try:
