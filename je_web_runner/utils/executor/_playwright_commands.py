@@ -15,6 +15,7 @@ from je_web_runner.utils.recorder.browser_recorder import start_recording as _re
 from je_web_runner.utils.recorder.browser_recorder import stop_recording as _recorder_stop
 from je_web_runner.utils.visual_regression.visual_diff import playwright_capture_baseline as _pw_visual_baseline
 from je_web_runner.utils.visual_regression.visual_diff import playwright_compare_with_baseline as _pw_visual_compare
+from je_web_runner.webdriver import playwright_lookup as _pw_lookup
 from je_web_runner.webdriver import playwright_wrapper as _pw
 from je_web_runner.webdriver.playwright_element_wrapper import playwright_element_wrapper as _pw_element
 
@@ -118,6 +119,8 @@ PLAYWRIGHT_COMMANDS: dict[str, Any] = {
     "WR_pw_page_count": _pw.pw_page_count,
     # finding
     "WR_pw_find_element": _pw.pw_find_element,
+    "WR_pw_find_element_by": _pw_lookup.pw_find_element_by,
+    "WR_pw_find_elements_by": _pw_lookup.pw_find_elements_by,
     "WR_pw_find_elements": _pw.pw_find_elements,
     "WR_pw_find_element_with_test_object_record": _pw.pw_find_element_with_test_object_record,
     "WR_pw_find_elements_with_test_object_record": _pw.pw_find_elements_with_test_object_record,

@@ -73,9 +73,12 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
    * - 用原始 selector 找
      - ``WR_find_element_by`` / ``WR_find_elements_by``\ （``by``：``css
        selector``、``xpath``、``id`` …）
-     - ``WR_pw_find_element`` / ``WR_pw_find_elements``
-     - Selenium 的會把找到的元素設為目前元素。Playwright 的只回傳找到的元素
-       （沒找到時回傳 ``None``），不會設為目前元素。
+     - ``WR_pw_find_element_by`` / ``WR_pw_find_elements_by``；
+       ``WR_pw_find_element`` / ``WR_pw_find_elements``
+     - ``_by`` 的兩個命令是對應版本：``by`` 的寫法相同，第一個符合的元素成為目前
+       元素，找不到時失敗；``_elements_by`` 只設定元素清單。``WR_pw_find_element``
+       與 ``WR_pw_find_elements`` 收 Playwright selector，只回傳找到的元素
+       （沒找到時回傳 ``None``）。
    * - 勾選、懸停、元素文字
      - ``WR_element_check``、``WR_element_uncheck``、``WR_element_hover``、
        ``WR_element_inner_text``、``WR_element_inner_html``、
@@ -124,6 +127,8 @@ page-level 的動作會寫進測試紀錄，所以和 Selenium 的步驟一樣�
      - ``WR_pw_wait_for_selector`` / ``_url`` / ``_load_state`` /
        ``_timeout``
      - Playwright 在每個動作前還會自動等元素可操作。Selenium 的等待逾時用秒。
+       ``WR_wait_for_element`` 會把元素設為目前元素；``WR_pw_wait_for_selector``
+       加上 ``make_current`` 也會。
    * - 逾時
      - ``WR_set_page_load_timeout``、``WR_set_script_timeout``
      - ``WR_pw_set_default_timeout``、

@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
-from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError
+from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, recorded
 from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
 
 # Everything that belongs to one browser session; the Playwright runtime is shared.
@@ -49,6 +49,7 @@ class _SessionsMixin(_PlaywrightHost):
         """How many browsers this wrapper holds."""
         return len(self._sessions)
 
+    @recorded(hidden=("launch_kwargs",))
     def new_browser(self, browser: str = "chromium", headless: bool = True, **launch_kwargs: Any) -> int:
         """
         再開一個瀏覽器並切換過去

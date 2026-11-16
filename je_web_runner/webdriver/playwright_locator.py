@@ -67,3 +67,14 @@ def selector_for_recorded_name(element_name: str) -> str:
     if test_object is None:
         raise PlaywrightLocatorError(f"no test object recorded under name {element_name!r}")
     return test_object_to_selector(test_object)
+
+
+def raw_selector(selector: str, by: str = "css selector") -> str:
+    """
+    The Playwright selector for a raw ``selector`` of the strategy ``by``, spelt as Selenium spells it
+    (``"css selector"``, ``"xpath"``, ``"id"``, ``"CSS_SELECTOR"`` ...).
+
+    :raises LocatorFileError: when ``by`` is not a locator strategy.
+    """
+    from je_web_runner.utils.test_object.locator_file import strategy_name
+    return test_object_to_selector(TestObject(selector, strategy_name(by)))

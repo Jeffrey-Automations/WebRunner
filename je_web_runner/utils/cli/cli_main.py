@@ -380,7 +380,36 @@ def _report_formats(spec: str | None) -> Sequence[str]:
     return [name for name in _REPORT_FORMATS if name in chosen]
 
 
+# The file each format must leave behind, as a suffix of the report base name.
+_REPORT_FILES = {"json": "_success.json", "html": ".html", "xml": "_success.xml", "junit": "_junit.xml"}
+
+
+def _report_files(base_name: str, formats: Sequence[str]) -> list[Path]:
+    """Where the reports of ``formats`` are written for ``base_name`` (one file per format that has one)."""
+    from je_web_runner.utils.generate_report.report_path import report_path
+    return [Path(report_path(base_name + suffix)) for name, suffix in _REPORT_FILES.items() if name in formats]
+
+
 def _generate_reports(base_name: str, formats: Sequence[str] = _DEFAULT_REPORT_FORMATS) -> None:
+    """
+    Write the reports of ``formats`` under ``base_name``. The directory is created when it is missing.
+
+    :raises WebRunnerExecuteException: when a requested report is not there afterwards. The writers log a
+        failure and return, so without this check a run would end with exit code 0 and no report.
+    """
+    expected = _report_files(base_name, formats)
+    for target in expected:
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            web_runner_logger.error(f"--report: cannot create {target.parent}: {error!r}")
+    _write_reports(base_name, formats)
+    missing = [str(target) for target in expected if not target.is_file()]
+    if missing:
+        raise WebRunnerExecuteException("--report: not written: " + ", ".join(missing))
+
+
+def _write_reports(base_name: str, formats: Sequence[str]) -> None:
     # Imported lazily so the CLI does not pay the cost (or initialize globals)
     # for users who never request a report.
     from je_web_runner.utils.generate_report.generate_html_report import generate_html_report

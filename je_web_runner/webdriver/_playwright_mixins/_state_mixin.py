@@ -80,11 +80,18 @@ class _StateMixin(_PlaywrightHost):
     # ----- waits -------------------------------------------------------
 
     @recorded()
-    def wait_for_selector(self, selector: str, timeout: float | None = None, state: str = "visible"):
-        """Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds."""
-        if timeout is None:
-            return self._target.wait_for_selector(selector, state=state)
-        return self._target.wait_for_selector(selector, timeout=timeout, state=state)
+    def wait_for_selector(self, selector: str, timeout: float | None = None, state: str = "visible",
+                          make_current: bool = False):
+        """
+        Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds.
+        With ``make_current`` the element waited for becomes the current element (for ``hidden`` and
+        ``detached`` there is none, and the current element stays as it is).
+        """
+        options = {"state": state} if timeout is None else {"state": state, "timeout": timeout}
+        element = self._target.wait_for_selector(selector, **options)
+        if make_current and element is not None:
+            self.element_wrapper.current_element = element
+        return element
 
     @recorded()
     def wait_for_load_state(self, state: str = "load", timeout: float | None = None) -> None:

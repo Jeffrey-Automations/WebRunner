@@ -88,7 +88,9 @@ class TestCliDispatch(unittest.TestCase):
                 patch("je_web_runner.utils.generate_report.generate_xml_report.generate_xml_report") as xml_mock, \
                 patch(
                     "je_web_runner.utils.generate_report.generate_junit_xml_report.generate_junit_xml_report"
-                ) as junit_mock:
+                ) as junit_mock, \
+                patch("je_web_runner.utils.cli.cli_main._report_files", return_value=[]):
+            # The writers are stand-ins, so the check that the report files exist has nothing to find.
             main(["--report", "demo"])
             html_mock.assert_called_once_with("demo")
             json_mock.assert_called_once_with("demo")
@@ -103,6 +105,11 @@ class TestReportEnablesRecording(unittest.TestCase):
         self.records = test_record_instance
         self.addCleanup(self.records.set_record_enable, self.records.init_record)
         self.records.set_record_enable(False)
+        # The writers are stand-ins here, so no report file appears; the check that a report was written
+        # is not what these tests are about (test_cli_report_directory.py covers it).
+        no_files = patch("je_web_runner.utils.cli.cli_main._report_files", return_value=[])
+        no_files.start()
+        self.addCleanup(no_files.stop)
 
     def _generators(self):
         base = "je_web_runner.utils.generate_report."

@@ -7,10 +7,10 @@ from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.webdriver._playwright_mixins._common import recorded
 from je_web_runner.webdriver._playwright_mixins._common import PlaywrightBackendError, record
 from je_web_runner.webdriver._playwright_mixins._host import _PlaywrightHost
-from je_web_runner.webdriver.playwright_locator import selector_for_recorded_name
+from je_web_runner.webdriver.playwright_locator import raw_selector, selector_for_recorded_name
 
 
-class _PageMixin(_PlaywrightHost):
+class _PageMixin(_PlaywrightHost):  # pylint: disable=too-many-public-methods  # one method per command
     """分頁切換、URL 導航、預設逾時、依 selector 或 TestObject 找元素。
 
     Page (tab) management, URL navigation, default timeouts, and element lookup
@@ -166,6 +166,30 @@ class _PageMixin(_PlaywrightHost):
         """Every element matching ``selector`` in the current frame or page (an empty list when none)."""
         web_runner_logger.info(f"playwright find_elements: {selector}")
         return self._target.query_selector_all(selector)
+
+    @recorded()
+    def find_element_by(self, selector: str, by: str = "css selector") -> Any:
+        """
+        以原始 selector 找元素並設為目前元素
+        Find by a raw selector (no saved ``TestObject``) and make the first match the current
+        element; ``by`` is spelt as for ``WR_find_element_by`` (``css selector``, ``xpath``, ``id`` ...).
+        It does not wait, and raises when nothing matches. The Playwright twin of ``WR_find_element_by``.
+        """
+        element = self._target.query_selector(raw_selector(selector, by))
+        if element is None:
+            raise PlaywrightBackendError(f"no element matches {by} {selector!r}")
+        self.element_wrapper.current_element = element
+        return element
+
+    @recorded()
+    def find_elements_by(self, selector: str, by: str = "css selector") -> list[Any]:
+        """
+        Find every match of a raw selector; they become the current element list (an empty list when
+        nothing matches) and the current element stays as it is. The twin of ``WR_find_elements_by``.
+        """
+        elements = list(self._target.query_selector_all(raw_selector(selector, by)))
+        self.element_wrapper.current_element_list = elements
+        return elements
 
     def find_element_with_test_object_record(self, element_name: str):
         """

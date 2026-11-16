@@ -1,6 +1,6 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (1201 commands).
+Auto-generated from the executor's event_dict (1203 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
@@ -747,8 +747,10 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_pw_fill` | `(selector: 'str', value: 'str', **options: 'Any') -> 'None'` | Replace the value of the field matching ``selector`` with ``value``. |
 | `WR_pw_find_by` | `(by: 'str', value: 'str', wait: 'bool' = True, **options: 'Any')` | Find elements by ``role``, ``text``, ``label``, ``test_id`` …; the first match becomes the current element. |
 | `WR_pw_find_element` | `(selector: 'str')` | The first element matching ``selector`` in the current frame or page, or None; it does not wait. |
+| `WR_pw_find_element_by` | `(selector: 'str', by: 'str' = 'css selector') -> 'Any'` | Find by a raw selector (``by``: ``css selector``, ``xpath``, ``id`` ...) and make the first match the |
 | `WR_pw_find_element_with_test_object_record` | `(element_name: 'str')` | Find the saved test object ``element_name``; the first match becomes the current element. |
 | `WR_pw_find_elements` | `(selector: 'str') -> 'list[Any]'` | Every element matching ``selector`` in the current frame or page (an empty list when none). |
+| `WR_pw_find_elements_by` | `(selector: 'str', by: 'str' = 'css selector') -> 'list[Any]'` | Find every match of a raw selector; they become the current element list (empty when nothing |
 | `WR_pw_find_elements_with_test_object_record` | `(element_name: 'str')` | Find every match of the saved test object ``element_name`` (the first becomes current). |
 | `WR_pw_find_with_healing` | `(name: 'str')` | Playwright 版自我修復定位 |
 | `WR_pw_forward` | `() -> 'None'` | Go forward one entry in the current page's history. |
@@ -848,7 +850,7 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_pw_visual_capture_baseline` | `(baseline_path: 'str') -> 'str'` | :func:`capture_baseline` for the current Playwright page. |
 | `WR_pw_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0) -> 'dict'` | :func:`compare_with_baseline` for the current Playwright page. |
 | `WR_pw_wait_for_load_state` | `(state: 'str' = 'load', timeout: 'float | None' = None) -> 'None'` | Wait until the page reaches the load state ``state``; ``timeout`` is in milliseconds. |
-| `WR_pw_wait_for_selector` | `(selector: 'str', timeout: 'float | None' = None, state: 'str' = 'visible')` | Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds. |
+| `WR_pw_wait_for_selector` | `(selector: 'str', timeout: 'float | None' = None, state: 'str' = 'visible', make_current: 'bool' = False)` | Wait until ``selector`` reaches ``state`` (``timeout`` in ms); ``make_current`` keeps the element. |
 | `WR_pw_wait_for_timeout` | `(timeout_ms: 'float') -> 'None'` | Pause for ``timeout_ms`` milliseconds. |
 | `WR_pw_wait_for_url` | `(url: 'str', timeout: 'float | None' = None) -> 'None'` | Wait until the page has navigated to ``url``; ``timeout`` is in milliseconds. |
 | `WR_quarantine_age_report_assert_no_abandoned` | `(registry_path: 'str | None' = None, entries: 'list[dict[str, Any]] | None' = None, now: 'str | None' = None) -> 'Any'` | Fail when a test has been quarantined for 90 days or more. |
@@ -1117,8 +1119,8 @@ Auto-generated from the executor's event_dict (1201 commands).
 | `WR_visual_ai_assert_similar` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Fail when two image files look less alike than ``threshold`` (arguments as ``WR_visual_ai_compare``). |
 | `WR_visual_ai_compare` | `(baseline_path: 'str', candidate_path: 'str', threshold: 'float' = 0.9, crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, Any]'` | Score how alike two image files look (three perceptual hashes and a structural score, 0-1). |
 | `WR_visual_ai_hash` | `(image_path: 'str', kind: 'str' = 'dhash', crop_box: 'list[int] | None' = None, mask_boxes: 'list[list[int]] | None' = None) -> 'dict[str, str]'` | Compute a perceptual hash of an image file. |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002524BAB7600>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000002524BAB7600>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001A3C550BBA0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes | None]' = <function _selenium_png at 0x000001A3C550BBA0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_visual_review_accept` | `(baseline_dir: 'str', current_dir: 'str', name: 'str') -> 'str'` | Accept a changed screenshot: copy ``current_dir/name`` over the baseline; returns the baseline path. |
 | `WR_visual_review_assert_no_diffs` | `(baseline_dir: 'str', current_dir: 'str') -> 'int'` | Fail when a screenshot differs from, or is missing on either side of, its baseline; returns the count. |
 | `WR_visual_review_list` | `(baseline_dir: 'str', current_dir: 'str') -> 'list[dict[str, str]]'` | Pair the PNG files of a baseline and a current directory by name and say how each pair stands. |

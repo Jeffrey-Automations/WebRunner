@@ -90,8 +90,10 @@ class TestPageActionsAreRecorded(unittest.TestCase):
         wrapper.click("#go", button="right")
         wrapper.back()
         wrapper.wait_for_selector("#done")
-        self.assertEqual(self._names(), ["Playwright click", "Playwright back", "Playwright wait_for_selector"])
-        first = test_record_instance.test_record_list[0]
+        # Starting the browser is a recorded step too, like Selenium's set_driver.
+        self.assertEqual(self._names(), ["Playwright launch", "Playwright click", "Playwright back",
+                                         "Playwright wait_for_selector"])
+        first = test_record_instance.test_record_list[1]
         self.assertEqual(first["local_param"], {"selector": "#go", "options": {"button": "right"}})
         self.assertEqual(first["program_exception"], "None")
 

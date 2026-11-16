@@ -77,9 +77,13 @@ Equivalent commands
    * - Find by a raw selector
      - ``WR_find_element_by`` / ``WR_find_elements_by`` (``by``: ``css
        selector``, ``xpath``, ``id`` …)
-     - ``WR_pw_find_element`` / ``WR_pw_find_elements``
-     - Selenium's make the match the current element. Playwright's return
-       the match (``None`` when nothing matches) without making it current.
+     - ``WR_pw_find_element_by`` / ``WR_pw_find_elements_by``;
+       ``WR_pw_find_element`` / ``WR_pw_find_elements``
+     - The ``_by`` commands are twins: the same ``by`` spellings, the first
+       match becomes the current element and nothing matching fails;
+       ``_elements_by`` sets the element list only. ``WR_pw_find_element``
+       and ``WR_pw_find_elements`` take a Playwright selector and only
+       return the match (``None`` when nothing matches).
    * - Check, hover, element text
      - ``WR_element_check``, ``WR_element_uncheck``, ``WR_element_hover``,
        ``WR_element_inner_text``, ``WR_element_inner_html``,
@@ -131,7 +135,9 @@ Equivalent commands
      - ``WR_pw_wait_for_selector`` / ``_url`` / ``_load_state`` /
        ``_timeout``
      - Playwright also waits for an element to be actionable before every
-       action. Selenium's wait timeouts are in seconds.
+       action. Selenium's wait timeouts are in seconds. ``WR_wait_for_element``
+       makes the element current; ``WR_pw_wait_for_selector`` does so with
+       ``make_current``.
    * - Timeouts
      - ``WR_set_page_load_timeout``, ``WR_set_script_timeout``
      - ``WR_pw_set_default_timeout``,

@@ -27,10 +27,7 @@ from je_web_runner.webdriver._playwright_mixins import (
     _ConnectMixin, _ContextMixin, _InteractionMixin, _PageMixin,
     _RecordingMixin, _ScopeMixin, _SessionsMixin, _StateMixin,
 )
-from je_web_runner.webdriver._playwright_mixins._common import (
-    BROWSER_NOT_LAUNCHED,
-    PlaywrightBackendError,
-)
+from je_web_runner.webdriver._playwright_mixins._common import BROWSER_NOT_LAUNCHED, PlaywrightBackendError, recorded
 from je_web_runner.webdriver.playwright_element_wrapper import (
     PlaywrightElementWrapper,
     playwright_element_wrapper,
@@ -118,6 +115,7 @@ class PlaywrightWrapper(  # pylint: disable=too-many-ancestors,too-many-instance
             raise PlaywrightBackendError(BROWSER_NOT_LAUNCHED)
         return self._browser
 
+    @recorded(hidden=("context_options", "launch_options"))
     def launch(
         self,
         browser: str = "chromium",
@@ -179,6 +177,7 @@ class PlaywrightWrapper(  # pylint: disable=too-many-ancestors,too-many-instance
         self._restart_tracing(context)
         return context
 
+    @recorded()
     def quit(self) -> None:
         """
         關閉所有瀏覽器並停止 Playwright
@@ -667,9 +666,10 @@ def pw_screenshot_bytes(full_page: bool = False) -> bytes:
     return playwright_wrapper_instance.screenshot_bytes(full_page=full_page)
 
 
-def pw_wait_for_selector(selector: str, timeout: float | None = None, state: str = "visible"):
-    """Wait until an element matching ``selector`` reaches ``state``; ``timeout`` is in milliseconds."""
-    return playwright_wrapper_instance.wait_for_selector(selector, timeout=timeout, state=state)
+def pw_wait_for_selector(selector: str, timeout: float | None = None, state: str = "visible",
+                         make_current: bool = False):
+    """Wait until ``selector`` reaches ``state`` (``timeout`` in ms); ``make_current`` keeps the element."""
+    return playwright_wrapper_instance.wait_for_selector(selector, timeout, state, make_current)
 
 
 def pw_wait_for_load_state(state: str = "load", timeout: float | None = None) -> None:
