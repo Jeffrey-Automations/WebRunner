@@ -163,7 +163,7 @@ def _is_zero(value: str) -> bool:
 
 def assert_safe_area_padding(snap: SafeAreaSnapshot) -> None:
     """At least one of the four body paddings must be non-zero on a
-    notched device — pages that don't bake env(safe-area-inset-*) into
+    notched device — pages that don't bake ``env(safe-area-inset-*)`` into
     their CSS will report all zeros."""
     if all(_is_zero(v) for v in (snap.padding_top, snap.padding_bottom,
                                  snap.padding_left, snap.padding_right)):

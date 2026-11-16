@@ -31,6 +31,11 @@ autosummary_generate = True
 # Parameters, plus repeated CJK headings). Prefix every label with the
 # document path so duplicates become unique.
 autosectionlabel_prefix_document = True
+# Public dataclasses have fields named ``bytes`` and ``type`` (EncodedChunk.bytes, FigmaHint.type ...).
+# Every ``bytes`` / ``type`` annotation in a signature then matches those attributes as well as the
+# builtin, and Sphinx reports the reference as ambiguous. The fields are public API and keep their
+# names, so that one category is silenced; the links still resolve to the first match.
+suppress_warnings = ["ref.python"]
 autodoc_default_options = {
     "members": True,
     "undoc-members": False,

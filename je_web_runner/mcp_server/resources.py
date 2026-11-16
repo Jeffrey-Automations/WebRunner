@@ -1,12 +1,12 @@
 """
 MCP 資源 / The MCP resources: what a model reads before it writes an action file.
 
-==================================  ===========================================================
-``webrunner://commands``            the Markdown reference of every ``WR_*`` command
-``webrunner://commands/{name}``     one command's signature and documentation (a template)
-``webrunner://schema/action``       the JSON Schema of an action file
+=====================================  ========================================================
+``webrunner://commands``               the Markdown reference of every ``WR_*`` command
+``webrunner://commands/{name}``        one command's signature and documentation (a template)
+``webrunner://schema/action``          the JSON Schema of an action file
 ``webrunner://guide/action-language``  how to write an action file
-==================================  ===========================================================
+=====================================  ========================================================
 
 Content is built when a resource is read, never when the server starts or lists them, so
 it always shows the commands registered at that moment.

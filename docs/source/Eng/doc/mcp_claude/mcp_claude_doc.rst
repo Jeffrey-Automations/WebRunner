@@ -209,8 +209,8 @@ Quality & triage
 * ``webrunner_compute_trend`` — Pass-rate / duration trend from a
   ledger file.
 
-Security
---------
+Security tools
+--------------
 
 * ``webrunner_scan_pii`` — Detect email / phone / Luhn-card / SSN /
   ROC-ID / IPv4 in text.

@@ -189,8 +189,8 @@ server 預設註冊 31 個工具，包含主機設定固定的 issue 排單、�
 * ``webrunner_cluster_failures`` — 依錯誤特徵 cluster 失敗。
 * ``webrunner_compute_trend`` — 從 ledger 算 pass-rate / 時長趨勢。
 
-安全
-----
+安全工具
+--------
 
 * ``webrunner_scan_pii`` — 偵測 email / 電話 / Luhn 卡號 / SSN /
   ROC ID / IPv4。

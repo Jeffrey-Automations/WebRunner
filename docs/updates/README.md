@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261116-37 | 2026-11-16 | Clear the Sphinx warnings and give Pylint the project line limit | #quality #docs #lint | [2026-11](2026-11.md) |
 | U-20261116-36 | 2026-11-16 | Offer MCP resources, prompts and three authoring tools | #feature #mcp #done | [2026-11](2026-11.md) |
 | U-20261116-35 | 2026-11-16 | Add a composite GitHub Action, a runner container file and a default runner image name | #feature #ci #k8s | [2026-11](2026-11.md) |
 | U-20261116-34 | 2026-11-16 | Add a pytest plugin, command plugins and console scripts for the servers | #feature #pytest #plugins #packaging | [2026-11](2026-11.md) |
@@ -215,7 +216,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 40 |
+| [2026-11.md](2026-11.md) | 2026-11 | 41 |
 | [2026-10-b.md](2026-10-b.md) | 2026-10 | 8 |
 | [2026-10.md](2026-10.md) | 2026-10 | 80 |
 | [2026-09.md](2026-09.md) | 2026-09 | 25 |
