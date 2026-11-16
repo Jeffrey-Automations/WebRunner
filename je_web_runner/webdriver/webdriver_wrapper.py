@@ -13,6 +13,7 @@ This file keeps only:
 """
 from __future__ import annotations
 
+import importlib
 import typing
 from functools import partial
 from pathlib import Path
@@ -147,6 +148,30 @@ def _build_driver_options(
     return driver_options
 
 
+# The Selenium module that holds the ``Service`` class of each browser webdriver-manager downloads for.
+_SERVICE_MODULES = {
+    "chrome": "selenium.webdriver.chrome.service",
+    "chromium": "selenium.webdriver.chrome.service",
+    "firefox": "selenium.webdriver.firefox.service",
+    "edge": "selenium.webdriver.edge.service",
+    "ie": "selenium.webdriver.ie.service",
+}
+
+
+def _with_driver_service(webdriver_name: str, driver_path: typing.Any,
+                         kwargs: dict[str, typing.Any]) -> dict[str, typing.Any]:
+    """
+    ``kwargs`` with a ``service`` that starts the driver webdriver-manager downloaded. Without it Selenium
+    ignores that download and resolves a driver of its own. A ``service`` the caller passed is kept, and
+    nothing is added when there is no path to a driver file.
+    """
+    module_name = _SERVICE_MODULES.get(webdriver_name)
+    if "service" in kwargs or module_name is None or not isinstance(driver_path, str) or not driver_path:
+        return kwargs
+    service_class = importlib.import_module(module_name).Service
+    return {**kwargs, "service": service_class(executable_path=driver_path)}
+
+
 class WebDriverWrapper(
     _ScriptingMixin,
     _NavigationMixin,
@@ -261,7 +286,8 @@ class WebDriverWrapper(
             # 傳入 cache_manager 讓 driver 快取落在 cwd(原本建立後卻沒被使用)。
             webdriver_install_manager = _webdriver_manager_dict.get(webdriver_name)
             if install_driver and webdriver_install_manager is not None:
-                webdriver_install_manager(cache_manager=cache_manager).install()
+                kwargs = _with_driver_service(
+                    webdriver_name, webdriver_install_manager(cache_manager=cache_manager).install(), kwargs)
 
             driver_options = _build_driver_options(
                 webdriver_name, options, experimental_options, extension_paths, enable_bidi,

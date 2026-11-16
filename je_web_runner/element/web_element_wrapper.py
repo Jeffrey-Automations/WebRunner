@@ -244,10 +244,11 @@ class WebElementWrapper:  # pylint: disable=too-many-public-methods  # one metho
         web_runner_logger.info(f"WebElementWrapper screenshot, filename: {filename}")
         param = locals()
         try:
+            saved = self.current_web_element.screenshot(filename + ".png")
             record_action_to_list("Web element screenshot", param, None)
-            return self.current_web_element.screenshot(filename + ".png")
+            return saved
         except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
-            web_runner_logger.info(f"WebElementWrapper screenshot, filename: {filename}, failed: {error!r}")
+            web_runner_logger.error(f"WebElementWrapper screenshot, filename: {filename}, failed: {error!r}")
             record_action_to_list("Web element screenshot", param, error)
             settle_wrapper_failure(error)
             return None

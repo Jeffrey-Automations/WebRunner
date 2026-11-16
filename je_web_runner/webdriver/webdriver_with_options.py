@@ -16,6 +16,7 @@ from je_web_runner.utils.exception.exceptions import (
 )
 from je_web_runner.utils.logging.loggin_instance import web_runner_logger
 from je_web_runner.utils.test_record.test_record_class import record_action_to_list
+from je_web_runner.utils.test_record.wrapper_failures import settle_wrapper_failure
 
 # 對應不同瀏覽器名稱與其 Options 類別
 # Mapping webdriver names to their Options classes
@@ -65,12 +66,13 @@ def set_webdriver_options_argument(
             webdriver_options.add_argument(value)
         record_action_to_list("webdriver with options set_webdriver_options_argument", param, None)
         return webdriver_options
-    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the caller gets None
+    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
         web_runner_logger.error(
             f"set_webdriver_options_argument, webdriver_name: {webdriver_name}, "
             f"argument_iterable: {argument_iterable}, failed: {error!r}"
         )
         record_action_to_list("webdriver with options set_webdriver_options_argument", param, error)
+        settle_wrapper_failure(error)
         return None
 
 
@@ -100,10 +102,11 @@ def set_webdriver_options_capability_wrapper(
             webdriver_options.set_capability(key, value)
         record_action_to_list("webdriver with options set_webdriver_options_capability_wrapper", param, None)
         return webdriver_options
-    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the caller gets None
+    except Exception as error:  # pylint: disable=broad-exception-caught  # recorded; the executor decides
         web_runner_logger.error(
             f"set_webdriver_options_capability_wrapper, webdriver_name: {webdriver_name}, "
             f"key_and_vale_dict: {key_and_vale_dict}, failed: {error!r}"
         )
         record_action_to_list("webdriver with options set_webdriver_options_capability_wrapper", param, error)
+        settle_wrapper_failure(error)
         return None
