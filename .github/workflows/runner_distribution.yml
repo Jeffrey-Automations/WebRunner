@@ -89,9 +89,10 @@ jobs:
 
     - name: A failing action file fails the container
       run: |
-        mkdir -p work/failing
-        printf '[["WR_fail", {"message": "meant to fail"}]]\n' > work/failing/fail.json
-        chmod -R a+rwX work
-        if docker run --rm -v "$PWD/work:/work" webrunner-runner:ci -d failing; then
+        # A directory of its own: the files the previous run wrote belong to the container's user.
+        mkdir -p failing-work/failing
+        printf '[["WR_fail", {"message": "meant to fail"}]]\n' > failing-work/failing/fail.json
+        chmod -R a+rwX failing-work
+        if docker run --rm -v "$PWD/failing-work:/work" webrunner-runner:ci -d failing; then
           echo "::error::a failing action file did not fail the container"; exit 1
         fi
