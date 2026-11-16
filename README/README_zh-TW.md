@@ -639,6 +639,29 @@ WebRunner 橋接取用 `executor` 與 `execute_one`，Jeffrey_RPA 以那個確�
 - 被呼叫的檔案必須在工作目錄之下，或在這次執行起始檔案的目錄之下；`..` 到不了其他地方。正在執行的檔案不能再被呼叫，呼叫最多巢狀 20 層。
 - 第一個失敗的動作會中止被呼叫的檔案，並讓 `WR_call_file` 這個動作失敗。`WR_execute_files` 是較舊的命令：不接受參數、路徑從工作目錄算起，而且只記錄失敗、自己不會失敗。
 
+### 共用定位器檔
+
+定位器檔把專案裡的元素集中取邏輯名稱，頁面變動時只需改一處：
+
+```json
+{
+  "login_button": {"by": "css selector", "value": "#login"},
+  "user_field": {"by": "id", "value": "user"}
+}
+```
+
+```python
+[
+    ["WR_load_locators", {"path": "locators.json"}],
+    ["WR_find_recorded_element", {"element_name": "user_field"}],
+    ["WR_element_input", {"input_value": "alice"}],
+    ["WR_find_recorded_element", {"element_name": "login_button"}],
+    ["WR_element_click"],
+]
+```
+
+`WR_load_locators`（`path`，相對於動作檔）把每個項目以其名稱存起來；`WR_save_locator`（`name`、`value`、`by`）則存一個。之後兩個後端依記錄名稱查找的命令（`WR_find_recorded_element`、`WR_pw_find_element`……）都可以使用邏輯名稱。`by` 是 Selenium 的定位策略（預設 `css selector`，另有 `id`、`xpath`、`link text`……）。也可以用 `--locators FILE`，或在專案設定檔寫 `locators = ["locators.json"]`，讓整次執行都載入這些檔案。
+
 ### 頂層形態
 
 ```python
@@ -981,7 +1004,7 @@ python -m je_web_runner.mcp_server
 預設工具清單（28 個工具）公開：
 
 即時瀏覽器執行：
-- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 570 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 執行任意 `WR_*` 動作清單。涵蓋全部 572 個 `WR_*` 命令，包括進階 WebDriverWrapper 新增項：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、頁面中繼資料取值器、Fetch 攔截原語、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批次執行磁碟上的 JSON 檔案
 - `webrunner_list_commands` —— 探索完整的 `WR_*` 介面面
 

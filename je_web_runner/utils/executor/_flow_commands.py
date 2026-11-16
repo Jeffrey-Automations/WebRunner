@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from je_web_runner.utils.executor._bound import Bound
 from je_web_runner.utils.flow import blocks, dataset, subflow
+from je_web_runner.utils.test_object import locator_file
 
 # Commands whose arguments hold actions to run later. The executor leaves their placeholders alone: each
 # nested action is expanded when it runs, with the values of that moment, not of the moment its block started.
@@ -53,6 +54,19 @@ def _use_row(executor: Any) -> Callable[..., Any]:
     return command
 
 
+def _load_locators(executor: Any) -> Callable[..., Any]:
+    def load_locators(path: str) -> list:
+        """
+        載入共用的定位器檔
+        Load a locator file (``{name: {"by": ..., "value": ...}}``) and return the names it defines.
+        The recorded-name commands of both backends then find those elements by name. A relative
+        ``path`` starts at the action file that is running.
+        """
+        return locator_file.load_locators(executor.files.resolve_data(path, "WR_load_locators"))
+
+    return load_locators
+
+
 def _block(function: Callable[..., Any]) -> Bound:
     """A table entry for a block function whose first parameter is the executor."""
     signature = inspect.signature(function)
@@ -77,6 +91,8 @@ FLOW_COMMANDS: dict[str, Any] = {
     "WR_list_vars": Bound(lambda executor: executor.variables.names),
     "WR_capture": Bound(_capture),
     "WR_use_row": Bound(_use_row),
+    "WR_load_locators": Bound(_load_locators),
+    "WR_save_locator": locator_file.save_locator,
     "WR_if": _block(blocks.run_if),
     "WR_for_each": _block(blocks.for_each),
     "WR_repeat": _block(blocks.repeat),

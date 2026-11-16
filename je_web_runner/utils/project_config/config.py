@@ -15,6 +15,7 @@ built-in default; without a file nothing changes.
     parallel = 4
     parallel_mode = "process"
     exclude_tag = ["sub-flow"]
+    locators = ["locators.json"]   # logical names for elements, loaded before the run
 
     [vars]
     base = "${ENV.BASE_URL}"
@@ -68,6 +69,7 @@ _KEYS: dict[str, tuple[Callable[[Any], bool], str]] = {
     "ledger": (_text, "a file path"),
     "parallel": (_whole(1, 256), "an integer from 1 to 256"),
     "parallel_mode": (lambda value: value in PARALLEL_MODES, "one of " + ", ".join(PARALLEL_MODES)),
+    "locators": (_text_list, "a list of locator files"),
     "tag": (_text_list, "a list of tags"),
     "exclude_tag": (_text_list, "a list of tags"),
 }
@@ -89,6 +91,7 @@ class ProjectConfig:
     ledger: str | None = None
     parallel: int | None = None
     parallel_mode: str | None = None
+    locators: list[str] = field(default_factory=list)
     tag: list[str] = field(default_factory=list)
     exclude_tag: list[str] = field(default_factory=list)
 

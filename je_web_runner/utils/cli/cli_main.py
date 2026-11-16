@@ -449,6 +449,9 @@ def _run_settings(args: argparse.Namespace) -> RunSettings:
     config = getattr(args, "project_config", None) or ProjectConfig()
     settings = build_run_settings(config, args.report, args.fail_fast, args.env, args.env_dir, args.variables)
     # An absolute path, so a worker process reads the same file whatever its working directory.
+    if args.locators:
+        files = (*settings.locators, *args.locators)
+        settings = replace(settings, locators=tuple(str(Path(name).resolve()) for name in files))
     return replace(settings, dataset=str(Path(args.dataset).resolve())) if args.dataset else settings
 
 

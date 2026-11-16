@@ -655,6 +655,29 @@ The first action that fails stops its block and fails the action that holds the 
 - The called file must be below the working directory or below the directory of the file the run started from; `..` cannot reach anything else. A file that is already running cannot be called again, and calls nest at most 20 deep.
 - The first action that fails stops the called file and fails the `WR_call_file` action. `WR_execute_files` is the older command: it takes no parameters, resolves paths from the working directory, and records a failure without failing its own action.
 
+### Shared locator file
+
+A locator file gives the elements of a project logical names in one place, so a change to the page is one edit:
+
+```json
+{
+  "login_button": {"by": "css selector", "value": "#login"},
+  "user_field": {"by": "id", "value": "user"}
+}
+```
+
+```python
+[
+    ["WR_load_locators", {"path": "locators.json"}],
+    ["WR_find_recorded_element", {"element_name": "user_field"}],
+    ["WR_element_input", {"input_value": "alice"}],
+    ["WR_find_recorded_element", {"element_name": "login_button"}],
+    ["WR_element_click"],
+]
+```
+
+`WR_load_locators` (`path`, relative to the action file) stores every entry under its name; `WR_save_locator` (`name`, `value`, `by`) stores one. The recorded-name commands of both backends (`WR_find_recorded_element`, `WR_pw_find_element` …) then take the logical name. `by` is a Selenium strategy (`css selector` by default, `id`, `xpath`, `link text` …). The files can also be loaded for the whole run with `--locators FILE` or `locators = ["locators.json"]` in the project configuration.
+
 ### Top-level shapes
 
 ```python
@@ -997,7 +1020,7 @@ python -m je_web_runner.mcp_server
 The default tool list (28 tools) exposes:
 
 Live browser execution:
-- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 570 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
+- `webrunner_run_actions` — execute any `WR_*` action list. Covers all 572 `WR_*` commands, including the advanced WebDriverWrapper additions: `WR_attach_to_existing_browser`, `WR_execute_cdp_cmd`, `WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`, `WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`, `WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`, `WR_save_full_page_screenshot` / `_print_page`, `WR_reload(ignore_cache=True)`, `WR_bring_to_front`, `WR_switch_to_window_by_url|title`, `WR_new_window` / `_close_window`, page metadata getters, Fetch interception primitives, `WR_add_script_to_evaluate_on_new_document`, …
 - `webrunner_run_action_files` — batch-run JSON files on disk
 - `webrunner_list_commands` — discover the full `WR_*` surface
 

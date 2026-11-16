@@ -76,6 +76,10 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
 ``--dataset FILE``\ （任意位置的 ``.csv`` 或 ``.json`` 檔）會讓每個沒有自己 ``meta.dataset``
 的檔案對每一列執行一次，以 ``${ROW.column}`` 讀取該列。
 
+``--locators FILE``\ （可重複）在執行前載入定位器檔：內容是
+``name: {"by": ..., "value": ...}`` 的 JSON 物件。之後動作檔可以用任一後端依記錄名稱查找
+的指令，以名稱找到這些元素。``WR_load_locators`` 則是在動作檔內做同一件事。
+
 ``--fail-fast`` 會在檔案中第一個動作失敗後跳過其餘動作（``meta.teardown`` 照樣執行），
 並且在 ``-d`` 執行中不再啟動第一個失敗檔案之後的檔案；沒執行的檔案數會印到 stderr。
 在 thread 與 process 平行模式下，已經在跑的檔案會跑完，尚未啟動的則不再執行。
@@ -110,7 +114,8 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
     base = "${ENV.BASE_URL}"
     user = "alice"
 
-``vars`` 會成為變數（同名時 ``--var`` 優先）。``report``、``ledger``、``parallel``、
+``vars`` 會成為變數（同名時 ``--var`` 優先）。``locators`` 是執行前載入的定位器檔清單
+（``--locators`` 會再加上去）。``report``、``ledger``、``parallel``、
 ``parallel_mode``、``tag`` 與 ``exclude_tag`` 取代同名旗標的預設值。``env``、``env_dir``、
 ``fail_fast``、``retries``、``retry_backoff`` 與 ``failure_screenshot_dir`` 會在第一個動作
 之前設定好執行器，``--parallel-mode process`` 的每個工作行程也一樣。未知的鍵或型別錯誤的值

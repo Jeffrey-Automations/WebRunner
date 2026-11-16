@@ -639,6 +639,29 @@ WebRunner 桥接取用 `executor` 与 `execute_one`，Jeffrey_RPA 以那个确�
 - 被调用的文件必须在工作目录之下，或在这次执行起始文件的目录之下；`..` 到不了其他地方。正在执行的文件不能再被调用，调用最多嵌套 20 层。
 - 第一个失败的动作会中止被调用的文件，并让 `WR_call_file` 这个动作失败。`WR_execute_files` 是较旧的命令：不接受参数、路径从工作目录算起，而且只记录失败、自己不会失败。
 
+### 共用定位器文件
+
+定位器文件把项目里的元素集中取逻辑名称，页面变动时只需改一处：
+
+```json
+{
+  "login_button": {"by": "css selector", "value": "#login"},
+  "user_field": {"by": "id", "value": "user"}
+}
+```
+
+```python
+[
+    ["WR_load_locators", {"path": "locators.json"}],
+    ["WR_find_recorded_element", {"element_name": "user_field"}],
+    ["WR_element_input", {"input_value": "alice"}],
+    ["WR_find_recorded_element", {"element_name": "login_button"}],
+    ["WR_element_click"],
+]
+```
+
+`WR_load_locators`（`path`，相对于动作文件）把每个条目以其名称存起来；`WR_save_locator`（`name`、`value`、`by`）则存一个。之后两个后端按记录名称查找的命令（`WR_find_recorded_element`、`WR_pw_find_element`……）都可以使用逻辑名称。`by` 是 Selenium 的定位策略（默认 `css selector`，另有 `id`、`xpath`、`link text`……）。也可以用 `--locators FILE`，或在项目配置文件写 `locators = ["locators.json"]`，让整次运行都加载这些文件。
+
 ### 顶层形态
 
 ```python
@@ -981,7 +1004,7 @@ python -m je_web_runner.mcp_server
 默认工具列表（28 个工具）暴露：
 
 实时浏览器执行：
-- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 570 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
+- `webrunner_run_actions` —— 执行任意 `WR_*` 动作列表。覆盖全部 572 个 `WR_*` 命令，包括高级 WebDriverWrapper 新增项：`WR_attach_to_existing_browser`、`WR_execute_cdp_cmd`、`WR_set_timezone` / `_locale` / `_device_metrics` / `_user_agent` / `_extra_http_headers` / `_geolocation` / `_network_conditions`、`WR_block_urls` / `_set_cache_disabled` / `_set_download_directory`、`WR_save_cookies` / `_load_cookies` / `_clear_origin_storage`、`WR_save_full_page_screenshot` / `_print_page`、`WR_reload(ignore_cache=True)`、`WR_bring_to_front`、`WR_switch_to_window_by_url|title`、`WR_new_window` / `_close_window`、页面元数据取值器、Fetch 拦截原语、`WR_add_script_to_evaluate_on_new_document`……
 - `webrunner_run_action_files` —— 批量运行磁盘上的 JSON 文件
 - `webrunner_list_commands` —— 发现完整的 `WR_*` 接口面
 

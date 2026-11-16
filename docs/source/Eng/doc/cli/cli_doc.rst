@@ -93,6 +93,11 @@ repeatable, and ``VALUE`` is read as JSON when it parses as JSON (``3``, ``true`
 has no ``meta.dataset`` of its own run once per row, reading the row as
 ``${ROW.column}``.
 
+``--locators FILE`` (repeatable) loads a locator file before the run: a JSON object of
+``name: {"by": ..., "value": ...}``. Action files then find those elements by name with
+the recorded-name commands of either backend. ``WR_load_locators`` does the same from
+inside an action file.
+
 ``--fail-fast`` skips the actions of a file after its first failed one
 (``meta.teardown`` still runs), and in a ``-d`` run does not start the files after
 the first failed one; the number of files left out goes to stderr. In the thread
@@ -130,7 +135,8 @@ the file over the built-in default; without a file nothing changes.
     base = "${ENV.BASE_URL}"
     user = "alice"
 
-``vars`` become variables (``--var`` wins for the same name). ``report``,
+``vars`` become variables (``--var`` wins for the same name). ``locators`` is a list
+of locator files loaded before the run (``--locators`` adds to it). ``report``,
 ``ledger``, ``parallel``, ``parallel_mode``, ``tag`` and ``exclude_tag`` replace
 the defaults of the flags of the same name. ``env``, ``env_dir``, ``fail_fast``,
 ``retries``, ``retry_backoff`` and ``failure_screenshot_dir`` set the executor up

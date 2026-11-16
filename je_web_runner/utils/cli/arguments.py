@@ -52,6 +52,11 @@ def _add_project_args(parser: argparse.ArgumentParser) -> None:
         help="a .csv or .json dataset: every file without a meta.dataset of its own runs once per row, "
              "reading the row as ${ROW.column}",
     )
+    parser.add_argument(
+        "--locators", action="append", default=None, metavar="FILE",
+        help="a locator file ({name: {by, value}}) loaded before the run, so action files find "
+             "elements by name; repeatable",
+    )
     parser.add_argument("--lint", type=str, default=None, metavar="PATH",
                         help="lint an action JSON file or directory; a warning exits 1")
     parser.add_argument("--list-commands", action="store_true", dest="list_commands",

@@ -16,6 +16,7 @@ from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor.action_executor import executor
 from je_web_runner.utils.flow.dataset import read_rows_file
 from je_web_runner.utils.project_config.config import ProjectConfig
+from je_web_runner.utils.test_object.locator_file import load_locators
 from je_web_runner.utils.test_record.test_record_class import test_record_instance
 
 
@@ -31,6 +32,7 @@ class RunSettings:
     retry_backoff: float = 0.0
     failure_screenshot_dir: str | None = None
     dataset: str | None = None
+    locators: tuple[str, ...] = ()
     variables: dict[str, Any] = field(default_factory=dict)
 
 
@@ -62,6 +64,7 @@ def build_run_settings(config: ProjectConfig, report: str | None, fail_fast: boo
         retries=config.retries,
         retry_backoff=config.retry_backoff,
         failure_screenshot_dir=config.failure_screenshot_dir,
+        locators=tuple(config.locators),
         variables=merged,
     )
 
@@ -83,6 +86,8 @@ def apply_run_settings(settings: RunSettings) -> None:
         executor.set_retry_policy(settings.retries, settings.retry_backoff)
     if settings.failure_screenshot_dir is not None:
         executor.set_failure_screenshot_dir(settings.failure_screenshot_dir)
+    for locator_path in settings.locators:
+        load_locators(locator_path)
     if settings.dataset is not None:
         # Read here, once: the operator named this file, so the fence on action files does not apply.
         executor.default_dataset = read_rows_file(settings.dataset)

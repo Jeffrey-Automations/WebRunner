@@ -1,6 +1,6 @@
 # WebRunner command reference
 
-Auto-generated from the executor's event_dict (570 commands).
+Auto-generated from the executor's event_dict (572 commands).
 
 | Command | Signature | Summary |
 | --- | --- | --- |
@@ -248,6 +248,7 @@ Auto-generated from the executor's event_dict (570 commands).
 | `WR_load_dataset_csv` | `(path: 'str', encoding: 'str' = 'utf-8') -> 'list[dict[str, str]]'` | 讀取 CSV 為 list of dict（首列為欄位名） |
 | `WR_load_dataset_json` | `(path: 'str', encoding: 'str' = 'utf-8') -> 'list[dict[str, Any]]'` | 讀取 JSON 為 list of dict |
 | `WR_load_env` | `(env_name: 'str | None' = None, env_dir: 'str' = '.', override: 'bool' = False) -> 'str'` | 載入指定環境的 ``.env`` 檔 |
+| `WR_load_locators` | `(path: 'str') -> 'list'` | 載入共用的定位器檔 |
 | `WR_local_storage_all` | `() -> 'dict'` |  |
 | `WR_local_storage_clear` | `() -> 'None'` |  |
 | `WR_local_storage_get` | `(key: 'str') -> 'str | None'` |  |
@@ -490,6 +491,7 @@ Auto-generated from the executor's event_dict (570 commands).
 | `WR_run_with_dataset` | `(action_data, rows)` |  |
 | `WR_save_cookies` | `(file_path: 'str') -> 'bool'` | 將當前頁面的 cookies 序列化為 JSON 並寫入檔案 (用於 session reuse)。 |
 | `WR_save_full_page_screenshot` | `(file_path: 'str') -> 'bool'` | 將整個頁面 (含可視範圍外) 截圖儲存為 PNG，透過 CDP |
+| `WR_save_locator` | `(name: 'str', value: 'str', by: 'str' = 'CSS_SELECTOR') -> 'str'` | 以邏輯名稱儲存定位器 |
 | `WR_save_screenshot` | `(file_path: 'str') -> 'bool'` | 將當前頁面截圖儲存至指定路徑 (PNG) |
 | `WR_save_test_object` | `(test_object_name: str, object_type: str | None = None, **kwargs) -> None` | 儲存新的測試物件 |
 | `WR_SaveTestObject` | `(test_object_name: str, object_type: str | None = None, **kwargs) -> None` | 儲存新的測試物件 |
@@ -565,8 +567,8 @@ Auto-generated from the executor's event_dict (570 commands).
 | `WR_user_factory` | `(prefix: 'str' = 'user') -> 'Factory'` | Default user shape: id / name / email / password. |
 | `WR_validate_action_file` | `(json_file_path: 'str') -> 'bool'` | 讀取並驗證動作 JSON 檔案 |
 | `WR_validate_action_json` | `(data: 'list | dict') -> 'bool'` | 驗證動作 JSON 是否符合執行器格式 |
-| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000002121C797240>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
-| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000002121C797240>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
+| `WR_visual_capture_baseline` | `(baseline_path: 'str', screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001EE151980E0>) -> 'str'` | 擷取當前頁面並儲存為基準圖 |
+| `WR_visual_compare` | `(baseline_path: 'str', diff_path: 'str | None' = None, current_path: 'str | None' = None, threshold: 'int' = 0, screenshot: 'Callable[[], bytes]' = <function _selenium_png at 0x000001EE151980E0>) -> 'dict'` | 擷取目前頁面並與基準圖比較 |
 | `WR_wait_for_download` | `(directory: 'str', timeout: 'float' = 60.0, suffix: 'str | None' = None, poll_seconds: 'float' = 0.5) -> 'str'` | 等待 ``directory`` 內出現新檔案（會跳過 ``.crdownload`` / ``.part``） |
 | `WR_wait_for_element` | `(selector: 'str', by: 'str' = 'css selector', timeout: 'float' = 10.0, state: 'str' = 'visible') -> 'Any'` | 等元素出現（``present`` / ``visible`` / ``clickable``）或消失（``hidden``） |
 | `WR_wait_for_ready_state` | `(timeout: 'float' = 30.0) -> 'bool'` | Wait until ``document.readyState`` is ``complete``. |
