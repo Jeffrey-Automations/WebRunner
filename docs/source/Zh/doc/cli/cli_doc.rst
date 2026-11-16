@@ -77,8 +77,13 @@ JSON 時就當作 JSON（``3``、``true``、``[1, 2]``），否則就是文字�
 的檔案對每一列執行一次，以 ``${ROW.column}`` 讀取該列。
 
 ``--fail-fast`` 會在檔案中第一個動作失敗後跳過其餘動作（``meta.teardown`` 照樣執行），
-並且在循序的 ``-d`` 執行中不再啟動第一個失敗檔案之後的檔案；沒執行的檔案數會印到 stderr。
-thread、process 與 async 的平行模式則會執行每一個檔案。
+並且在 ``-d`` 執行中不再啟動第一個失敗檔案之後的檔案；沒執行的檔案數會印到 stderr。
+在 thread 與 process 平行模式下，已經在跑的檔案會跑完，尚未啟動的則不再執行。
+``--parallel-mode async`` 會執行每一個檔案。
+
+宣告了 ``meta.depends_on`` 的檔案會依相依順序執行。``--parallel`` 大於 1（或
+``--parallel-mode async``）時改為逐層執行：同一層的檔案只相依於前面各層的檔案，每一層
+作為一批交給平行池。相依的檔案失敗時，該檔案會被跳過並算作失敗。
 
 專案設定檔
 ----------
@@ -121,6 +126,10 @@ thread、process 與 async 的平行模式則會執行每一個檔案。
   ``path: severity [rule] location: message``。有 warning 時以 1 結束；info 不會。
 * ``--list-commands`` 印出每個已註冊的 ``WR_*`` 指令，一行一個。
 * ``--init DIR`` 把 ``utils/bootstrapper`` 的起始工作區寫進 ``DIR``；既有檔案會保留。
+* ``--format PATH`` 把一個動作檔，或目錄底下的每個 ``.json`` 檔，改寫成標準排版，並印出
+  有變動的檔案。加上 ``--format-check`` 時不寫入任何東西，有檔案會變動就以 1 結束。
+* ``--export-schema FILE`` 寫出動作檔的 JSON schema；``--export-command-reference FILE``
+  寫出所有 ``WR_*`` 指令的 Markdown 表格。兩者都反映這份安裝中已註冊的指令。
 
 報告
 ----

@@ -94,9 +94,15 @@ has no ``meta.dataset`` of its own run once per row, reading the row as
 ``${ROW.column}``.
 
 ``--fail-fast`` skips the actions of a file after its first failed one
-(``meta.teardown`` still runs), and in a sequential ``-d`` run does not start the
-files after the first failed one; the number of files left out goes to stderr.
-The thread, process and async pools run every file.
+(``meta.teardown`` still runs), and in a ``-d`` run does not start the files after
+the first failed one; the number of files left out goes to stderr. In the thread
+and process pools the files already running finish, and the ones not started are
+left out. ``--parallel-mode async`` runs every file.
+
+Files that declare ``meta.depends_on`` run in dependency order. With ``--parallel``
+above 1 (or ``--parallel-mode async``) they run level by level: every file of a
+level depends only on files of earlier levels, and a level is one batch for the
+pool. A file whose dependency failed is skipped and counts as failed.
 
 Project Configuration
 ---------------------
@@ -144,6 +150,12 @@ These flags run no action file and can be combined with the others:
 * ``--list-commands`` prints every registered ``WR_*`` command, one per line.
 * ``--init DIR`` writes the starter workspace of ``utils/bootstrapper`` into
   ``DIR``; existing files are kept.
+* ``--format PATH`` rewrites one action file, or every ``.json`` file below a
+  directory, in the canonical layout and prints the files it changed. With
+  ``--format-check`` nothing is written and a file that would change exits 1.
+* ``--export-schema FILE`` writes the JSON schema of action files;
+  ``--export-command-reference FILE`` writes the Markdown table of every
+  ``WR_*`` command. Both reflect the commands registered in this installation.
 
 Reports
 -------

@@ -1972,6 +1972,8 @@ python -m je_web_runner -d ./actions --dataset users.csv     # every file runs o
 python -m je_web_runner -d ./actions --fail-fast             # stop a file, and the directory, at the first failure
 python -m je_web_runner --lint ./actions                     # a warning exits 1
 python -m je_web_runner --list-commands
+python -m je_web_runner --format ./actions                   # canonical layout; --format-check only reports and exits 1
+python -m je_web_runner --export-schema schema.json --export-command-reference commands.md   # for editors and docs
 python -m je_web_runner --init ./my_project                  # starter workspace; existing files are kept
 python -m je_web_runner -d ./actions --config ci.toml        # or --no-config
 ```

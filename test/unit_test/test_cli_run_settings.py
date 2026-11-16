@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from je_web_runner.utils.cli import cli_main
 from je_web_runner.utils.cli.cli_main import main
+from je_web_runner.utils.cli.failure_count import FailureCount
 from je_web_runner.utils.cli.run_settings import RunSettings, apply_run_settings, build_run_settings, parse_variable
 from je_web_runner.utils.exception.exceptions import WebRunnerExecuteException
 from je_web_runner.utils.executor.action_executor import executor
@@ -163,7 +164,8 @@ class TestCliFlags(_CleanExecutor):
         self._write("suite/a.json", [["WR_probe"]])
         test_record_instance.set_record_enable(False)
         pool_class = MagicMock()
-        pool_class.return_value.__enter__.return_value.map.return_value = [("a.json", True, [])]
+        pool = pool_class.return_value.__enter__.return_value
+        pool.submit.return_value.result.return_value = ("a.json", True, [])
         with patch.object(cli_main, "ProcessPoolExecutor", pool_class):
             self._main(["-d", str(self.root / "suite"), "--parallel", "2", "--parallel-mode", "process",
                         "--var", "who=worker", "--fail-fast"])
@@ -216,6 +218,158 @@ class TestToolFlags(_CleanExecutor):
         _code, out, _err = self._main(["--init", str(target)])
         self.assertIn("skipped:", out)
         self.assertNotIn("created:", out)
+
+
+class _Future:
+    """A finished or still-pending pool future, as far as the fail-fast loop looks at one."""
+
+    def __init__(self, result, pending=False):
+        self._result = result
+        self.pending = pending
+        self.cancelled = False
+
+    def cancel(self):
+        self.cancelled = self.pending
+        return self.pending
+
+    def result(self):
+        return self._result
+
+
+class TestPoolFailFast(_CleanExecutor):
+
+    def test_process_pool_cancels_what_has_not_started(self):
+        for name in ("a", "b", "c", "d"):
+            self._write(f"suite/{name}.json", [["WR_probe"]])
+        futures = [_Future(("a.json", True, [])), _Future(("b.json", False, [])),
+                   _Future(("c.json", True, [])), _Future(("d.json", True, []), pending=True)]
+        pool_class = MagicMock()
+        pool_class.return_value.__enter__.return_value.submit.side_effect = futures
+        with patch.object(cli_main, "ProcessPoolExecutor", pool_class):
+            code, _out, err = self._main(["-d", str(self.root / "suite"), "--parallel", "2",
+                                          "--parallel-mode", "process", "--fail-fast"])
+        self.assertEqual(code, 1)
+        self.assertEqual([future.cancelled for future in futures], [False, False, False, True])
+        self.assertIn("1 file(s) not run", err)
+
+    def test_process_pool_without_fail_fast_uses_map(self):
+        self._write("suite/a.json", [["WR_probe"]])
+        pool_class = MagicMock()
+        pool = pool_class.return_value.__enter__.return_value
+        pool.map.return_value = [("a.json", True, [])]
+        with patch.object(cli_main, "ProcessPoolExecutor", pool_class):
+            self._main(["-d", str(self.root / "suite"), "--parallel", "2", "--parallel-mode", "process"])
+        pool.map.assert_called_once()
+        pool.submit.assert_not_called()
+
+    def test_thread_pool_stops_starting_files(self):
+        self._write("suite/a.json", [["WR_boom"]])
+        for name in ("b", "c", "d"):
+            self._write(f"suite/{name}.json", [["WR_probe", [name]]])
+        files = [str(self.root / "suite" / f"{name}.json") for name in ("a", "b", "c", "d")]
+        err = io.StringIO()
+        # One worker, so the files start in the list's order; the count is what main() keeps open.
+        with FailureCount(), redirect_stdout(io.StringIO()), redirect_stderr(err):
+            outcome = cli_main._run_with_thread_pool(files, 1, None, fail_fast=True)
+        self.assertEqual(outcome, {files[0]: False})
+        self.assertEqual(self.seen, [])
+        self.assertIn("3 file(s) not run", err.getvalue())
+
+    def test_thread_pool_without_fail_fast_runs_every_file(self):
+        self._write("suite/a.json", [["WR_boom"]])
+        self._write("suite/b.json", [["WR_probe", ["b"]]])
+        files = [str(self.root / "suite" / f"{name}.json") for name in ("a", "b")]
+        with FailureCount(), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            outcome = cli_main._run_with_thread_pool(files, 1, None)
+        self.assertEqual(outcome, {files[0]: False, files[1]: True})
+        self.assertEqual(self.seen, ["b"])
+
+
+class TestDependencyLevels(_CleanExecutor):
+
+    def test_levels(self):
+        from je_web_runner.utils.cli.dependency_levels import dependency_levels
+        graph = {"login": [], "cart": ["login"], "search": [], "checkout": ["cart", "search"]}
+        self.assertEqual(dependency_levels(graph), [["login", "search"], ["cart"], ["checkout"]])
+
+    def test_cycle_is_an_error(self):
+        from je_web_runner.utils.cli.dependency_levels import dependency_levels
+        from je_web_runner.utils.test_filter.dependency import DependencyError
+        with self.assertRaises(DependencyError):
+            dependency_levels({"a": ["b"], "b": ["a"]})
+
+    def test_failed_dependency_skips_what_depends_on_it(self):
+        from je_web_runner.utils.cli.dependency_levels import run_in_levels
+        graph = {"login": [], "cart": ["login"], "search": [], "checkout": ["cart"], "about": ["search"]}
+        batches, skipped = [], []
+
+        def run_batch(paths):
+            batches.append(list(paths))
+            return {path: path != "login" for path in paths}
+
+        outcome = run_in_levels(graph, run_batch, skipped.append)
+        self.assertEqual(batches, [["login", "search"], ["about"]])
+        self.assertEqual(skipped, ["cart", "checkout"])
+        self.assertEqual(outcome, {"login": False, "search": True, "cart": False, "about": True, "checkout": False})
+
+    def test_fail_fast_stops_after_the_failing_level(self):
+        from je_web_runner.utils.cli.dependency_levels import run_in_levels
+        batches = []
+
+        def run_batch(paths):
+            batches.append(list(paths))
+            return {path: False for path in paths}
+
+        run_in_levels({"a": [], "b": ["a"], "c": []}, run_batch, lambda _path: None, fail_fast=True)
+        self.assertEqual(batches, [["a", "c"]])
+
+    def test_directory_with_dependencies_runs_in_the_pool_by_level(self):
+        self._write("suite/login.json", {"meta": {"tags": ["x"]}, "webdriver_wrapper": [["WR_probe", ["login"]]]})
+        self._write("suite/cart.json", {"meta": {"depends_on": ["login"]},
+                                        "webdriver_wrapper": [["WR_probe", ["cart"]]]})
+        self._write("suite/pay.json", {"meta": {"depends_on": ["cart"]},
+                                       "webdriver_wrapper": [["WR_probe", ["pay"]]]})
+        code, _out, _err = self._main(["-d", str(self.root / "suite"), "--parallel", "2"])
+        self.assertEqual((code, self.seen), (0, ["login", "cart", "pay"]))
+
+    def test_failed_upstream_skips_downstream_in_the_pool(self):
+        self._write("suite/login.json", [["WR_boom"]])
+        self._write("suite/cart.json", {"meta": {"depends_on": ["login"]},
+                                        "webdriver_wrapper": [["WR_probe", ["cart"]]]})
+        self._write("suite/other.json", [["WR_probe", ["other"]]])
+        code, _out, _err = self._main(["-d", str(self.root / "suite"), "--parallel", "2"])
+        self.assertEqual(code, 1)
+        self.assertEqual(self.seen, ["other"])
+
+
+class TestFormatAndExportFlags(_CleanExecutor):
+
+    def test_format_rewrites_only_what_changes(self):
+        messy = self._write("suite/messy.json", '[["WR_quit_all"],["WR_note",{"text":"x"}]]')
+        code, out, _err = self._main(["--format", str(self.root / "suite")])
+        self.assertEqual(code, 0)
+        self.assertIn("reformatted:", out)
+        formatted = messy.read_text(encoding="utf-8")
+        self.assertNotEqual(formatted, '[["WR_quit_all"],["WR_note",{"text":"x"}]]')
+        self.assertEqual(json.loads(formatted), [["WR_quit_all"], ["WR_note", {"text": "x"}]])
+        _code, out, _err = self._main(["--format", str(self.root / "suite")])
+        self.assertNotIn("reformatted:", out)
+
+    def test_format_check_changes_nothing_and_exits_1(self):
+        original = '[["WR_quit_all"],["WR_note",{"text":"x"}]]'
+        messy = self._write("messy.json", original)
+        code, out, _err = self._main(["--format", str(messy), "--format-check"])
+        self.assertEqual(code, 1)
+        self.assertIn("would reformat:", out)
+        self.assertEqual(messy.read_text(encoding="utf-8"), original)
+
+    def test_export_schema_and_command_reference(self):
+        schema = self.root / "out" / "schema.json"
+        reference = self.root / "out" / "commands.md"
+        code, _out, _err = self._main(["--export-schema", str(schema), "--export-command-reference", str(reference)])
+        self.assertEqual(code, 0)
+        self.assertIn("oneOf", json.loads(schema.read_text(encoding="utf-8")))
+        self.assertIn("`WR_to_url`", reference.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

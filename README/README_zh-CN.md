@@ -1949,6 +1949,8 @@ python -m je_web_runner -d ./actions --dataset users.csv     # 每个文件对�
 python -m je_web_runner -d ./actions --fail-fast             # 文件与目录都在第一个失败处停止
 python -m je_web_runner --lint ./actions                     # 有 warning 时以 1 结束
 python -m je_web_runner --list-commands
+python -m je_web_runner --format ./actions                   # 标准排版；--format-check 只报告并以 1 结束
+python -m je_web_runner --export-schema schema.json --export-command-reference commands.md   # 供编辑器与文档使用
 python -m je_web_runner --init ./my_project                  # 起始工作区；已有文件会保留
 python -m je_web_runner -d ./actions --config ci.toml        # 或 --no-config
 ```
