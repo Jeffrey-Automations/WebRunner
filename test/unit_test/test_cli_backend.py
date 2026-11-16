@@ -69,6 +69,15 @@ class TestExecutorBackend(_BackendCase):
                 executor.execute_one(["WR_call_file", {"path": "called.json"}])
         self.assertIn("WR_maximize_window", str(caught.exception))
 
+    def test_a_list_another_command_runs_is_translated_when_it_runs(self):
+        executor.set_backend("playwright")
+        # Not walked at load, so the outer list is accepted; the inner one is refused when it is run.
+        outer = [["WR_execute_action", {"action_list": [NO_EQUIVALENT]}]]
+        self.assertEqual(executor.document_actions(outer), outer)
+        with self.assertRaises(WebRunnerException) as caught:
+            executor.execute_one(outer[0])
+        self.assertIn("WR_maximize_window", str(caught.exception))
+
     def test_unknown_backend_is_refused_and_changes_nothing(self):
         with self.assertRaises(SelToPwError):
             executor.set_backend("webkitgtk")
